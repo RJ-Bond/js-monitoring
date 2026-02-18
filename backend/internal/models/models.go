@@ -1,0 +1,59 @@
+package models
+
+import (
+	"time"
+
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+)
+
+// Server — основная запись игрового сервера
+type Server struct {
+	ID         uint          `gorm:"primaryKey;autoIncrement"                  json:"id"`
+	UUID       string        `gorm:"type:varchar(36);uniqueIndex;not null"     json:"uuid"`
+	Title      string        `gorm:"type:varchar(255);not null"                json:"title"`
+	IP         string        `gorm:"type:varchar(45);not null"                 json:"ip"`
+	Port       uint16        `gorm:"not null"                                  json:"port"`
+	GameType   string        `gorm:"type:enum('source','minecraft','fivem');not null" json:"game_type"`
+	SecretRCON string        `gorm:"type:varchar(255)"                         json:"-"`
+	CreatedAt  time.Time     `                                                 json:"created_at"`
+	UpdatedAt  time.Time     `                                                 json:"updated_at"`
+
+	Status      *ServerStatus `gorm:"foreignKey:ServerID" json:"status,omitempty"`
+	AlertConfig *AlertsConfig `gorm:"foreignKey:ServerID" json:"alert_config,omitempty"`
+}
+
+func (s *Server) BeforeCreate(_ *gorm.DB) error {
+	s.UUID = uuid.New().String()
+	return nil
+}
+
+// ServerStatus — текущее состояние сервера (upsert при каждом опросе)
+type ServerStatus struct {
+	ID           uint      `gorm:"primaryKey;autoIncrement" json:"id"`
+	ServerID     uint      `gorm:"uniqueIndex;not null"     json:"server_id"`
+	OnlineStatus bool      `gorm:"default:false"            json:"online_status"`
+	PlayersNow   int       `gorm:"default:0"                json:"players_now"`
+	PlayersMax   int       `gorm:"default:0"                json:"players_max"`
+	CurrentMap   string    `gorm:"type:varchar(255)"        json:"current_map"`
+	PingMS       int       `gorm:"default:0"                json:"ping_ms"`
+	LastUpdate   time.Time `                                json:"last_update"`
+}
+
+// PlayerHistory — история онлайна для графиков
+type PlayerHistory struct {
+	ID        uint      `gorm:"primaryKey;autoIncrement" json:"id"`
+	ServerID  uint      `gorm:"index;not null"           json:"server_id"`
+	Count     int       `gorm:"not null"                 json:"count"`
+	Timestamp time.Time `gorm:"index;not null"           json:"timestamp"`
+}
+
+// AlertsConfig — настройки Telegram-уведомлений
+type AlertsConfig struct {
+	ID             uint   `gorm:"primaryKey;autoIncrement" json:"id"`
+	ServerID       uint   `gorm:"uniqueIndex;not null"     json:"server_id"`
+	ThresholdCPU   int    `gorm:"default:90"               json:"threshold_cpu"`
+	OfflineTimeout int    `gorm:"default:5"                json:"offline_timeout"` // минуты
+	TgChatID       string `gorm:"type:varchar(50)"         json:"tg_chat_id"`
+	Enabled        bool   `gorm:"default:true"             json:"enabled"`
+}

@@ -1,0 +1,108 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 230 25% 5%;
+    --foreground: 220 15% 95%;
+    --card: 230 20% 8%;
+    --card-foreground: 220 15% 95%;
+    --primary: 152 100% 50%;
+    --primary-foreground: 230 25% 5%;
+    --secondary: 230 20% 14%;
+    --secondary-foreground: 220 15% 85%;
+    --muted: 230 20% 12%;
+    --muted-foreground: 220 10% 55%;
+    --accent: 200 100% 50%;
+    --accent-foreground: 230 25% 5%;
+    --border: 230 20% 14%;
+    --radius: 0.75rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--muted));
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 3px;
+  }
+}
+
+@layer components {
+  /* Glassmorphism card */
+  .glass-card {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    transition: border-color 0.3s ease, transform 0.2s ease;
+  }
+  .glass-card:hover {
+    border-color: rgba(255, 255, 255, 0.14);
+    transform: translateY(-2px);
+  }
+
+  /* Cyberpunk grid background */
+  .bg-grid {
+    background-image:
+      linear-gradient(rgba(0, 255, 136, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 255, 136, 0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+
+  /* Status dot */
+  .status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .status-dot-online {
+    background: #00ff88;
+    box-shadow: 0 0 8px #00ff88, 0 0 16px #00ff8866;
+    animation: pulse-online 2s ease-in-out infinite;
+  }
+  .status-dot-offline {
+    background: #ff2244;
+    box-shadow: 0 0 8px #ff2244, 0 0 16px #ff224466;
+    animation: pulse-offline 2s ease-in-out infinite;
+  }
+
+  /* Gradient border glow */
+  .card-glow-online {
+    box-shadow: 0 0 0 1px rgba(0, 255, 136, 0.2), 0 4px 24px rgba(0, 255, 136, 0.06);
+  }
+  .card-glow-offline {
+    box-shadow: 0 0 0 1px rgba(255, 34, 68, 0.15), 0 4px 24px rgba(255, 34, 68, 0.04);
+  }
+
+  /* Terminal */
+  .terminal {
+    font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+    background: rgba(0, 0, 0, 0.8);
+    border: 1px solid rgba(0, 255, 136, 0.2);
+    border-radius: 8px;
+  }
+}
+
+@keyframes pulse-online {
+  0%, 100% { box-shadow: 0 0 8px #00ff88, 0 0 16px #00ff8866; }
+  50%       { box-shadow: 0 0 12px #00ff88, 0 0 28px #00ff8888, 0 0 40px #00ff8833; }
+}
+@keyframes pulse-offline {
+  0%, 100% { box-shadow: 0 0 8px #ff2244, 0 0 16px #ff224466; }
+  50%       { box-shadow: 0 0 12px #ff2244, 0 0 28px #ff224488, 0 0 40px #ff224433; }
+}

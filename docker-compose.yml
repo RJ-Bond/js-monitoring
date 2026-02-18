@@ -1,0 +1,91 @@
+version: "3.9"
+
+services:
+  # ─── MySQL 8.4 ──────────────────────────────────────────────────────────────
+  mysql:
+    image: mysql:8.4
+    container_name: jsmon-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE:      ${MYSQL_DATABASE:-js_monitoring}
+      MYSQL_USER:          ${MYSQL_USER:-jsmon}
+      MYSQL_PASSWORD:      ${MYSQL_PASSWORD:-supersecretpassword}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "127.0.0.1:3306:3306"   # только localhost (безопасность)
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - jsmon-net
+
+  # ─── Go Backend ─────────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: jsmon-backend
+    restart: unless-stopped
+    environment:
+      DB_HOST:     mysql
+      DB_PORT:     3306
+      DB_USER:     ${MYSQL_USER:-jsmon}
+      DB_PASSWORD: ${MYSQL_PASSWORD:-supersecretpassword}
+      DB_NAME:     ${MYSQL_DATABASE:-js_monitoring}
+      PORT:        8080
+      API_SECRET_KEY: ${API_SECRET_KEY:-change_me_in_production}
+      TELEGRAM_BOT_TOKEN:      ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_DEFAULT_CHAT_ID: ${TELEGRAM_DEFAULT_CHAT_ID:-}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - jsmon-net
+
+  # ─── Next.js Frontend ───────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ""       # пустая строка → использует nginx rewrite
+        NEXT_PUBLIC_WS_URL: ""
+    container_name: jsmon-frontend
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: ""
+      NEXT_PUBLIC_WS_URL: ""
+    depends_on:
+      - backend
+    networks:
+      - jsmon-net
+
+  # ─── Nginx reverse-proxy ─────────────────────────────────────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: jsmon-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro          # опционально: TLS сертификаты
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - jsmon-net
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  jsmon-net:
+    driver: bridge
