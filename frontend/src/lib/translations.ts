@@ -120,4 +120,10 @@ export const translations = {
   },
 } as const;
 
-export type Translations = (typeof translations)["en"];
+// Widened type: preserves function signatures but relaxes string literals to `string`
+// so both "en" and "ru" objects satisfy the same Translations interface
+type Widened<T> = {
+  [K in keyof T]: T[K] extends (...args: infer A) => string ? (...args: A) => string : string;
+};
+
+export type Translations = Widened<(typeof translations)["en"]>;
