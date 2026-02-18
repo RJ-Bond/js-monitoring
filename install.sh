@@ -18,6 +18,25 @@ section() { echo -e "\n${GREEN}══ $* ══${NC}"; }
 # ── Root check ────────────────────────────────────────────────────────────────
 [[ $EUID -eq 0 ]] || error "Please run with sudo: sudo bash install.sh"
 
+# ── Fix: remove stale MySQL APT repo (lunar/jammy codename on noble) ─────────
+# MySQL runs in Docker, so the system APT repo is not needed and causes GPG errors.
+section "Cleaning up stale APT repositories"
+MYSQL_SOURCES=( /etc/apt/sources.list.d/mysql*.list /etc/apt/sources.list.d/mysql*.sources )
+for f in "${MYSQL_SOURCES[@]}"; do
+    if [[ -f "$f" ]]; then
+        warn "Removing stale MySQL APT repo: $f"
+        rm -f "$f"
+    fi
+done
+# Also neutralise any inline entry in /etc/apt/sources.list
+if grep -q "repo.mysql.com" /etc/apt/sources.list 2>/dev/null; then
+    warn "Commenting out MySQL entry in /etc/apt/sources.list"
+    sed -i '/repo\.mysql\.com/s/^/# /' /etc/apt/sources.list
+fi
+# Remove associated stale GPG keys (keybox format)
+rm -f /etc/apt/trusted.gpg.d/mysql*.gpg /usr/share/keyrings/mysql*.gpg 2>/dev/null || true
+info "MySQL APT repo cleanup done."
+
 section "System Update"
 apt-get update -qq
 apt-get upgrade -y -qq
