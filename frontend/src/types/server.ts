@@ -28,7 +28,9 @@ export type GameType =
   | "terraria"
   | "dayz"
   | "squad"
-  | "gmod";
+  | "gmod"
+  | "vrising"
+  | "icarus";
 
 export interface Server {
   id: number;

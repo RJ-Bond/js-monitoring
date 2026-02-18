@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { Users, Map, Wifi, Terminal, ExternalLink, Trash2, ChevronDown, Pencil } from "lucide-react";
-import { cn, formatPlayers, formatPing, buildJoinLink, gameTypeLabel, gameTypeIcon } from "@/lib/utils";
+import { cn, formatPlayers, formatPing, buildJoinLink, gameTypeLabel } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
 import StatusIndicator from "./StatusIndicator";
 import PlayerChart from "./PlayerChart";
 import RconConsole from "./RconConsole";
+import GameIcon from "./GameIcon";
 import type { Server } from "@/types/server";
 
 interface ServerCardProps {
@@ -29,7 +30,7 @@ export default function ServerCard({ server, onDelete, onEdit }: ServerCardProps
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-lg leading-none">{gameTypeIcon(server.game_type)}</span>
+              <GameIcon gameType={server.game_type} />
               <h3 className="font-bold text-base truncate text-foreground">{server.title}</h3>
             </div>
             <p className="text-xs text-muted-foreground font-mono truncate">{server.ip}:{server.port}</p>

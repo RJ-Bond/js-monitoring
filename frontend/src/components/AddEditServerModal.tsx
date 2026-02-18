@@ -6,6 +6,7 @@ import { useCreateServer } from "@/hooks/useServers";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { GAME_META, gameTypeDefaultPort } from "@/lib/utils";
 import type { GameType, Server } from "@/types/server";
+import GameIcon from "./GameIcon";
 
 interface AddEditServerModalProps {
   onClose: () => void;
@@ -81,9 +82,16 @@ export default function AddEditServerModal({ onClose, editServer, onUpdate }: Ad
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs text-muted-foreground uppercase tracking-wide">{t.fieldGameType}</label>
-            <select className={`${field} cursor-pointer`} value={form.game_type} onChange={(e) => setForm({ ...form, game_type: e.target.value as GameType })}>
-              {GAME_OPTIONS.map((g) => <option key={g.value} value={g.value}>{g.label} (:{g.defaultPort})</option>)}
-            </select>
+            <div className="flex items-center gap-2">
+              <GameIcon
+                gameType={form.game_type}
+                imgClassName="h-6 w-auto max-w-[4rem] object-contain rounded-sm flex-shrink-0"
+                emojiClassName="text-xl leading-none flex-shrink-0"
+              />
+              <select className={`${field} cursor-pointer flex-1`} value={form.game_type} onChange={(e) => setForm({ ...form, game_type: e.target.value as GameType })}>
+                {GAME_OPTIONS.map((g) => <option key={g.value} value={g.value}>{g.label} (:{g.defaultPort})</option>)}
+              </select>
+            </div>
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs text-muted-foreground uppercase tracking-wide">{t.fieldRcon}</label>

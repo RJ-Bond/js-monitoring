@@ -11,14 +11,10 @@ import ServerCard from "@/components/ServerCard";
 import StatsOverview from "@/components/StatsOverview";
 import AddEditServerModal from "@/components/AddEditServerModal";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import GameIcon from "@/components/GameIcon";
 import type { GameType, Server } from "@/types/server";
 import { GAME_META } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
-
-const GAME_FILTERS = [
-  { label: "🎮", value: "all" as const },
-  ...Object.entries(GAME_META).map(([v, m]) => ({ label: `${m.icon} ${m.label}`, value: v as GameType })),
-];
 
 export default function Home() {
   useServerWebSocket();
@@ -104,9 +100,26 @@ export default function Home() {
             ))}
           </div>
           <div className="flex gap-1 bg-white/5 rounded-xl p-1 overflow-x-auto flex-shrink-0">
-            {GAME_FILTERS.slice(0, 5).map((f) => (
-              <button key={f.value} onClick={() => setGameFilter(f.value)} className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${gameFilter === f.value ? "bg-neon-green/20 text-neon-green border border-neon-green/30" : "text-muted-foreground hover:text-foreground"}`}>
-                {f.label}
+            {/* "All" filter */}
+            <button
+              onClick={() => setGameFilter("all")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${gameFilter === "all" ? "bg-neon-green/20 text-neon-green border border-neon-green/30" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              🎮
+            </button>
+            {/* Per-game filters with Steam icons */}
+            {(Object.keys(GAME_META) as GameType[]).map((gt) => (
+              <button
+                key={gt}
+                onClick={() => setGameFilter(gt)}
+                title={GAME_META[gt].label}
+                className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${gameFilter === gt ? "bg-neon-green/20 text-neon-green border border-neon-green/30" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                <GameIcon
+                  gameType={gt}
+                  imgClassName="h-4 w-auto max-w-[2.5rem] object-contain rounded-sm"
+                  emojiClassName="text-sm leading-none"
+                />
               </button>
             ))}
           </div>

@@ -42,17 +42,32 @@ export function buildJoinLink(gameType: GameType, ip: string, port: number): str
   }
 }
 
-export const GAME_META: Record<GameType, { label: string; icon: string; defaultPort: number; protocol: string }> = {
-  source:            { label: "Source Engine",       icon: "⚙️",  defaultPort: 27015, protocol: "source" },
-  gmod:              { label: "Garry's Mod",         icon: "🔧", defaultPort: 27015, protocol: "source" },
-  valheim:           { label: "Valheim",             icon: "⚔️",  defaultPort: 2456,  protocol: "source" },
-  squad:             { label: "Squad",               icon: "🪖", defaultPort: 27165, protocol: "source" },
-  dayz:              { label: "DayZ",                icon: "🧟", defaultPort: 2302,  protocol: "source" },
-  minecraft:         { label: "Minecraft Java",      icon: "⛏️",  defaultPort: 25565, protocol: "minecraft" },
-  minecraft_bedrock: { label: "Minecraft Bedrock",   icon: "📦", defaultPort: 19132, protocol: "minecraft" },
-  fivem:             { label: "FiveM / GTA V",       icon: "🚗", defaultPort: 30120, protocol: "fivem" },
-  samp:              { label: "SA-MP / open.mp",     icon: "🏙️",  defaultPort: 7777,  protocol: "samp" },
-  terraria:          { label: "Terraria",            icon: "🌳", defaultPort: 7777,  protocol: "terraria" },
+export type GameMeta = {
+  label: string;
+  icon: string;
+  defaultPort: number;
+  protocol: string;
+  steamAppId?: number; // Steam App ID for CDN icon
+};
+
+// Steam CDN capsule icon (120×45 px)
+export function steamIconUrl(appId: number): string {
+  return `https://cdn.cloudflare.steamstatic.com/steam/apps/${appId}/capsule_sm_120.jpg`;
+}
+
+export const GAME_META: Record<GameType, GameMeta> = {
+  source:            { label: "Source Engine",     icon: "⚙️",  defaultPort: 27015, protocol: "source" },
+  gmod:              { label: "Garry's Mod",       icon: "🔧", defaultPort: 27015, protocol: "source",     steamAppId: 4000 },
+  valheim:           { label: "Valheim",           icon: "⚔️",  defaultPort: 2456,  protocol: "source",     steamAppId: 892970 },
+  squad:             { label: "Squad",             icon: "🪖", defaultPort: 27165, protocol: "source",     steamAppId: 393380 },
+  dayz:              { label: "DayZ",              icon: "🧟", defaultPort: 2302,  protocol: "source",     steamAppId: 221100 },
+  vrising:           { label: "V Rising",          icon: "🧛", defaultPort: 27015, protocol: "source",     steamAppId: 1604030 },
+  icarus:            { label: "Icarus",            icon: "🪐", defaultPort: 17777, protocol: "source",     steamAppId: 1149460 },
+  minecraft:         { label: "Minecraft Java",    icon: "⛏️",  defaultPort: 25565, protocol: "minecraft" },
+  minecraft_bedrock: { label: "Minecraft Bedrock", icon: "📦", defaultPort: 19132, protocol: "minecraft" },
+  fivem:             { label: "FiveM / GTA V",     icon: "🚗", defaultPort: 30120, protocol: "fivem",      steamAppId: 271590 },
+  samp:              { label: "SA-MP / open.mp",   icon: "🏙️",  defaultPort: 7777,  protocol: "samp",       steamAppId: 12120 },
+  terraria:          { label: "Terraria",          icon: "🌳", defaultPort: 7777,  protocol: "terraria",   steamAppId: 105600 },
 };
 
 export function gameTypeLabel(gameType: GameType): string {
