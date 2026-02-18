@@ -3,12 +3,15 @@ FROM golang:1.24-alpine AS builder
 
 WORKDIR /app
 
-# Зависимости кешируем отдельным слоем
-COPY go.mod go.sum ./
+# Слой кеша зависимостей: пересобирается только при изменении go.mod
+# go.sum генерируется автоматически внутри контейнера если отсутствует в репо
+COPY go.mod ./
 RUN go mod download
 
+# Копируем весь исходный код и синхронизируем go.sum с реальными импортами
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /bin/server ./cmd/server
+RUN go mod tidy && \
+    CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /bin/server ./cmd/server
 
 # ── Stage 2: Runtime ──────────────────────────────────────────────────────────
 FROM alpine:3.21

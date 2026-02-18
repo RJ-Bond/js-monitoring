@@ -10,7 +10,7 @@ backend/bin/
 *.test
 *.out
 vendor/
-go.sum
+# go.sum намеренно НЕ игнорируется — он должен коммититься для воспроизводимых сборок
 
 # Node / Next.js
 frontend/node_modules/
