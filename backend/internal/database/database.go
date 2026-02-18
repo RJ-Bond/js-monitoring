@@ -51,6 +51,7 @@ func Connect(cfg Config) error {
 
 func AutoMigrate() error {
 	return DB.AutoMigrate(
+		&models.User{},
 		&models.Server{},
 		&models.ServerStatus{},
 		&models.PlayerHistory{},

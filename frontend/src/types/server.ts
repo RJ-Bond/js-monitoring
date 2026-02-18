@@ -18,7 +18,17 @@ export interface AlertConfig {
   enabled: boolean;
 }
 
-export type GameType = "source" | "minecraft" | "fivem";
+export type GameType =
+  | "source"
+  | "minecraft"
+  | "minecraft_bedrock"
+  | "fivem"
+  | "samp"
+  | "valheim"
+  | "terraria"
+  | "dayz"
+  | "squad"
+  | "gmod";
 
 export interface Server {
   id: number;
@@ -50,4 +60,18 @@ export interface WSMessage {
   type: "status_update";
   server_id: number;
   status: ServerStatus;
+}
+
+// Auth types
+export interface User {
+  id: number;
+  username: string;
+  email: string;
+  role: "admin" | "user";
+  created_at: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  user: User;
 }

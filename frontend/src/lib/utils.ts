@@ -23,29 +23,50 @@ export function formatLastUpdate(dateStr: string): string {
   return `${Math.floor(seconds / 3600)}h ago`;
 }
 
-// Генерация deep-link для игры
 export function buildJoinLink(gameType: GameType, ip: string, port: number): string {
   switch (gameType) {
     case "minecraft":
+    case "minecraft_bedrock":
       return `minecraft://?addExternalServer=Server|${ip}:${port}`;
     case "fivem":
       return `fivem://connect/${ip}:${port}`;
+    case "samp":
+      return `samp://${ip}:${port}`;
     case "source":
+    case "gmod":
+    case "valheim":
+    case "squad":
+    case "dayz":
     default:
       return `steam://connect/${ip}:${port}`;
   }
 }
 
+export const GAME_META: Record<GameType, { label: string; icon: string; defaultPort: number; protocol: string }> = {
+  source:            { label: "Source Engine",       icon: "⚙️",  defaultPort: 27015, protocol: "source" },
+  gmod:              { label: "Garry's Mod",         icon: "🔧", defaultPort: 27015, protocol: "source" },
+  valheim:           { label: "Valheim",             icon: "⚔️",  defaultPort: 2456,  protocol: "source" },
+  squad:             { label: "Squad",               icon: "🪖", defaultPort: 27165, protocol: "source" },
+  dayz:              { label: "DayZ",                icon: "🧟", defaultPort: 2302,  protocol: "source" },
+  minecraft:         { label: "Minecraft Java",      icon: "⛏️",  defaultPort: 25565, protocol: "minecraft" },
+  minecraft_bedrock: { label: "Minecraft Bedrock",   icon: "📦", defaultPort: 19132, protocol: "minecraft" },
+  fivem:             { label: "FiveM / GTA V",       icon: "🚗", defaultPort: 30120, protocol: "fivem" },
+  samp:              { label: "SA-MP / open.mp",     icon: "🏙️",  defaultPort: 7777,  protocol: "samp" },
+  terraria:          { label: "Terraria",            icon: "🌳", defaultPort: 7777,  protocol: "terraria" },
+};
+
 export function gameTypeLabel(gameType: GameType): string {
-  const labels: Record<GameType, string> = {
-    source: "Source Engine",
-    minecraft: "Minecraft",
-    fivem: "FiveM / GTA V",
-  };
-  return labels[gameType] ?? gameType;
+  return GAME_META[gameType]?.label ?? gameType;
 }
 
-// Цвет нагрузки по заполненности
+export function gameTypeIcon(gameType: GameType): string {
+  return GAME_META[gameType]?.icon ?? "🖥️";
+}
+
+export function gameTypeDefaultPort(gameType: GameType): number {
+  return GAME_META[gameType]?.defaultPort ?? 27015;
+}
+
 export function occupancyColor(now: number, max: number): string {
   if (max === 0) return "text-gray-400";
   const ratio = now / max;

@@ -37,6 +37,7 @@ services:
       DB_NAME:     ${MYSQL_DATABASE:-js_monitoring}
       PORT:        8080
       API_SECRET_KEY: ${API_SECRET_KEY:-change_me_in_production}
+      JWT_SECRET:     ${JWT_SECRET:-change_me_jwt_secret_in_production}
       TELEGRAM_BOT_TOKEN:      ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_DEFAULT_CHAT_ID: ${TELEGRAM_DEFAULT_CHAT_ID:-}
     depends_on:

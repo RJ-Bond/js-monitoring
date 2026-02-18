@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface StatusIndicatorProps {
   online: boolean;
@@ -19,6 +20,7 @@ export default function StatusIndicator({
   size = "md",
   showLabel = false,
 }: StatusIndicatorProps) {
+  const { t } = useLanguage();
   return (
     <div className="flex items-center gap-2">
       <span
@@ -35,7 +37,7 @@ export default function StatusIndicator({
             online ? "text-neon-green" : "text-neon-red"
           )}
         >
-          {online ? "ONLINE" : "OFFLINE"}
+          {online ? t.statusOnline : t.statusOffline}
         </span>
       )}
     </div>

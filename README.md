@@ -1,110 +1,131 @@
-# JS Monitor — Game Server Dashboard
+# JS Monitor — Панель мониторинга игровых серверов
 
-High-End мониторинг игровых серверов: Go backend + Next.js 15 frontend + MySQL 8.4.
+Высокопроизводительная реактивная панель управления игровыми серверами: Go-бэкенд + Next.js 15 + MySQL 8.4, всё в Docker.
 
-## Features
+## Возможности
 
 - **Smart Poller** — адаптивный опрос: 10 сек (активная игра) / 60 сек (пустой сервер)
 - **Real-time WebSockets** — мгновенное обновление статуса без перезагрузки страницы
 - **Source A2S + Minecraft Query** — поддержка CS2, TF2, Rust, Minecraft, FiveM
-- **RCON Web Console** — защищённый терминал прямо в браузере
-- **Auto-Join** — кнопка "Play" генерирует `steam://`, `minecraft://`, `fivem://`
-- **Analytics** — графики онлайна за 24h / 7d / 30d (Recharts)
-- **Telegram Alerts** — мгновенные уведомления о падении серверов
+- **RCON Web-консоль** — защищённый терминал прямо в браузере
+- **Auto-Join** — кнопка «Играть» генерирует `steam://`, `minecraft://`, `fivem://`
+- **Аналитика** — графики онлайна за 24ч / 7д / 30д (Recharts)
+- **Telegram-уведомления** — мгновенные алерты о падении серверов
 - **Glassmorphism UI** — Cyberpunk Minimal дизайн с neon-эффектами
+- **Мультиязычность** — интерфейс на русском и английском языках
 
-## Stack
+## Технологический стек
 
-| Layer     | Technology                          |
-|-----------|-------------------------------------|
-| Backend   | Go 1.24, Echo v4, GORM              |
-| Database  | MySQL 8.4 LTS                       |
-| Frontend  | Next.js 15, shadcn/ui, Tailwind CSS |
-| Charts    | Recharts                            |
-| Real-time | WebSocket (gorilla/websocket)       |
-| Infra     | Docker, Nginx, systemd              |
+| Слой       | Технология                          |
+|------------|-------------------------------------|
+| Бэкенд     | Go 1.24, Echo v4, GORM              |
+| База данных | MySQL 8.4 LTS                      |
+| Фронтенд   | Next.js 15, Tailwind CSS            |
+| Графики    | Recharts                            |
+| Real-time  | WebSocket (gorilla/websocket)       |
+| Инфраструктура | Docker, Nginx, systemd          |
 
-## Quick Start (Docker)
+## Быстрый старт (Docker)
 
 ```bash
-# 1. Clone
+# 1. Клонировать репозиторий
 git clone https://github.com/RJ-Bond/js-monitoring
 cd js-monitoring
 
-# 2. Configure
+# 2. Настроить конфигурацию
 cp .env.example .env
-nano .env   # set your passwords
+nano .env   # задать пароли и токены
 
-# 3. Run
+# 3. Запустить
 docker compose up -d --build
 
-# Open http://localhost
+# Открыть http://localhost
 ```
 
-## Installation on Ubuntu Server 24.04
+## Установка на Ubuntu Server 24.04
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/RJ-Bond/js-monitoring/main/install.sh | sudo bash
 ```
 
-The script will:
-- Install Docker + Docker Compose
-- Clone the repository to `/opt/js-monitoring`
-- Auto-generate secure passwords
-- Configure UFW firewall (SSH + HTTP/HTTPS)
-- Register a systemd service for auto-start on boot
-- Build and launch all containers
+Скрипт поддерживает **русский и английский язык** — выбор предлагается при запуске.
 
-## API Endpoints
+Скрипт автоматически:
+- Удаляет устаревшие MySQL APT-репозитории (если есть)
+- Устанавливает Docker + Docker Compose
+- Клонирует репозиторий в `/opt/js-monitoring`
+- Генерирует случайные безопасные пароли
+- Настраивает UFW (SSH + HTTP/HTTPS)
+- Регистрирует systemd-сервис для автозапуска
+- Собирает и запускает все контейнеры
 
-| Method | Path                          | Description            |
-|--------|-------------------------------|------------------------|
-| GET    | `/api/v1/stats`               | Aggregated stats       |
-| GET    | `/api/v1/servers`             | List all servers       |
-| POST   | `/api/v1/servers`             | Add server             |
-| GET    | `/api/v1/servers/:id`         | Server details         |
-| PUT    | `/api/v1/servers/:id`         | Update server          |
-| DELETE | `/api/v1/servers/:id`         | Delete server          |
-| GET    | `/api/v1/servers/:id/history` | Player history         |
-| WS     | `/api/v1/ws`                  | Real-time updates      |
-| WS     | `/api/v1/rcon?key=<KEY>`      | RCON console (auth)    |
+## API
 
-## Environment Variables
+| Метод  | Путь                            | Описание                 |
+|--------|---------------------------------|--------------------------|
+| GET    | `/api/v1/stats`                 | Сводная статистика       |
+| GET    | `/api/v1/servers`               | Список всех серверов     |
+| POST   | `/api/v1/servers`               | Добавить сервер          |
+| GET    | `/api/v1/servers/:id`           | Данные сервера           |
+| PUT    | `/api/v1/servers/:id`           | Обновить сервер          |
+| DELETE | `/api/v1/servers/:id`           | Удалить сервер           |
+| GET    | `/api/v1/servers/:id/history`   | История онлайна          |
+| WS     | `/api/v1/ws`                    | Real-time обновления     |
+| WS     | `/api/v1/rcon?key=<KEY>`        | RCON-консоль (с авторизацией) |
 
-See [`.env.example`](.env.example) for full list.
+## Переменные окружения
 
-Key variables:
-- `DB_PASSWORD` — MySQL password
-- `API_SECRET_KEY` — RCON authentication key
-- `TELEGRAM_BOT_TOKEN` — Telegram bot token for alerts
-- `NEXT_PUBLIC_API_URL` — Backend URL for frontend (empty = nginx proxy)
+Полный список: [`.env.example`](.env.example)
 
-## Project Structure
+Основные:
+- `DB_PASSWORD` — пароль MySQL
+- `API_SECRET_KEY` — ключ аутентификации RCON
+- `TELEGRAM_BOT_TOKEN` — токен Telegram-бота для уведомлений
+- `NEXT_PUBLIC_API_URL` — URL бэкенда (пусто = nginx-прокси)
+
+## Структура проекта
 
 ```
 js-monitoring/
 ├── backend/
-│   ├── cmd/server/main.go          # Entrypoint
+│   ├── cmd/server/main.go          # Точка входа
 │   └── internal/
-│       ├── models/                 # GORM models
-│       ├── database/               # MySQL connection
+│       ├── models/                 # GORM-модели
+│       ├── database/               # Подключение к MySQL
 │       ├── poller/                 # Smart Poller (A2S + Minecraft)
-│       ├── api/                    # Echo handlers + WebSocket hub
-│       └── telegram/               # Telegram Bot client
+│       ├── api/                    # Echo хэндлеры + WebSocket хаб
+│       └── telegram/               # Клиент Telegram Bot API
 ├── frontend/
 │   └── src/
 │       ├── app/                    # Next.js App Router
 │       ├── components/             # ServerCard, PlayerChart, RconConsole…
-│       ├── hooks/                  # useServers, useWebSocket
-│       ├── lib/                    # api.ts, utils.ts
-│       └── types/                  # TypeScript interfaces
-├── nginx/nginx.conf                # Reverse proxy config
-├── mysql/init.sql                  # DB initialization
-├── docker-compose.yml              # All services
-├── install.sh                      # Ubuntu 24.04 installer
-└── .env.example                    # Configuration template
+│       ├── contexts/               # LanguageContext (i18n)
+│       ├── hooks/                  # useServers, useWebSocket, useLanguage
+│       ├── lib/                    # api.ts, utils.ts, translations.ts
+│       └── types/                  # TypeScript-интерфейсы
+├── nginx/nginx.conf                # Reverse proxy
+├── mysql/init.sql                  # Инициализация БД
+├── docker-compose.yml              # Все сервисы
+├── install.sh                      # Установщик для Ubuntu 24.04 (RU/EN)
+└── .env.example                    # Шаблон конфигурации
 ```
 
-## License
+## Управление (после установки)
+
+```bash
+# Статус
+systemctl status js-monitoring
+
+# Логи в реальном времени
+docker compose -C /opt/js-monitoring logs -f
+
+# Перезапуск
+systemctl restart js-monitoring
+
+# Обновление до последней версии
+cd /opt/js-monitoring && git pull && docker compose up -d --build
+```
+
+## Лицензия
 
 MIT

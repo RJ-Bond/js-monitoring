@@ -7,17 +7,27 @@ import (
 	"gorm.io/gorm"
 )
 
+// User — пользователь панели управления
+type User struct {
+	ID           uint      `gorm:"primaryKey;autoIncrement"              json:"id"`
+	Username     string    `gorm:"type:varchar(50);uniqueIndex;not null" json:"username"`
+	Email        string    `gorm:"type:varchar(255);uniqueIndex"         json:"email,omitempty"`
+	PasswordHash string    `gorm:"type:varchar(255);not null"            json:"-"`
+	Role         string    `gorm:"type:varchar(20);default:'user'"       json:"role"`
+	CreatedAt    time.Time `                                             json:"created_at"`
+}
+
 // Server — основная запись игрового сервера
 type Server struct {
-	ID         uint          `gorm:"primaryKey;autoIncrement"                  json:"id"`
-	UUID       string        `gorm:"type:varchar(36);uniqueIndex;not null"     json:"uuid"`
-	Title      string        `gorm:"type:varchar(255);not null"                json:"title"`
-	IP         string        `gorm:"type:varchar(45);not null"                 json:"ip"`
-	Port       uint16        `gorm:"not null"                                  json:"port"`
-	GameType   string        `gorm:"type:enum('source','minecraft','fivem');not null" json:"game_type"`
-	SecretRCON string        `gorm:"type:varchar(255)"                         json:"-"`
-	CreatedAt  time.Time     `                                                 json:"created_at"`
-	UpdatedAt  time.Time     `                                                 json:"updated_at"`
+	ID         uint      `gorm:"primaryKey;autoIncrement"              json:"id"`
+	UUID       string    `gorm:"type:varchar(36);uniqueIndex;not null" json:"uuid"`
+	Title      string    `gorm:"type:varchar(255);not null"            json:"title"`
+	IP         string    `gorm:"type:varchar(45);not null"             json:"ip"`
+	Port       uint16    `gorm:"not null"                              json:"port"`
+	GameType   string    `gorm:"type:varchar(30);not null"             json:"game_type"`
+	SecretRCON string    `gorm:"type:varchar(255)"                     json:"-"`
+	CreatedAt  time.Time `                                             json:"created_at"`
+	UpdatedAt  time.Time `                                             json:"updated_at"`
 
 	Status      *ServerStatus `gorm:"foreignKey:ServerID" json:"status,omitempty"`
 	AlertConfig *AlertsConfig `gorm:"foreignKey:ServerID" json:"alert_config,omitempty"`

@@ -92,7 +92,12 @@ func (p *Poller) query(srv *models.Server) *models.ServerStatus {
 	switch srv.GameType {
 	case "minecraft":
 		status, err = QueryMinecraft(srv.IP, srv.Port)
-	default: // source, fivem
+	case "samp":
+		status, err = QuerySAMP(srv.IP, srv.Port)
+	case "source", "fivem", "gmod", "valheim", "dayz", "squad", "arma3", "rust":
+		status, err = QuerySource(srv.IP, srv.Port)
+	default:
+		// minecraft_bedrock, terraria и другие — пробуем Source как fallback
 		status, err = QuerySource(srv.IP, srv.Port)
 	}
 

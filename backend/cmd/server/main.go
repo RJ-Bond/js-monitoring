@@ -65,24 +65,36 @@ func main() {
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{"*"},
-		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, "X-API-Key"},
+		AllowHeaders: []string{
+			echo.HeaderOrigin,
+			echo.HeaderContentType,
+			echo.HeaderAccept,
+			echo.HeaderAuthorization,
+			"X-API-Key",
+		},
 		AllowMethods: []string{"GET", "POST", "PUT", "DELETE"},
 	}))
 
-	// Routes
 	v1 := e.Group("/api/v1")
 
+	// Публичные маршруты
 	v1.GET("/stats", api.GetStats)
 	v1.GET("/ws", api.HandleWebSocket)
 	v1.GET("/rcon", api.HandleRCON)
+	v1.GET("/servers", api.GetServers)
+	v1.GET("/servers/:id", api.GetServer)
+	v1.GET("/servers/:id/history", api.GetServerHistory)
 
-	srv := v1.Group("/servers")
-	srv.GET("", api.GetServers)
-	srv.POST("", api.CreateServer)
-	srv.GET("/:id", api.GetServer)
-	srv.PUT("/:id", api.UpdateServer)
-	srv.DELETE("/:id", api.DeleteServer)
-	srv.GET("/:id/history", api.GetServerHistory)
+	// Аутентификация
+	auth := v1.Group("/auth")
+	auth.POST("/register", api.Register)
+	auth.POST("/login", api.Login)
+
+	// Защищённые маршруты (требуют JWT)
+	protected := v1.Group("", api.JWTMiddleware)
+	protected.POST("/servers", api.CreateServer)
+	protected.PUT("/servers/:id", api.UpdateServer)
+	protected.DELETE("/servers/:id", api.DeleteServer)
 
 	port := env("PORT", "8080")
 	log.Printf("Starting server on :%s", port)
