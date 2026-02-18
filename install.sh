@@ -30,7 +30,7 @@ echo    "  Select language / Выберите язык:"
 echo    "    1) English"
 echo    "    2) Русский"
 echo -n "  [1/2, default ${DEF}]: "
-read -r LANG_CHOICE
+read -r LANG_CHOICE </dev/tty
 LANG_CHOICE="${LANG_CHOICE:-$DEF}"
 
 if [[ "$LANG_CHOICE" == "2" ]]; then
@@ -191,7 +191,7 @@ if [[ ! -f .env ]]; then
     warn "$T_ENV_TG_CHAT"
     echo
     info "$T_ENV_CONTINUE"
-    read -r
+    read -r </dev/tty
 else
     info "$T_ENV_EXISTS"
 fi
