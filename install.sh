@@ -308,7 +308,7 @@ docker compose up -d --build --remove-orphans
 
 # ── Wait for healthy state ────────────────────────────────────────────────────
 section "$T_HEALTH"
-MAX_WAIT=300
+MAX_WAIT=600
 WAITED=0
 while ! curl -sf http://localhost/api/v1/stats >/dev/null 2>&1; do
     if [[ $WAITED -ge $MAX_WAIT ]]; then
