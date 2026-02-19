@@ -33,8 +33,10 @@ export default function StatusIndicator({
       {showLabel && (
         <span
           className={cn(
-            "text-xs font-semibold uppercase tracking-widest",
-            online ? "text-neon-green" : "text-neon-red"
+            "text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full",
+            online
+              ? "bg-neon-green/10 text-neon-green border border-neon-green/25"
+              : "bg-red-500/10 text-red-400 border border-red-500/20"
           )}
         >
           {online ? t.statusOnline : t.statusOffline}

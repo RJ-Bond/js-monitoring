@@ -87,7 +87,7 @@ export default function ServerCard({ server, onDelete, onEdit, isFavorite, onTog
     <>
       <div className={cn(
         "glass-card rounded-2xl p-5 flex flex-col gap-4 animate-slide-up",
-        online ? "card-glow-online" : "card-glow-offline",
+        online ? "card-glow-online card-accent-online" : "card-glow-offline card-accent-offline",
         fillRing,
       )}>
         {/* Header */}
