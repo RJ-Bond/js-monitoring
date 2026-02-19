@@ -368,16 +368,23 @@ show_menu() {
     echo -ne "  ${T_MENU_PROMPT} [0-7]: "
 }
 
+# Helper: run log follow — Ctrl-C kills only the child, not the script
+run_logs() {
+    trap '' INT          # parent ignores SIGINT; child still receives it
+    $DC logs -f --tail=100 "$@" || true
+    trap - INT           # restore default SIGINT after child exits
+}
+
 while true; do
     show_menu
     read -r CHOICE </dev/tty || break
     echo
     case "${CHOICE}" in
-        1) $DC logs -f --tail=100 || true ;;
-        2) $DC logs -f --tail=100 backend  || true ;;
-        3) $DC logs -f --tail=100 frontend || true ;;
-        4) $DC logs -f --tail=100 nginx    || true ;;
-        5) $DC logs -f --tail=100 mysql    || true ;;
+        1) run_logs ;;
+        2) run_logs backend  ;;
+        3) run_logs frontend ;;
+        4) run_logs nginx    ;;
+        5) run_logs mysql    ;;
         6) $DC ps || true ;;
         7) info "$T_MENU_RESTARTING"; $DC restart || true ;;
         0) echo -e "${GREEN}${T_MENU_EXIT}${NC}"; break ;;
