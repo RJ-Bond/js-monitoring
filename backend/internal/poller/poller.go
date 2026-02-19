@@ -7,6 +7,7 @@ import (
 
 	"github.com/RJ-Bond/js-monitoring/internal/database"
 	"github.com/RJ-Bond/js-monitoring/internal/models"
+	"gorm.io/gorm/clause"
 )
 
 const (
@@ -123,8 +124,14 @@ func (p *Poller) processResults() {
 				continue
 			}
 
-			// Upsert: обновить или создать запись статуса
-			database.DB.Save(res.status)
+			// Upsert по server_id: INSERT при первом опросе, UPDATE при последующих
+			database.DB.Clauses(clause.OnConflict{
+				Columns:   []clause.Column{{Name: "server_id"}},
+				DoUpdates: clause.AssignmentColumns([]string{
+					"online_status", "players_now", "players_max",
+					"current_map", "ping_ms", "last_update",
+				}),
+			}).Create(res.status)
 
 			// Добавить в буфер истории
 			p.historyMu.Lock()
