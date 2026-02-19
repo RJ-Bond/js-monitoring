@@ -147,6 +147,26 @@ export const translations = {
     adminStatsBanned: "Banned",
     adminStatsTotalServers: "Total servers",
     adminStatsOnline: "Online now",
+    // Sorting
+    sortBy: "Sort:",
+    sortDefault: "Default",
+    sortPlayers: "Players",
+    sortPing: "Ping",
+    sortName: "Name",
+    sortStatus: "Status",
+    // News extras
+    newsShowAll: (n: number) => `Show all (${n})`,
+    newsShowLess: "Collapse",
+    // Export
+    exportJson: "Export",
+    // Toasts
+    toastServerDeleted: "Server deleted",
+    toastRefreshed: "Updated",
+    // Favorites
+    favPin: "Pin",
+    favUnpin: "Unpin",
+    // Offline time
+    offlineSince: "offline",
   },
 
   ru: {
@@ -295,6 +315,26 @@ export const translations = {
     adminStatsBanned: "Заблокировано",
     adminStatsTotalServers: "Всего серверов",
     adminStatsOnline: "Онлайн сейчас",
+    // Sorting
+    sortBy: "Сортировка:",
+    sortDefault: "По умолч.",
+    sortPlayers: "Игроки",
+    sortPing: "Пинг",
+    sortName: "Название",
+    sortStatus: "Статус",
+    // News extras
+    newsShowAll: (n: number) => `Показать все (${n})`,
+    newsShowLess: "Свернуть",
+    // Export
+    exportJson: "Экспорт",
+    // Toasts
+    toastServerDeleted: "Сервер удалён",
+    toastRefreshed: "Обновлено",
+    // Favorites
+    favPin: "Закрепить",
+    favUnpin: "Открепить",
+    // Offline time
+    offlineSince: "офлайн",
   },
 } as const;
 

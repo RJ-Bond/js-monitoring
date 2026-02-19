@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Users, Map, Wifi, Terminal, ExternalLink, Trash2, ChevronDown, Pencil } from "lucide-react";
+import { Users, Map, Wifi, Terminal, ExternalLink, Trash2, ChevronDown, Pencil, Star } from "lucide-react";
 import { cn, formatPlayers, formatPing, buildJoinLink, gameTypeLabel } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useServerPlayers } from "@/hooks/useServers";
@@ -15,6 +15,8 @@ interface ServerCardProps {
   server: Server;
   onDelete?: (id: number) => void;
   onEdit?: (server: Server) => void;
+  isFavorite?: boolean;
+  onToggleFavorite?: () => void;
 }
 
 function countryFlag(code: string): string {
@@ -23,13 +25,23 @@ function countryFlag(code: string): string {
     .join("");
 }
 
+function timeSince(dateStr: string, locale: string): string {
+  const diffMs = Date.now() - new Date(dateStr).getTime();
+  const m = Math.floor(diffMs / 60000);
+  if (m < 2) return locale === "ru" ? "< 1 мин" : "< 1 min";
+  if (m < 60) return locale === "ru" ? `${m} мин` : `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return locale === "ru" ? `${h} ч` : `${h}h`;
+  return locale === "ru" ? `${Math.floor(h / 24)} д` : `${Math.floor(h / 24)}d`;
+}
+
 const PLAYER_SUPPORTED: Server["game_type"][] = [
   "source", "fivem", "gmod", "valheim", "dayz", "squad", "vrising", "icarus", "terraria",
   "samp", "minecraft", "minecraft_bedrock",
 ];
 
-export default function ServerCard({ server, onDelete, onEdit }: ServerCardProps) {
-  const { t } = useLanguage();
+export default function ServerCard({ server, onDelete, onEdit, isFavorite, onToggleFavorite }: ServerCardProps) {
+  const { t, locale } = useLanguage();
   const [expanded, setExpanded] = useState(false);
   const [rconOpen, setRconOpen] = useState(false);
   const status = server.status;
@@ -40,9 +52,19 @@ export default function ServerCard({ server, onDelete, onEdit }: ServerCardProps
 
   const serverNameDiffers = online && status?.server_name && status.server_name !== server.title;
 
+  // Occupancy ring when server is getting full
+  const fillRatio = online && status?.players_max ? status.players_now / status.players_max : 0;
+  const fillRing =
+    fillRatio >= 0.95 ? "ring-1 ring-red-400/50" :
+    fillRatio >= 0.85 ? "ring-1 ring-orange-400/40" : "";
+
   return (
     <>
-      <div className={cn("glass-card rounded-2xl p-5 flex flex-col gap-4 animate-slide-up", online ? "card-glow-online" : "card-glow-offline")}>
+      <div className={cn(
+        "glass-card rounded-2xl p-5 flex flex-col gap-4 animate-slide-up",
+        online ? "card-glow-online" : "card-glow-offline",
+        fillRing,
+      )}>
         {/* Header */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
@@ -66,7 +88,14 @@ export default function ServerCard({ server, onDelete, onEdit }: ServerCardProps
             )}
             <p className="text-xs text-muted-foreground mt-0.5">{gameTypeLabel(server.game_type)}</p>
           </div>
-          <StatusIndicator online={online} showLabel />
+          <div className="flex flex-col items-end gap-1">
+            <StatusIndicator online={online} showLabel />
+            {!online && status?.last_update && (
+              <span className="text-xs text-muted-foreground/60">
+                {timeSince(status.last_update, locale)} {t.offlineSince}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Stats */}
@@ -76,7 +105,13 @@ export default function ServerCard({ server, onDelete, onEdit }: ServerCardProps
             <span className="text-sm font-bold text-foreground">{online ? formatPlayers(status!.players_now, status!.players_max) : "—"}</span>
             <span className="text-xs text-muted-foreground">{t.cardPlayers}</span>
           </div>
-          <div className="flex flex-col items-center gap-1 bg-white/5 rounded-xl p-2.5">
+          <div
+            className="flex flex-col items-center gap-1 bg-white/5 rounded-xl p-2.5"
+            title={online ? (
+              (status?.ping_ms ?? 0) < 50 ? "< 50 ms — excellent" :
+              (status?.ping_ms ?? 0) < 120 ? "< 120 ms — good" : "> 120 ms — high"
+            ) : undefined}
+          >
             <Wifi className="w-4 h-4 text-muted-foreground" />
             <span className={cn("text-sm font-bold", !online ? "text-muted-foreground" : (status?.ping_ms ?? 0) < 50 ? "text-neon-green" : (status?.ping_ms ?? 0) < 120 ? "text-yellow-400" : "text-red-400")}>
               {online ? formatPing(status!.ping_ms) : "—"}
@@ -95,14 +130,16 @@ export default function ServerCard({ server, onDelete, onEdit }: ServerCardProps
           <div className="flex flex-col gap-1">
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>{t.cardOccupancy}</span>
-              <span>{Math.round((status.players_now / status.players_max) * 100)}%</span>
+              <span className={fillRatio >= 0.85 ? "text-orange-400 font-semibold" : ""}>
+                {Math.round(fillRatio * 100)}%
+              </span>
             </div>
             <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
               <div className="h-full rounded-full transition-all duration-1000" style={{
-                width: `${Math.min(100, (status.players_now / status.players_max) * 100)}%`,
-                background: status.players_now / status.players_max > 0.9
+                width: `${Math.min(100, fillRatio * 100)}%`,
+                background: fillRatio > 0.9
                   ? "linear-gradient(90deg, #ff6644, #ff2244)"
-                  : status.players_now / status.players_max > 0.6
+                  : fillRatio > 0.6
                     ? "linear-gradient(90deg, #ffaa00, #ff8800)"
                     : "linear-gradient(90deg, #00ff88, #00d4ff)",
               }} />
@@ -152,6 +189,18 @@ export default function ServerCard({ server, onDelete, onEdit }: ServerCardProps
             {expanded ? t.hideChart : t.viewChart}
           </button>
           <div className="flex-1" />
+          {onToggleFavorite && (
+            <button
+              onClick={onToggleFavorite}
+              title={isFavorite ? t.favUnpin : t.favPin}
+              className={cn(
+                "p-1.5 rounded-lg transition-colors",
+                isFavorite ? "text-yellow-400 hover:bg-yellow-400/10" : "text-muted-foreground hover:text-yellow-400 hover:bg-yellow-400/10",
+              )}
+            >
+              <Star className={cn("w-4 h-4", isFavorite && "fill-current")} />
+            </button>
+          )}
           {server.game_type !== "fivem" && server.game_type !== "samp" && (
             <button onClick={() => setRconOpen(true)} title="RCON" className="p-1.5 rounded-lg text-muted-foreground hover:text-neon-green hover:bg-neon-green/10 transition-colors">
               <Terminal className="w-4 h-4" />
