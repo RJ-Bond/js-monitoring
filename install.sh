@@ -87,7 +87,8 @@ if [[ "$UI_LANG" == "ru" ]]; then
     T_SYSTEMD_OK="Systemd-сервис установлен и включён в автозапуск."
     T_BUILD="Сборка и запуск сервисов"
     T_HEALTH="Проверка готовности"
-    T_HEALTH_WAIT="  Ожидание запуска… (%dс)"
+    T_HEALTH_WAIT="  Ожидание запуска… %dс из %dс"
+    T_HEALTH_STATUS="  Статус контейнеров:"
     T_HEALTH_TIMEOUT="Сервисы слишком долго запускаются. Проверьте логи:"
     T_HEALTH_OK="Сервисы работают!"
     T_DONE_TITLE=" Установка JS Monitor завершена! "
@@ -131,7 +132,8 @@ else
     T_SYSTEMD_OK="Systemd service installed and enabled on boot."
     T_BUILD="Building & Starting Services"
     T_HEALTH="Health Check"
-    T_HEALTH_WAIT="  Waiting for services… (%ds)"
+    T_HEALTH_WAIT="  Waiting for services… %ds of %ds"
+    T_HEALTH_STATUS="  Container status:"
     T_HEALTH_TIMEOUT="Services took too long to start. Check logs:"
     T_HEALTH_OK="Services are healthy!"
     T_DONE_TITLE=" JS Monitor — Installation Done! "
@@ -293,13 +295,22 @@ while ! curl -sf http://localhost/api/v1/stats >/dev/null 2>&1; do
     if [[ $WAITED -ge $MAX_WAIT ]]; then
         warn "$T_HEALTH_TIMEOUT"
         warn "  docker compose --project-directory ${INSTALL_DIR} logs"
+        docker compose ps 2>/dev/null || true
         break
     fi
-    printf "  ${T_HEALTH_WAIT}\r" "$WAITED"
+    printf "  ${T_HEALTH_WAIT}\r" "$WAITED" "$MAX_WAIT"
+    # Every 30 seconds print container statuses on a new line
+    if (( WAITED > 0 && WAITED % 30 == 0 )); then
+        echo
+        echo -e "$T_HEALTH_STATUS"
+        docker compose ps --format "table {{.Name}}\t{{.Status}}" 2>/dev/null || true
+        echo
+    fi
     sleep 5
     WAITED=$((WAITED+5))
 done
 if curl -sf http://localhost/api/v1/stats >/dev/null 2>&1; then
+    echo
     info "$T_HEALTH_OK"
 fi
 
