@@ -16,10 +16,8 @@ import (
 )
 
 func main() {
-	// Загрузка .env (игнорируем ошибку — в Docker используются переменные окружения)
 	_ = godotenv.Load()
 
-	// Подключение к MySQL
 	cfg := database.Config{
 		Host:     env("DB_HOST", "localhost"),
 		Port:     env("DB_PORT", "3306"),
@@ -28,7 +26,6 @@ func main() {
 		DBName:   env("DB_NAME", "js_monitoring"),
 	}
 
-	// Retry подключения (MySQL может стартовать медленнее)
 	for i := 0; i < 10; i++ {
 		if err := database.Connect(cfg); err == nil {
 			break
@@ -47,20 +44,16 @@ func main() {
 	}
 	log.Println("Database migrated")
 
-	// WebSocket Hub
 	go api.WSHub.Run()
 
-	// Поллер
 	p := poller.New(func(serverID uint, status *models.ServerStatus) {
 		api.WSHub.BroadcastUpdate(serverID, status)
 	})
 	p.Start()
 	defer p.Stop()
 
-	// Echo
 	e := echo.New()
 	e.HideBanner = true
-
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
@@ -77,7 +70,7 @@ func main() {
 
 	v1 := e.Group("/api/v1")
 
-	// Публичные маршруты
+	// ── Public read routes ────────────────────────────────────────────────────
 	v1.GET("/stats", api.GetStats)
 	v1.GET("/ws", api.HandleWebSocket)
 	v1.GET("/rcon", api.HandleRCON)
@@ -85,16 +78,24 @@ func main() {
 	v1.GET("/servers/:id", api.GetServer)
 	v1.GET("/servers/:id/history", api.GetServerHistory)
 
-	// Аутентификация
-	auth := v1.Group("/auth")
-	auth.POST("/register", api.Register)
-	auth.POST("/login", api.Login)
+	// ── Auth ─────────────────────────────────────────────────────────────────
+	authG := v1.Group("/auth")
+	authG.POST("/register", api.Register)
+	authG.POST("/login", api.Login)
+	authG.GET("/steam", api.SteamInit)
+	authG.GET("/steam/callback", api.SteamCallback)
 
-	// Защищённые маршруты (требуют JWT)
+	// ── JWT-protected write routes ────────────────────────────────────────────
 	protected := v1.Group("", api.JWTMiddleware)
 	protected.POST("/servers", api.CreateServer)
 	protected.PUT("/servers/:id", api.UpdateServer)
 	protected.DELETE("/servers/:id", api.DeleteServer)
+
+	// ── Admin routes (JWT + admin role) ───────────────────────────────────────
+	admin := v1.Group("/admin", api.JWTMiddleware, api.AdminMiddleware)
+	admin.GET("/users", api.AdminGetUsers)
+	admin.PUT("/users/:id", api.AdminUpdateUser)
+	admin.DELETE("/users/:id", api.AdminDeleteUser)
 
 	port := env("PORT", "8080")
 	log.Printf("Starting server on :%s", port)

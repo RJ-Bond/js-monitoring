@@ -12,9 +12,12 @@ type User struct {
 	ID           uint      `gorm:"primaryKey;autoIncrement"              json:"id"`
 	Username     string    `gorm:"type:varchar(50);uniqueIndex;not null" json:"username"`
 	Email        string    `gorm:"type:varchar(255);uniqueIndex"         json:"email,omitempty"`
-	PasswordHash string    `gorm:"type:varchar(255);not null"            json:"-"`
+	PasswordHash string    `gorm:"type:varchar(255)"                     json:"-"`
+	SteamID      string    `gorm:"type:varchar(30);uniqueIndex"          json:"steam_id,omitempty"`
 	Role         string    `gorm:"type:varchar(20);default:'user'"       json:"role"`
+	Banned       bool      `gorm:"default:false"                         json:"banned"`
 	CreatedAt    time.Time `                                             json:"created_at"`
+	UpdatedAt    time.Time `                                             json:"updated_at"`
 }
 
 // Server — основная запись игрового сервера

@@ -1,4 +1,4 @@
-import type { Server, PlayerHistory, Stats, AuthResponse } from "@/types/server";
+import type { Server, PlayerHistory, Stats, AuthResponse, User } from "@/types/server";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
 
@@ -23,6 +23,7 @@ async function fetchJSON<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  // Servers
   getServers: () => fetchJSON<Server[]>("/api/v1/servers"),
   getServer:  (id: number) => fetchJSON<Server>(`/api/v1/servers/${id}`),
   getStats:   () => fetchJSON<Stats>("/api/v1/stats"),
@@ -43,4 +44,11 @@ export const api = {
     fetchJSON<AuthResponse>("/api/v1/auth/login",    { method: "POST", body: JSON.stringify({ username, password }) }),
   register: (username: string, email: string, password: string) =>
     fetchJSON<AuthResponse>("/api/v1/auth/register", { method: "POST", body: JSON.stringify({ username, email, password }) }),
+
+  // Admin
+  adminGetUsers: () => fetchJSON<User[]>("/api/v1/admin/users"),
+  adminUpdateUser: (id: number, data: { role?: string; banned?: boolean }) =>
+    fetchJSON<User>(`/api/v1/admin/users/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  adminDeleteUser: (id: number): Promise<void> =>
+    fetchJSON<void>(`/api/v1/admin/users/${id}`, { method: "DELETE" }),
 };

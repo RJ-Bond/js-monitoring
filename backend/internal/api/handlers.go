@@ -49,10 +49,33 @@ func UpdateServer(c echo.Context) error {
 	if err := database.DB.First(&server, id).Error; err != nil {
 		return c.JSON(http.StatusNotFound, echo.Map{"error": "server not found"})
 	}
-	if err := c.Bind(&server); err != nil {
+
+	// Use a dedicated payload struct so json:"-" on Server fields doesn't block binding
+	var payload struct {
+		Title      string `json:"title"`
+		IP         string `json:"ip"`
+		Port       uint16 `json:"port"`
+		GameType   string `json:"game_type"`
+		SecretRCON string `json:"secret_rcon_key"`
+	}
+	if err := c.Bind(&payload); err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()})
 	}
-	database.DB.Save(&server)
+
+	updates := map[string]interface{}{
+		"title":     payload.Title,
+		"ip":        payload.IP,
+		"port":      payload.Port,
+		"game_type": payload.GameType,
+	}
+	if payload.SecretRCON != "" {
+		updates["secret_rcon"] = payload.SecretRCON
+	}
+	if err := database.DB.Model(&server).Updates(updates).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
+	}
+
+	database.DB.Preload("Status").Preload("AlertConfig").First(&server, id)
 	return c.JSON(http.StatusOK, server)
 }
 

@@ -69,8 +69,11 @@ export interface User {
   id: number;
   username: string;
   email: string;
+  steam_id?: string;
   role: "admin" | "user";
+  banned: boolean;
   created_at: string;
+  updated_at: string;
 }
 
 export interface AuthResponse {

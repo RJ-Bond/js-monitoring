@@ -40,3 +40,23 @@ func JWTMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 		return next(c)
 	}
 }
+
+// AdminMiddleware requires role == "admin"
+func AdminMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		role, _ := c.Get("role").(string)
+		if role != "admin" {
+			return c.JSON(http.StatusForbidden, echo.Map{"error": "admin access required"})
+		}
+		return next(c)
+	}
+}
+
+// BanCheckMiddleware blocks banned users from write operations
+func BanCheckMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		// Banned flag is not stored in JWT; check is done in handlers that need it.
+		// This middleware slot is reserved for future use.
+		return next(c)
+	}
+}

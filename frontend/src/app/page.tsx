@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, RefreshCw, Gamepad2, Zap, LogOut, User } from "lucide-react";
+import { Plus, RefreshCw, Gamepad2, Zap, LogOut, User, Shield } from "lucide-react";
 import { useServers, useDeleteServer } from "@/hooks/useServers";
 import { useServerWebSocket } from "@/hooks/useWebSocket";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -69,6 +69,12 @@ export default function Home() {
                   <LogOut className="w-4 h-4" />
                 </button>
               </>
+            )}
+            {isAuthenticated && user?.role === "admin" && (
+              <a href="/admin" className="hidden sm:flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-medium border border-yellow-400/20 hover:border-yellow-400/40 text-yellow-400 hover:text-yellow-300 transition-all">
+                <Shield className="w-3.5 h-3.5" />
+                Admin
+              </a>
             )}
             {!isAuthenticated && (
               <a href="/login" className="px-3 py-2 rounded-xl text-xs font-semibold border border-white/10 hover:border-white/20 text-muted-foreground hover:text-foreground transition-all">

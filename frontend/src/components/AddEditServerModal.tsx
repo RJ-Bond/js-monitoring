@@ -57,6 +57,8 @@ export default function AddEditServerModal({ onClose, editServer, onUpdate }: Ad
   };
 
   const field = "w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-foreground outline-none focus:border-neon-green/50 transition-all placeholder:text-muted-foreground";
+  // browsers ignore rgba/transparent bg on <select> — use a solid dark colour
+  const selectField = "w-full bg-[#0d0d18] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-foreground outline-none focus:border-neon-green/50 transition-all cursor-pointer";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -88,7 +90,7 @@ export default function AddEditServerModal({ onClose, editServer, onUpdate }: Ad
                 imgClassName="h-6 w-auto max-w-[4rem] object-contain rounded-sm flex-shrink-0"
                 emojiClassName="text-xl leading-none flex-shrink-0"
               />
-              <select className={`${field} cursor-pointer flex-1`} value={form.game_type} onChange={(e) => setForm({ ...form, game_type: e.target.value as GameType })}>
+              <select className={`${selectField} flex-1`} value={form.game_type} onChange={(e) => setForm({ ...form, game_type: e.target.value as GameType })}>
                 {GAME_OPTIONS.map((g) => <option key={g.value} value={g.value}>{g.label} (:{g.defaultPort})</option>)}
               </select>
             </div>
