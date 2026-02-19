@@ -1,4 +1,4 @@
-import type { Server, ServerPlayer, PlayerHistory, Stats, AuthResponse, User, NewsItem } from "@/types/server";
+import type { Server, ServerPlayer, PlayerHistory, Stats, AuthResponse, User, NewsItem, AdminServer } from "@/types/server";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
 
@@ -56,6 +56,7 @@ export const api = {
 
   // Admin - Users
   adminGetUsers: () => fetchJSON<User[]>("/api/v1/admin/users"),
+  adminGetServers: () => fetchJSON<AdminServer[]>("/api/v1/admin/servers"),
   adminUpdateUser: (id: number, data: { role?: string; banned?: boolean }) =>
     fetchJSON<User>(`/api/v1/admin/users/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   adminDeleteUser: (id: number): Promise<void> =>

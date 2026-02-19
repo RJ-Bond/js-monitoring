@@ -93,6 +93,11 @@ export interface User {
   banned: boolean;
   created_at: string;
   updated_at: string;
+  server_count?: number;
+}
+
+export interface AdminServer extends Server {
+  owner_name: string;
 }
 
 export interface AuthResponse {

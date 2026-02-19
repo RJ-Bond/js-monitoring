@@ -102,6 +102,7 @@ func main() {
 	admin.GET("/users", api.AdminGetUsers)
 	admin.PUT("/users/:id", api.AdminUpdateUser)
 	admin.DELETE("/users/:id", api.AdminDeleteUser)
+	admin.GET("/servers", api.AdminGetServers)
 	admin.POST("/news", api.CreateNews)
 	admin.PUT("/news/:id", api.UpdateNews)
 	admin.DELETE("/news/:id", api.DeleteNews)

@@ -9,13 +9,38 @@ import (
 	"github.com/RJ-Bond/js-monitoring/internal/models"
 )
 
-// AdminGetUsers GET /api/v1/admin/users — list all users (admin only)
+// AdminGetUsers GET /api/v1/admin/users — list all users with server_count
 func AdminGetUsers(c echo.Context) error {
+	type userWithCount struct {
+		models.User
+		ServerCount int `json:"server_count"`
+	}
+
 	var users []models.User
 	if err := database.DB.Order("created_at ASC").Find(&users).Error; err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
 	}
-	return c.JSON(http.StatusOK, users)
+
+	type countRow struct {
+		OwnerID uint
+		Count   int
+	}
+	var rows []countRow
+	database.DB.Model(&models.Server{}).
+		Select("owner_id, count(*) as count").
+		Group("owner_id").
+		Scan(&rows)
+
+	countOf := map[uint]int{}
+	for _, r := range rows {
+		countOf[r.OwnerID] = r.Count
+	}
+
+	result := make([]userWithCount, len(users))
+	for i, u := range users {
+		result[i] = userWithCount{User: u, ServerCount: countOf[u.ID]}
+	}
+	return c.JSON(http.StatusOK, result)
 }
 
 // AdminUpdateUser PUT /api/v1/admin/users/:id — ban/unban or change role
@@ -35,7 +60,6 @@ func AdminUpdateUser(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()})
 	}
 
-	// Prevent self-demotion / self-ban
 	callerID := uint(0)
 	if v, ok := c.Get("user_id").(float64); ok {
 		callerID = uint(v)
@@ -82,4 +106,41 @@ func AdminDeleteUser(c echo.Context) error {
 
 	database.DB.Delete(&user)
 	return c.JSON(http.StatusOK, echo.Map{"message": "user deleted"})
+}
+
+// AdminGetServers GET /api/v1/admin/servers — list all servers with owner name
+func AdminGetServers(c echo.Context) error {
+	type adminServerResp struct {
+		models.Server
+		OwnerName string `json:"owner_name"`
+	}
+
+	var servers []models.Server
+	if err := database.DB.Preload("Status").Order("created_at DESC").Find(&servers).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
+	}
+
+	// Batch-fetch owner usernames
+	seen := map[uint]bool{}
+	ownerIDs := make([]uint, 0, len(servers))
+	for _, s := range servers {
+		if !seen[s.OwnerID] {
+			ownerIDs = append(ownerIDs, s.OwnerID)
+			seen[s.OwnerID] = true
+		}
+	}
+	var users []models.User
+	if len(ownerIDs) > 0 {
+		database.DB.Select("id, username").Where("id IN ?", ownerIDs).Find(&users)
+	}
+	nameOf := map[uint]string{}
+	for _, u := range users {
+		nameOf[u.ID] = u.Username
+	}
+
+	result := make([]adminServerResp, len(servers))
+	for i, s := range servers {
+		result[i] = adminServerResp{Server: s, OwnerName: nameOf[s.OwnerID]}
+	}
+	return c.JSON(http.StatusOK, result)
 }
