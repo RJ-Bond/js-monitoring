@@ -246,7 +246,7 @@ WAITED=0
 while ! curl -sf http://localhost/api/v1/stats >/dev/null 2>&1; do
     if [[ $WAITED -ge $MAX_WAIT ]]; then
         warn "$T_HEALTH_TIMEOUT"
-        warn "  docker compose -C ${INSTALL_DIR} logs"
+        warn "  docker compose --project-directory ${INSTALL_DIR} logs"
         break
     fi
     printf "  ${T_HEALTH_WAIT}\r" "$WAITED"
@@ -271,6 +271,6 @@ echo -e "  🔧 ${T_DONE_CFG}:     ${INSTALL_DIR}/.env"
 echo
 echo -e "  ${T_DONE_CMDS}"
 echo -e "    ${YELLOW}systemctl status js-monitoring${NC}            ${T_CMD_STATUS}"
-echo -e "    ${YELLOW}docker compose -C ${INSTALL_DIR} logs -f${NC}  ${T_CMD_LOGS}"
+echo -e "    ${YELLOW}docker compose --project-directory ${INSTALL_DIR} logs -f${NC}  ${T_CMD_LOGS}"
 echo -e "    ${YELLOW}systemctl restart js-monitoring${NC}           ${T_CMD_RESTART}"
 echo
