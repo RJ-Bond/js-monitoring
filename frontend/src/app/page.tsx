@@ -118,14 +118,19 @@ export default function Home() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {news.slice(0, 5).map((item) => (
                 <div key={item.id} className="glass-card rounded-2xl p-4 flex flex-col gap-2 border-l-2 border-neon-blue/40">
-                  <div className="flex items-start justify-between gap-2">
-                    <h3 className="text-sm font-semibold text-foreground leading-snug line-clamp-2">{item.title}</h3>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground flex-shrink-0">
+                  <h3 className="text-sm font-semibold text-foreground leading-snug line-clamp-2">{item.title}</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3 flex-1">
+                    {item.content.replace(/#{1,6} /g, "").replace(/\*\*/g, "").replace(/\*/g, "").replace(/\[(.+?)\]\(.+?\)/g, "$1").replace(/^- /gm, "• ")}
+                  </p>
+                  <div className="flex items-center gap-2 pt-1 border-t border-white/5">
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
                       <CalendarDays className="w-3 h-3" />
                       <span>{new Date(item.created_at).toLocaleDateString()}</span>
                     </div>
+                    {item.author_name && (
+                      <span className="text-xs text-muted-foreground/60 ml-auto">{t.newsBy} {item.author_name}</span>
+                    )}
                   </div>
-                  <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">{item.content}</p>
                 </div>
               ))}
             </div>

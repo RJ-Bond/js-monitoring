@@ -5,7 +5,7 @@ import type { Locale } from "@/lib/translations";
 import { cn } from "@/lib/utils";
 
 const LOCALES: { value: Locale; label: string; flag: string }[] = [
-  { value: "en", label: "EN", flag: "🇬🇧" },
+  { value: "en", label: "EN", flag: "🇺🇸" },
   { value: "ru", label: "RU", flag: "🇷🇺" },
 ];
 

@@ -73,6 +73,8 @@ export const translations = {
     adminUnban: "Unban",
     adminMakeAdmin: "Make Admin",
     adminMakeUser: "Make User",
+    roleAdmin: "Admin",
+    roleUser: "User",
     adminDelete: "Delete",
     adminConfirmDelete: (u: string) => `Delete user "${u}"? This cannot be undone.`,
     adminBanned: "Banned",
@@ -115,6 +117,9 @@ export const translations = {
     newsConfirmDelete: (title: string) => `Delete "${title}"?`,
     newsAdminLink: "Manage News",
     newsBackToMain: "← Back",
+    newsWrite: "Write",
+    newsPreview: "Preview",
+    newsBy: "by",
   },
 
   ru: {
@@ -189,6 +194,8 @@ export const translations = {
     adminUnban: "Разблокировать",
     adminMakeAdmin: "Назначить админом",
     adminMakeUser: "Разжаловать",
+    roleAdmin: "Админ",
+    roleUser: "Пользователь",
     adminDelete: "Удалить",
     adminConfirmDelete: (u: string) => `Удалить пользователя "${u}"? Отмена невозможна.`,
     adminBanned: "Заблокирован",
@@ -231,6 +238,9 @@ export const translations = {
     newsConfirmDelete: (title: string) => `Удалить "${title}"?`,
     newsAdminLink: "Управление новостями",
     newsBackToMain: "← Назад",
+    newsWrite: "Редактор",
+    newsPreview: "Предпросмотр",
+    newsBy: "автор",
   },
 } as const;
 

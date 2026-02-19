@@ -131,7 +131,7 @@ export default function AdminPage() {
                       </td>
                       <td className="px-5 py-3">
                         <span className={`text-xs font-medium px-2 py-0.5 rounded-md ${u.role === "admin" ? "bg-yellow-400/10 text-yellow-400" : "bg-white/5 text-muted-foreground"}`}>
-                          {u.role}
+                          {u.role === "admin" ? t.roleAdmin : t.roleUser}
                         </span>
                       </td>
                       <td className="px-5 py-3">

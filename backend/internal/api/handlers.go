@@ -210,11 +210,40 @@ func GetServerPlayers(c echo.Context) error {
 
 // ─── News ─────────────────────────────────────────────────────────────────────
 
+// newsResponse extends NewsItem with the author's username
+type newsResponse struct {
+	models.NewsItem
+	AuthorName string `json:"author_name"`
+}
+
 // GetNews GET /api/v1/news — публичный список новостей
 func GetNews(c echo.Context) error {
-	var news []models.NewsItem
-	database.DB.Order("created_at DESC").Limit(20).Find(&news)
-	return c.JSON(http.StatusOK, news)
+	var items []models.NewsItem
+	database.DB.Order("created_at DESC").Limit(20).Find(&items)
+
+	// Collect unique author IDs
+	seen := map[uint]bool{}
+	ids := make([]uint, 0, len(items))
+	for _, n := range items {
+		if !seen[n.AuthorID] {
+			ids = append(ids, n.AuthorID)
+			seen[n.AuthorID] = true
+		}
+	}
+	var users []models.User
+	if len(ids) > 0 {
+		database.DB.Select("id, username").Where("id IN ?", ids).Find(&users)
+	}
+	nameOf := map[uint]string{}
+	for _, u := range users {
+		nameOf[u.ID] = u.Username
+	}
+
+	result := make([]newsResponse, len(items))
+	for i, n := range items {
+		result[i] = newsResponse{NewsItem: n, AuthorName: nameOf[n.AuthorID]}
+	}
+	return c.JSON(http.StatusOK, result)
 }
 
 // CreateNews POST /api/v1/admin/news — создать новость (только админ)
