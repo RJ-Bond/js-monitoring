@@ -45,4 +45,4 @@ EXPOSE 3000
 HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=5 \
   CMD node -e "require('http').get('http://localhost:3000/api/health'||'http://localhost:3000',r=>{process.exit(r.statusCode<500?0:1)}).on('error',()=>process.exit(1))"
 
-CMD ["node", "server.js"]
+CMD ["node", "--no-deprecation", "server.js"]
