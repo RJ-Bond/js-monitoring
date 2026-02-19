@@ -96,6 +96,9 @@ func main() {
 	protected.POST("/servers", api.CreateServer)
 	protected.PUT("/servers/:id", api.UpdateServer)
 	protected.DELETE("/servers/:id", api.DeleteServer)
+	protected.GET("/profile", api.GetProfile)
+	protected.PUT("/profile", api.UpdateProfile)
+	protected.PUT("/profile/avatar", api.UpdateAvatar)
 
 	// ── Admin routes (JWT + admin role) ───────────────────────────────────────
 	admin := v1.Group("/admin", api.JWTMiddleware, api.AdminMiddleware)

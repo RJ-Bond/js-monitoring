@@ -62,6 +62,13 @@ export const api = {
   adminDeleteUser: (id: number): Promise<void> =>
     fetchJSON<void>(`/api/v1/admin/users/${id}`, { method: "DELETE" }),
 
+  // Profile
+  getProfile: () => fetchJSON<User>("/api/v1/profile"),
+  updateProfile: (data: { username?: string; current_password?: string; new_password?: string }) =>
+    fetchJSON<User>("/api/v1/profile", { method: "PUT", body: JSON.stringify(data) }),
+  updateAvatar: (avatar: string) =>
+    fetchJSON<User>("/api/v1/profile/avatar", { method: "PUT", body: JSON.stringify({ avatar }) }),
+
   // News
   getNews: () => fetchJSON<NewsItem[]>("/api/v1/news"),
   createNews: (title: string, content: string) =>

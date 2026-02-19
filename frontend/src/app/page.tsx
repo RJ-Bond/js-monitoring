@@ -195,9 +195,13 @@ export default function Home() {
             <LanguageSwitcher />
             {isAuthenticated && user && (
               <>
-                <span className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground px-2">
-                  <User className="w-3.5 h-3.5" />{user.username}
-                </span>
+                <a href="/profile" className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded-xl hover:bg-white/5 transition-all">
+                  {user.avatar
+                    ? <img src={user.avatar} alt="" className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
+                    : <User className="w-3.5 h-3.5 flex-shrink-0" />
+                  }
+                  {user.username}
+                </a>
                 <button onClick={logout} title="Logout" className="hidden sm:flex p-2 rounded-xl text-muted-foreground hover:text-red-400 hover:bg-red-400/10 transition-all">
                   <LogOut className="w-4 h-4" />
                 </button>
@@ -241,10 +245,13 @@ export default function Home() {
         {mobileMenuOpen && (
           <div className="sm:hidden border-t border-white/5 px-4 py-3 flex flex-col gap-1 bg-background/95">
             {isAuthenticated && user && (
-              <div className="flex items-center gap-2 px-2 py-2 text-sm">
-                <User className="w-4 h-4 text-muted-foreground" />
+              <a href="/profile" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm hover:bg-white/5 transition-colors">
+                {user.avatar
+                  ? <img src={user.avatar} alt="" className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
+                  : <User className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                }
                 <span className="font-medium">{user.username}</span>
-              </div>
+              </a>
             )}
             {isAuthenticated && user?.role === "admin" && (
               <>

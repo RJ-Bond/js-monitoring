@@ -1,0 +1,109 @@
+package api
+
+import (
+	"net/http"
+	"strings"
+
+	"github.com/labstack/echo/v4"
+	"golang.org/x/crypto/bcrypt"
+
+	"github.com/RJ-Bond/js-monitoring/internal/database"
+	"github.com/RJ-Bond/js-monitoring/internal/models"
+)
+
+func profileUserID(c echo.Context) uint {
+	uid, _ := c.Get("user_id").(float64)
+	return uint(uid)
+}
+
+// GetProfile GET /api/v1/profile — returns current user's profile
+func GetProfile(c echo.Context) error {
+	var user models.User
+	if err := database.DB.First(&user, profileUserID(c)).Error; err != nil {
+		return c.JSON(http.StatusNotFound, echo.Map{"error": "user not found"})
+	}
+	return c.JSON(http.StatusOK, user)
+}
+
+// UpdateProfile PUT /api/v1/profile — update username and/or password
+func UpdateProfile(c echo.Context) error {
+	id := profileUserID(c)
+
+	var user models.User
+	if err := database.DB.First(&user, id).Error; err != nil {
+		return c.JSON(http.StatusNotFound, echo.Map{"error": "user not found"})
+	}
+
+	var req struct {
+		Username        string `json:"username"`
+		CurrentPassword string `json:"current_password"`
+		NewPassword     string `json:"new_password"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid request"})
+	}
+
+	updates := map[string]interface{}{}
+
+	if req.Username != "" && req.Username != user.Username {
+		updates["username"] = strings.TrimSpace(req.Username)
+	}
+
+	if req.NewPassword != "" {
+		if user.PasswordHash != "" {
+			if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.CurrentPassword)); err != nil {
+				return c.JSON(http.StatusUnauthorized, echo.Map{"error": "current password is incorrect"})
+			}
+		}
+		if len(req.NewPassword) < 6 {
+			return c.JSON(http.StatusBadRequest, echo.Map{"error": "password must be at least 6 characters"})
+		}
+		hash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, echo.Map{"error": "failed to hash password"})
+		}
+		updates["password_hash"] = string(hash)
+	}
+
+	if len(updates) == 0 {
+		return c.JSON(http.StatusOK, user)
+	}
+
+	if err := database.DB.Model(&user).Updates(updates).Error; err != nil {
+		return c.JSON(http.StatusConflict, echo.Map{"error": "username already taken"})
+	}
+
+	database.DB.First(&user, id)
+	return c.JSON(http.StatusOK, user)
+}
+
+// UpdateAvatar PUT /api/v1/profile/avatar — update avatar (base64 data URI) or remove (empty string)
+func UpdateAvatar(c echo.Context) error {
+	id := profileUserID(c)
+
+	var req struct {
+		Avatar string `json:"avatar"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid request"})
+	}
+
+	if req.Avatar != "" && !strings.HasPrefix(req.Avatar, "data:image/") {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid avatar format"})
+	}
+	// ~800KB base64 ≈ 600KB raw image — generous limit for a WebP thumbnail
+	if len(req.Avatar) > 800*1024 {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "avatar too large (max ~600KB)"})
+	}
+
+	var user models.User
+	if err := database.DB.First(&user, id).Error; err != nil {
+		return c.JSON(http.StatusNotFound, echo.Map{"error": "user not found"})
+	}
+
+	if err := database.DB.Model(&user).Update("avatar", req.Avatar).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "failed to update avatar"})
+	}
+	user.Avatar = req.Avatar
+	return c.JSON(http.StatusOK, user)
+}

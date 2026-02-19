@@ -8,13 +8,14 @@ interface AuthContextValue {
   token: string | null;
   login: (token: string, user: User, remember?: boolean) => void;
   logout: () => void;
+  updateUser: (user: User) => void;
   isAuthenticated: boolean;
   isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextValue>({
   user: null, token: null,
-  login: () => {}, logout: () => {},
+  login: () => {}, logout: () => {}, updateUser: () => {},
   isAuthenticated: false,
   isLoading: true,
 });
@@ -53,8 +54,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     sessionStorage.removeItem(USER_KEY);
   }, []);
 
+  const updateUser = useCallback((u: User) => {
+    setUser(u);
+    // persist to whichever storage currently holds the token
+    const storage = localStorage.getItem(TOKEN_KEY) ? localStorage : sessionStorage;
+    storage.setItem(USER_KEY, JSON.stringify(u));
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, isAuthenticated: !!token, isLoading }}>
+    <AuthContext.Provider value={{ user, token, login, logout, updateUser, isAuthenticated: !!token, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
