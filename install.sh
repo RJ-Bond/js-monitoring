@@ -81,6 +81,17 @@ if [[ "$LANG" == "ru" ]]; then
     T_CMD_STATUS="# статус сервиса"
     T_CMD_LOGS="# логи в реальном времени"
     T_CMD_RESTART="# перезапуск"
+    T_MENU_TITLE="Меню управления"
+    T_MENU_1="Все логи (live)"
+    T_MENU_2="Логи бэкенда"
+    T_MENU_3="Логи фронтенда"
+    T_MENU_4="Логи nginx"
+    T_MENU_5="Логи MySQL"
+    T_MENU_6="Статус контейнеров"
+    T_MENU_0="Выход"
+    T_MENU_PROMPT="Выберите пункт"
+    T_MENU_INVALID="Неверный ввод"
+    T_MENU_EXIT="До свидания!"
 else
     T_CLEANUP="Cleaning up stale APT repositories"
     T_REMOVING_REPO="Removing stale MySQL APT repo"
@@ -120,6 +131,17 @@ else
     T_CMD_STATUS="# service status"
     T_CMD_LOGS="# live logs"
     T_CMD_RESTART="# restart all"
+    T_MENU_TITLE="Management Menu"
+    T_MENU_1="All logs (live)"
+    T_MENU_2="Backend logs"
+    T_MENU_3="Frontend logs"
+    T_MENU_4="Nginx logs"
+    T_MENU_5="MySQL logs"
+    T_MENU_6="Container status"
+    T_MENU_0="Exit"
+    T_MENU_PROMPT="Choose option"
+    T_MENU_INVALID="Invalid input"
+    T_MENU_EXIT="Goodbye!"
 fi
 
 # ── Fix: remove stale MySQL APT repo ──────────────────────────────────────────
@@ -274,3 +296,40 @@ echo -e "    ${YELLOW}systemctl status js-monitoring${NC}            ${T_CMD_STA
 echo -e "    ${YELLOW}docker compose --project-directory ${INSTALL_DIR} logs -f${NC}  ${T_CMD_LOGS}"
 echo -e "    ${YELLOW}systemctl restart js-monitoring${NC}           ${T_CMD_RESTART}"
 echo
+
+# ── Post-install management menu ──────────────────────────────────────────────
+show_menu() {
+    echo
+    echo -e "${GREEN}╔══════════════════════════════════════════════╗${NC}"
+    echo -e "${GREEN}║        📋  ${T_MENU_TITLE}        ║${NC}"
+    echo -e "${GREEN}╚══════════════════════════════════════════════╝${NC}"
+    echo -e "  ${YELLOW}1)${NC} ${T_MENU_1}"
+    echo -e "  ${YELLOW}2)${NC} ${T_MENU_2}"
+    echo -e "  ${YELLOW}3)${NC} ${T_MENU_3}"
+    echo -e "  ${YELLOW}4)${NC} ${T_MENU_4}"
+    echo -e "  ${YELLOW}5)${NC} ${T_MENU_5}"
+    echo -e "  ${YELLOW}6)${NC} ${T_MENU_6}"
+    echo -e "  ${YELLOW}0)${NC} ${T_MENU_0}"
+    echo
+    echo -ne "  ${T_MENU_PROMPT} [0-6]: "
+}
+
+DC="docker compose --project-directory ${INSTALL_DIR}"
+
+while true; do
+    show_menu
+    read -r CHOICE </dev/tty
+    echo
+    case "${CHOICE}" in
+        1) $DC logs -f --tail=100 ;;
+        2) $DC logs -f --tail=100 backend ;;
+        3) $DC logs -f --tail=100 frontend ;;
+        4) $DC logs -f --tail=100 nginx ;;
+        5) $DC logs -f --tail=100 mysql ;;
+        6) $DC ps ;;
+        0) echo -e "${GREEN}${T_MENU_EXIT}${NC}"; break ;;
+        *) echo -e "${YELLOW}${T_MENU_INVALID}${NC}" ;;
+    esac
+    echo
+    echo -e "  ${YELLOW}[Press Ctrl-C to stop logs / Ctrl-C для выхода из логов]${NC}"
+done
