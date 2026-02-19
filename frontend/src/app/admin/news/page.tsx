@@ -57,6 +57,7 @@ export default function AdminNewsPage() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [editorTab, setEditorTab] = useState<"write" | "preview">("write");
+  const [deleteConfirm, setDeleteConfirm] = useState<NewsItem | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -149,12 +150,17 @@ export default function AdminNewsPage() {
   };
 
   const handleDelete = async (item: NewsItem) => {
-    if (!confirm(t.newsConfirmDelete(item.title))) return;
+    setDeleteConfirm(item);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm) return;
     try {
-      await api.deleteNews(item.id);
-      setNews((prev) => prev.filter((n) => n.id !== item.id));
+      await api.deleteNews(deleteConfirm.id);
+      setNews((prev) => prev.filter((n) => n.id !== deleteConfirm.id));
+      setDeleteConfirm(null);
     } catch {
-      alert("Failed to delete");
+      setDeleteConfirm(null);
     }
   };
 
@@ -275,6 +281,40 @@ export default function AdminNewsPage() {
         )}
       </main>
 
+      {/* Delete Confirm */}
+      {deleteConfirm && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setDeleteConfirm(null); }}
+        >
+          <div className="w-full max-w-sm glass-card rounded-2xl p-6 flex flex-col gap-4 animate-fade-in border border-red-500/20">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center flex-shrink-0">
+                <Trash2 className="w-5 h-5 text-red-400" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm">{t.newsConfirmDelete(deleteConfirm.title)}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{t.deleteModalTitle}</p>
+              </div>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="flex-1 px-4 py-2.5 rounded-xl text-sm text-muted-foreground border border-white/10 hover:border-white/20 hover:text-foreground transition-all"
+              >
+                {t.newsCancel}
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-all"
+              >
+                {t.newsDelete}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Add / Edit Modal */}
       {modalOpen && (
         <div
@@ -359,6 +399,9 @@ export default function AdminNewsPage() {
                         </button>
                       ))}
                       <span className="ml-auto text-xs text-muted-foreground/40 pr-1">Markdown</span>
+                      <span className={`text-xs pr-1 ${formContent.length > 4000 ? "text-red-400" : "text-muted-foreground/30"}`}>
+                        {formContent.length}
+                      </span>
                     </div>
                     <textarea
                       ref={textareaRef}

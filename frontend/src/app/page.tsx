@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import {
   Plus, RefreshCw, Gamepad2, Zap, LogOut, User, Shield, Newspaper,
-  CalendarDays, Menu, X, Download, ChevronUp, ChevronDown,
+  CalendarDays, Menu, X, Download, ChevronUp, ChevronDown, ArrowUpRight,
 } from "lucide-react";
 import { useServers, useDeleteServer } from "@/hooks/useServers";
 import { useServerWebSocket } from "@/hooks/useWebSocket";
@@ -12,7 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useFavorites } from "@/hooks/useFavorites";
 import { api } from "@/lib/api";
 import { toast } from "@/lib/toast";
-import { renderMarkdown } from "@/lib/markdown";
+import { renderMarkdown, stripMarkdown } from "@/lib/markdown";
 import { useQuery } from "@tanstack/react-query";
 import ServerCard from "@/components/ServerCard";
 import StatsOverview from "@/components/StatsOverview";
@@ -29,9 +29,37 @@ type SortMode = "default" | "players" | "ping" | "name" | "status";
 
 const NEWS_PREVIEW = 3;
 
+function relativeTime(dateStr: string, locale: string): string {
+  const diffMs = Date.now() - new Date(dateStr).getTime();
+  const m = Math.floor(diffMs / 60000);
+  if (m < 2) return locale === "ru" ? "только что" : "just now";
+  if (m < 60) return locale === "ru" ? `${m} мин. назад` : `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return locale === "ru" ? `${h} ч. назад` : `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d < 30) return locale === "ru" ? `${d} дн. назад` : `${d}d ago`;
+  return new Date(dateStr).toLocaleDateString(locale === "ru" ? "ru-RU" : "en-US", { day: "numeric", month: "short" });
+}
+
+function AuthorAvatar({ name, size = "sm" }: { name: string; size?: "sm" | "md" }) {
+  const colors = [
+    "bg-neon-green/15 text-neon-green border-neon-green/25",
+    "bg-neon-blue/15 text-neon-blue border-neon-blue/25",
+    "bg-neon-purple/15 text-neon-purple border-neon-purple/25",
+    "bg-yellow-400/15 text-yellow-400 border-yellow-400/25",
+  ];
+  const idx = name.charCodeAt(0) % colors.length;
+  const sz = size === "md" ? "w-6 h-6 text-[11px]" : "w-5 h-5 text-[10px]";
+  return (
+    <span className={`${sz} rounded-full flex items-center justify-center font-bold flex-shrink-0 border ${colors[idx]}`}>
+      {name[0].toUpperCase()}
+    </span>
+  );
+}
+
 export default function Home() {
   useServerWebSocket();
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const { user, logout, isAuthenticated } = useAuth();
   const { data: servers, isLoading, refetch, isRefetching } = useServers();
   const { mutate: deleteServer } = useDeleteServer();
@@ -244,11 +272,13 @@ export default function Home() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
         {/* News */}
         {news && news.length > 0 && (
-          <section className="flex flex-col gap-3">
+          <section className="flex flex-col gap-4">
+            {/* Section header */}
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Newspaper className="w-4 h-4 text-neon-blue" />
-                <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">{t.newsTitle}</h2>
+                <h2 className="text-sm font-semibold uppercase tracking-wide">{t.newsTitle}</h2>
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-neon-blue/10 text-neon-blue/80 border border-neon-blue/20">{news.length}</span>
               </div>
               {news.length > NEWS_PREVIEW && (
                 <button
@@ -262,29 +292,73 @@ export default function Home() {
                 </button>
               )}
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {visibleNews.map((item) => (
-                <div
-                  key={item.id}
-                  onClick={() => setNewsModal(item)}
-                  className="glass-card rounded-2xl p-4 flex flex-col gap-2 border-l-2 border-neon-blue/40 cursor-pointer hover:border-neon-blue/70 hover:bg-white/[0.03] transition-all"
-                >
-                  <h3 className="text-sm font-semibold text-foreground leading-snug line-clamp-2">{item.title}</h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3 flex-1">
-                    {item.content.replace(/#{1,6} /g, "").replace(/\*\*/g, "").replace(/\*/g, "").replace(/\[(.+?)\]\(.+?\)/g, "$1").replace(/^- /gm, "• ")}
-                  </p>
-                  <div className="flex items-center gap-2 pt-1 border-t border-white/5">
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <CalendarDays className="w-3 h-3" />
-                      <span>{new Date(item.created_at).toLocaleDateString()}</span>
+
+            {/* Featured first item */}
+            {visibleNews[0] && (
+              <div
+                onClick={() => setNewsModal(visibleNews[0])}
+                className="relative glass-card rounded-2xl p-5 sm:p-6 cursor-pointer group border border-neon-blue/20 hover:border-neon-blue/45 transition-all overflow-hidden"
+              >
+                {/* Gradient bg overlay */}
+                <div className="absolute inset-0 bg-gradient-to-r from-neon-blue/[0.06] via-transparent to-transparent pointer-events-none" />
+                <div className="absolute top-0 left-10 right-10 h-px bg-gradient-to-r from-transparent via-neon-blue/40 to-transparent" />
+                <div className="relative flex flex-col gap-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[10px] font-bold text-neon-blue/70 uppercase tracking-widest mb-2 block">📢 {t.newsTitle}</span>
+                      <h3 className="text-base sm:text-lg font-bold leading-snug group-hover:text-neon-blue transition-colors duration-200 line-clamp-2">
+                        {visibleNews[0].title}
+                      </h3>
                     </div>
-                    {item.author_name && (
-                      <span className="text-xs text-muted-foreground/60 ml-auto">{t.newsBy} {item.author_name}</span>
+                    <ArrowUpRight className="w-4 h-4 text-muted-foreground/30 group-hover:text-neon-blue/60 transition-colors flex-shrink-0 mt-1" />
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 sm:line-clamp-3">
+                    {stripMarkdown(visibleNews[0].content)}
+                  </p>
+                  <div className="flex items-center gap-3 pt-3 border-t border-white/[0.06]">
+                    {visibleNews[0].author_name && (
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <AuthorAvatar name={visibleNews[0].author_name} size="md" />
+                        <span>{visibleNews[0].author_name}</span>
+                      </div>
                     )}
+                    <span className="text-xs text-muted-foreground/50 ml-auto flex items-center gap-1">
+                      <CalendarDays className="w-3 h-3" />
+                      {relativeTime(visibleNews[0].created_at, locale)}
+                    </span>
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
+
+            {/* Remaining items */}
+            {visibleNews.length > 1 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {visibleNews.slice(1).map((item) => (
+                  <div
+                    key={item.id}
+                    onClick={() => setNewsModal(item)}
+                    className="glass-card rounded-2xl p-4 flex flex-col gap-2 cursor-pointer group hover:border-white/16 transition-all"
+                  >
+                    <h3 className="text-sm font-semibold leading-snug line-clamp-2 group-hover:text-neon-blue transition-colors duration-200">
+                      {item.title}
+                    </h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3 flex-1">
+                      {stripMarkdown(item.content)}
+                    </p>
+                    <div className="flex items-center gap-2 pt-2 border-t border-white/[0.06]">
+                      {item.author_name && (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground/70">
+                          <AuthorAvatar name={item.author_name} />
+                          <span className="truncate max-w-[70px]">{item.author_name}</span>
+                        </div>
+                      )}
+                      <span className="text-xs text-muted-foreground/40 ml-auto">{relativeTime(item.created_at, locale)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
         )}
 
@@ -396,24 +470,38 @@ export default function Home() {
       {/* News article modal */}
       {newsModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4"
           onClick={(e) => { if (e.target === e.currentTarget) setNewsModal(null); }}
         >
-          <div className="w-full max-w-2xl glass-card rounded-2xl overflow-hidden shadow-2xl max-h-[85vh] flex flex-col animate-fade-in">
-            <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-white/10">
+          <div className="w-full max-w-2xl glass-card rounded-2xl overflow-hidden shadow-2xl max-h-[88vh] flex flex-col animate-fade-in border border-neon-blue/20">
+            {/* Modal header */}
+            <div className="relative flex items-start justify-between gap-4 px-6 pt-6 pb-5 border-b border-white/8">
+              <div className="absolute top-0 left-10 right-10 h-px bg-gradient-to-r from-transparent via-neon-blue/40 to-transparent" />
               <div className="flex-1 min-w-0">
-                <h2 className="font-bold text-lg leading-snug">{newsModal.title}</h2>
-                <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
-                  <span className="flex items-center gap-1"><CalendarDays className="w-3 h-3" />{new Date(newsModal.created_at).toLocaleDateString()}</span>
-                  {newsModal.author_name && <span>{t.newsBy} {newsModal.author_name}</span>}
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                  <span className="text-[10px] font-bold text-neon-blue/70 uppercase tracking-widest">📢 {t.newsTitle}</span>
+                </div>
+                <h2 className="font-bold text-xl leading-snug mb-3">{newsModal.title}</h2>
+                <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                  {newsModal.author_name && (
+                    <div className="flex items-center gap-1.5">
+                      <AuthorAvatar name={newsModal.author_name} size="md" />
+                      <span>{newsModal.author_name}</span>
+                    </div>
+                  )}
+                  <span className="flex items-center gap-1 text-muted-foreground/50">
+                    <CalendarDays className="w-3 h-3" />
+                    {relativeTime(newsModal.created_at, locale)}
+                  </span>
                 </div>
               </div>
-              <button onClick={() => setNewsModal(null)} className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 mt-0.5">
-                <X className="w-5 h-5" />
+              <button onClick={() => setNewsModal(null)} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors flex-shrink-0">
+                <X className="w-4 h-4" />
               </button>
             </div>
+            {/* Article body */}
             <div
-              className="px-6 py-5 overflow-y-auto text-sm text-foreground leading-relaxed"
+              className="px-6 py-6 overflow-y-auto"
               dangerouslySetInnerHTML={{ __html: renderMarkdown(newsModal.content) }}
             />
           </div>
