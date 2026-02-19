@@ -45,7 +45,7 @@ export default function AddEditServerModal({ onClose, editServer, onUpdate }: Ad
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (!form.title || !form.ip) { setError(t.fieldRequired); return; }
+    if (!form.ip) { setError(t.fieldRequired); return; }
 
     const data = { ...form, port: Number(form.port) };
 
@@ -65,7 +65,7 @@ export default function AddEditServerModal({ onClose, editServer, onUpdate }: Ad
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="w-full max-w-md glass-card rounded-2xl overflow-hidden shadow-2xl animate-fade-in">
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
-          <h2 className="font-bold text-base">{isEdit ? `✏️ ${editServer?.title}` : t.modalTitle}</h2>
+          <h2 className="font-bold text-base">{isEdit ? `✏️ ${editServer?.title || editServer?.status?.server_name || editServer?.ip}` : t.modalTitle}</h2>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors"><X className="w-4 h-4" /></button>
         </div>
         <form onSubmit={handleSubmit} className="p-5 flex flex-col gap-3">

@@ -48,7 +48,9 @@ export default function ServerCard({ server, onDelete, onEdit }: ServerCardProps
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <GameIcon gameType={server.game_type} />
-              <h3 className="font-bold text-base truncate text-foreground">{server.title}</h3>
+              <h3 className="font-bold text-base truncate text-foreground">
+                {server.title || status?.server_name || server.ip}
+              </h3>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <p className="text-xs text-muted-foreground font-mono truncate">{server.display_ip || server.ip}:{server.port}</p>

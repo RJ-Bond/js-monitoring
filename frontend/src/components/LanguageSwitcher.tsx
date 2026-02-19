@@ -18,15 +18,14 @@ export default function LanguageSwitcher() {
         <button
           key={l.value}
           onClick={() => setLocale(l.value)}
-          title={l.flag}
           className={cn(
-            "px-2.5 py-1 rounded-lg text-xs font-semibold transition-all",
+            "flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all",
             locale === l.value
               ? "bg-neon-green/20 text-neon-green border border-neon-green/30"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          {l.label}
+          <span>{l.flag}</span>{l.label}
         </button>
       ))}
     </div>
