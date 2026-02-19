@@ -22,15 +22,17 @@ type User struct {
 
 // Server — основная запись игрового сервера
 type Server struct {
-	ID         uint      `gorm:"primaryKey;autoIncrement"              json:"id"`
-	UUID       string    `gorm:"type:varchar(36);uniqueIndex;not null" json:"uuid"`
-	Title      string    `gorm:"type:varchar(255);not null"            json:"title"`
-	IP         string    `gorm:"type:varchar(45);not null"             json:"ip"`
-	Port       uint16    `gorm:"not null"                              json:"port"`
-	GameType   string    `gorm:"type:varchar(30);not null"             json:"game_type"`
-	SecretRCON string    `gorm:"type:varchar(255)"                     json:"-"`
-	CreatedAt  time.Time `                                             json:"created_at"`
-	UpdatedAt  time.Time `                                             json:"updated_at"`
+	ID          uint      `gorm:"primaryKey;autoIncrement"              json:"id"`
+	UUID        string    `gorm:"type:varchar(36);uniqueIndex;not null" json:"uuid"`
+	Title       string    `gorm:"type:varchar(255);not null"            json:"title"`
+	IP          string    `gorm:"type:varchar(45);not null"             json:"ip"`
+	Port        uint16    `gorm:"not null"                              json:"port"`
+	GameType    string    `gorm:"type:varchar(30);not null"             json:"game_type"`
+	SecretRCON  string    `gorm:"type:varchar(255)"                     json:"-"`
+	CountryCode string    `gorm:"type:varchar(2)"                       json:"country_code"`
+	CountryName string    `gorm:"type:varchar(100)"                     json:"country_name"`
+	CreatedAt   time.Time `                                             json:"created_at"`
+	UpdatedAt   time.Time `                                             json:"updated_at"`
 
 	Status      *ServerStatus `gorm:"foreignKey:ServerID" json:"status,omitempty"`
 	AlertConfig *AlertsConfig `gorm:"foreignKey:ServerID" json:"alert_config,omitempty"`
@@ -49,8 +51,14 @@ type ServerStatus struct {
 	PlayersNow   int       `gorm:"default:0"                json:"players_now"`
 	PlayersMax   int       `gorm:"default:0"                json:"players_max"`
 	CurrentMap   string    `gorm:"type:varchar(255)"        json:"current_map"`
+	ServerName   string    `gorm:"type:varchar(255)"        json:"server_name"`
 	PingMS       int       `gorm:"default:0"                json:"ping_ms"`
 	LastUpdate   time.Time `                                json:"last_update"`
+}
+
+// ServerPlayer — игрок на сервере (не хранится в БД, только для API ответа)
+type ServerPlayer struct {
+	Name string `json:"name"`
 }
 
 // PlayerHistory — история онлайна для графиков

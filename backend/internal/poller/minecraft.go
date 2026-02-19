@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/RJ-Bond/js-monitoring/internal/models"
@@ -42,13 +44,45 @@ func QueryMinecraft(ip string, port uint16) (*models.ServerStatus, error) {
 	return status, nil
 }
 
+// QueryMinecraftPlayers возвращает список игроков из players.sample
+func QueryMinecraftPlayers(ip string, port uint16) ([]models.ServerPlayer, error) {
+	addr := fmt.Sprintf("%s:%d", ip, port)
+	conn, err := net.DialTimeout("tcp", addr, udpTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("connect failed: %w", err)
+	}
+	defer conn.Close()
+	_ = conn.SetDeadline(time.Now().Add(udpTimeout))
+
+	if err := mcSendHandshake(conn, ip, port); err != nil {
+		return nil, err
+	}
+	if err := mcSendStatusRequest(conn); err != nil {
+		return nil, err
+	}
+
+	s, err := mcParseFullStatus(conn)
+	if err != nil {
+		return nil, err
+	}
+
+	players := make([]models.ServerPlayer, 0, len(s.Players.Sample))
+	for _, p := range s.Players.Sample {
+		name := strings.TrimSpace(p.Name)
+		if name != "" {
+			players = append(players, models.ServerPlayer{Name: name})
+		}
+	}
+	return players, nil
+}
+
 func mcSendHandshake(conn net.Conn, ip string, port uint16) error {
 	var payload bytes.Buffer
-	mcWriteVarInt(&payload, 0x00)           // Packet ID: Handshake
-	mcWriteVarInt(&payload, 767)            // Protocol version (1.21+)
-	mcWriteString(&payload, ip)            // Server address
-	binary.Write(&payload, binary.BigEndian, port) //nolint:errcheck
-	mcWriteVarInt(&payload, 1)             // Next state: status
+	mcWriteVarInt(&payload, 0x00)                          // Packet ID: Handshake
+	mcWriteVarInt(&payload, 767)                           // Protocol version (1.21+)
+	mcWriteString(&payload, ip)                            // Server address
+	binary.Write(&payload, binary.BigEndian, port)         //nolint:errcheck
+	mcWriteVarInt(&payload, 1)                             // Next state: status
 
 	return mcWritePacket(conn, payload.Bytes())
 }
@@ -109,13 +143,39 @@ type mcStatusJSON struct {
 	Players struct {
 		Max    int `json:"max"`
 		Online int `json:"online"`
+		Sample []struct {
+			Name string `json:"name"`
+		} `json:"sample"`
 	} `json:"players"`
 	Version struct {
 		Name string `json:"name"`
 	} `json:"version"`
+	Description json.RawMessage `json:"description"`
 }
 
-func mcReadStatusResponse(conn net.Conn) (*models.ServerStatus, error) {
+var mcFormatRegex = regexp.MustCompile(`§.`)
+
+// parseMCDescription извлекает текст из description (строка или объект {"text":"..."})
+func parseMCDescription(raw json.RawMessage) string {
+	if len(raw) == 0 {
+		return ""
+	}
+	// Попытка: plain string
+	var s string
+	if err := json.Unmarshal(raw, &s); err == nil {
+		return strings.TrimSpace(mcFormatRegex.ReplaceAllString(s, ""))
+	}
+	// Попытка: объект с полем text
+	var obj struct {
+		Text string `json:"text"`
+	}
+	if err := json.Unmarshal(raw, &obj); err == nil && obj.Text != "" {
+		return strings.TrimSpace(mcFormatRegex.ReplaceAllString(obj.Text, ""))
+	}
+	return ""
+}
+
+func mcReadRawJSON(conn net.Conn) ([]byte, error) {
 	// Packet length
 	if _, err := mcReadVarInt(conn); err != nil {
 		return nil, err
@@ -129,9 +189,16 @@ func mcReadStatusResponse(conn net.Conn) (*models.ServerStatus, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	jsonData := make([]byte, jsonLen)
 	if _, err := io.ReadFull(conn, jsonData); err != nil {
+		return nil, err
+	}
+	return jsonData, nil
+}
+
+func mcReadStatusResponse(conn net.Conn) (*models.ServerStatus, error) {
+	jsonData, err := mcReadRawJSON(conn)
+	if err != nil {
 		return nil, err
 	}
 
@@ -144,5 +211,18 @@ func mcReadStatusResponse(conn net.Conn) (*models.ServerStatus, error) {
 		PlayersNow: s.Players.Online,
 		PlayersMax: s.Players.Max,
 		CurrentMap: "world",
+		ServerName: parseMCDescription(s.Description),
 	}, nil
+}
+
+func mcParseFullStatus(conn net.Conn) (*mcStatusJSON, error) {
+	jsonData, err := mcReadRawJSON(conn)
+	if err != nil {
+		return nil, err
+	}
+	var s mcStatusJSON
+	if err := json.Unmarshal(jsonData, &s); err != nil {
+		return nil, fmt.Errorf("json parse: %w", err)
+	}
+	return &s, nil
 }

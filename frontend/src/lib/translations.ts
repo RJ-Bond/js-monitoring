@@ -79,6 +79,19 @@ export const translations = {
     adminActive: "Active",
     adminNoUsers: "No users found",
     adminBackToPanel: "← Back to panel",
+    // Setup
+    setupTitle: "First-time Setup",
+    setupSubtitle: "Create an administrator account to get started",
+    setupUsername: "Admin username",
+    setupPassword: "Password",
+    setupConfirm: "Confirm password",
+    setupBtn: "Create Admin & Start",
+    setupBtnLoading: "Creating…",
+    setupMismatch: "Passwords do not match",
+    setupTooShort: "Password must be at least 6 characters",
+    // Players table
+    playersOnline: "Players online",
+    playersNoData: "No player data available",
   },
 
   ru: {
@@ -159,6 +172,19 @@ export const translations = {
     adminActive: "Активен",
     adminNoUsers: "Пользователи не найдены",
     adminBackToPanel: "← На главную",
+    // Setup
+    setupTitle: "Первоначальная настройка",
+    setupSubtitle: "Создайте аккаунт администратора для начала работы",
+    setupUsername: "Имя администратора",
+    setupPassword: "Пароль",
+    setupConfirm: "Подтвердите пароль",
+    setupBtn: "Создать аккаунт и начать",
+    setupBtnLoading: "Создание…",
+    setupMismatch: "Пароли не совпадают",
+    setupTooShort: "Пароль должен содержать минимум 6 символов",
+    // Players table
+    playersOnline: "Игроки онлайн",
+    playersNoData: "Данные об игроках недоступны",
   },
 } as const;
 

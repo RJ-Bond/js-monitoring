@@ -5,6 +5,7 @@ export interface ServerStatus {
   players_now: number;
   players_max: number;
   current_map: string;
+  server_name?: string;
   ping_ms: number;
   last_update: string;
 }
@@ -39,10 +40,16 @@ export interface Server {
   ip: string;
   port: number;
   game_type: GameType;
+  country_code?: string;
+  country_name?: string;
   created_at: string;
   updated_at: string;
   status?: ServerStatus;
   alert_config?: AlertConfig;
+}
+
+export interface ServerPlayer {
+  name: string;
 }
 
 export interface PlayerHistory {

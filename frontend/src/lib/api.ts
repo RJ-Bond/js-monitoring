@@ -1,4 +1,4 @@
-import type { Server, PlayerHistory, Stats, AuthResponse, User } from "@/types/server";
+import type { Server, ServerPlayer, PlayerHistory, Stats, AuthResponse, User } from "@/types/server";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
 
@@ -38,6 +38,15 @@ export const api = {
 
   deleteServer: (id: number): Promise<void> =>
     fetchJSON<void>(`/api/v1/servers/${id}`, { method: "DELETE" }),
+
+  // Players
+  getServerPlayers: (id: number) =>
+    fetchJSON<ServerPlayer[]>(`/api/v1/servers/${id}/players`),
+
+  // Setup
+  setupStatus: () => fetchJSON<{ needed: boolean }>("/api/v1/setup/status"),
+  setupAdmin: (username: string, password: string) =>
+    fetchJSON<AuthResponse>("/api/v1/setup", { method: "POST", body: JSON.stringify({ username, password }) }),
 
   // Auth
   login:    (username: string, password: string) =>

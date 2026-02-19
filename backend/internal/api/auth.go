@@ -54,6 +54,46 @@ func makeToken(user *models.User) (string, error) {
 	return token.SignedString(jwtSecret())
 }
 
+// SetupStatus GET /api/v1/setup/status — публичный, возвращает нужна ли начальная настройка
+func SetupStatus(c echo.Context) error {
+	var count int64
+	database.DB.Model(&models.User{}).Count(&count)
+	return c.JSON(http.StatusOK, echo.Map{"needed": count == 0})
+}
+
+// Setup POST /api/v1/setup — создаёт первого администратора (только если нет пользователей)
+func Setup(c echo.Context) error {
+	var count int64
+	database.DB.Model(&models.User{}).Count(&count)
+	if count != 0 {
+		return c.JSON(http.StatusConflict, echo.Map{"error": "setup already completed"})
+	}
+
+	var req struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+	if err := c.Bind(&req); err != nil || req.Username == "" || req.Password == "" {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "username and password required"})
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "failed to hash password"})
+	}
+
+	user := models.User{Username: req.Username, PasswordHash: string(hash), Role: "admin"}
+	if err := database.DB.Create(&user).Error; err != nil {
+		return c.JSON(http.StatusConflict, echo.Map{"error": "username already exists"})
+	}
+
+	token, err := makeToken(&user)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "token generation failed"})
+	}
+	return c.JSON(http.StatusCreated, authResponse{Token: token, User: user})
+}
+
 // Register POST /api/v1/auth/register
 func Register(c echo.Context) error {
 	var req registerRequest

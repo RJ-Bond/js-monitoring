@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Users, Map, Wifi, Terminal, ExternalLink, Trash2, ChevronDown, Pencil } from "lucide-react";
 import { cn, formatPlayers, formatPing, buildJoinLink, gameTypeLabel } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useServerPlayers } from "@/hooks/useServers";
 import StatusIndicator from "./StatusIndicator";
 import PlayerChart from "./PlayerChart";
 import RconConsole from "./RconConsole";
@@ -16,12 +17,28 @@ interface ServerCardProps {
   onEdit?: (server: Server) => void;
 }
 
+function countryFlag(code: string): string {
+  return [...code.toUpperCase()]
+    .map((c) => String.fromCodePoint(c.charCodeAt(0) + 0x1f1a5))
+    .join("");
+}
+
+const PLAYER_SUPPORTED: Server["game_type"][] = [
+  "source", "fivem", "gmod", "valheim", "dayz", "squad", "vrising", "icarus", "terraria",
+  "samp", "minecraft", "minecraft_bedrock",
+];
+
 export default function ServerCard({ server, onDelete, onEdit }: ServerCardProps) {
   const { t } = useLanguage();
   const [expanded, setExpanded] = useState(false);
   const [rconOpen, setRconOpen] = useState(false);
   const status = server.status;
   const online = status?.online_status ?? false;
+
+  const showPlayers = expanded && online && (status?.players_now ?? 0) > 0 && PLAYER_SUPPORTED.includes(server.game_type);
+  const { data: players, isLoading: playersLoading } = useServerPlayers(server.id, showPlayers);
+
+  const serverNameDiffers = online && status?.server_name && status.server_name !== server.title;
 
   return (
     <>
@@ -33,7 +50,18 @@ export default function ServerCard({ server, onDelete, onEdit }: ServerCardProps
               <GameIcon gameType={server.game_type} />
               <h3 className="font-bold text-base truncate text-foreground">{server.title}</h3>
             </div>
-            <p className="text-xs text-muted-foreground font-mono truncate">{server.ip}:{server.port}</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-xs text-muted-foreground font-mono truncate">{server.ip}:{server.port}</p>
+              {server.country_code && (
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <span>{countryFlag(server.country_code)}</span>
+                  <span className="truncate max-w-[80px]">{server.country_name}</span>
+                </span>
+              )}
+            </div>
+            {serverNameDiffers && (
+              <p className="text-xs text-muted-foreground/70 italic truncate mt-0.5">{status!.server_name}</p>
+            )}
             <p className="text-xs text-muted-foreground mt-0.5">{gameTypeLabel(server.game_type)}</p>
           </div>
           <StatusIndicator online={online} showLabel />
@@ -80,7 +108,40 @@ export default function ServerCard({ server, onDelete, onEdit }: ServerCardProps
           </div>
         )}
 
-        {expanded && <PlayerChart serverId={server.id} />}
+        {/* Expanded: chart + player list */}
+        {expanded && (
+          <>
+            <PlayerChart serverId={server.id} />
+            {showPlayers && (
+              <div className="flex flex-col gap-2">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                  {t.playersOnline} {!playersLoading && players ? `(${players.length})` : ""}
+                </p>
+                {playersLoading ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <div key={i} className="h-5 w-20 bg-white/5 rounded animate-pulse" />
+                    ))}
+                  </div>
+                ) : players && players.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                    {players.map((p, i) => (
+                      <span
+                        key={i}
+                        className="px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-xs text-foreground truncate max-w-[140px]"
+                        title={p.name}
+                      >
+                        {p.name}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">{t.playersNoData}</p>
+                )}
+              </div>
+            )}
+          </>
+        )}
 
         {/* Actions */}
         <div className="flex items-center gap-1.5 pt-1 border-t border-white/5">

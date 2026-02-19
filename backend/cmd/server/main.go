@@ -70,6 +70,10 @@ func main() {
 
 	v1 := e.Group("/api/v1")
 
+	// ── Setup (первый запуск) ─────────────────────────────────────────────────
+	v1.GET("/setup/status", api.SetupStatus)
+	v1.POST("/setup", api.Setup)
+
 	// ── Public read routes ────────────────────────────────────────────────────
 	v1.GET("/stats", api.GetStats)
 	v1.GET("/ws", api.HandleWebSocket)
@@ -77,6 +81,7 @@ func main() {
 	v1.GET("/servers", api.GetServers)
 	v1.GET("/servers/:id", api.GetServer)
 	v1.GET("/servers/:id/history", api.GetServerHistory)
+	v1.GET("/servers/:id/players", api.GetServerPlayers)
 
 	// ── Auth ─────────────────────────────────────────────────────────────────
 	authG := v1.Group("/auth")

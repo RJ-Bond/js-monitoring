@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"math"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/RJ-Bond/js-monitoring/internal/models"
@@ -87,7 +89,7 @@ func parseA2SInfo(data []byte, pingMS int) (*models.ServerStatus, error) {
 	binary.Read(r, binary.LittleEndian, &protocol) //nolint:errcheck
 
 	// Strings: name, map, folder, game
-	_ = readNullString(r) // server name
+	serverName := readNullString(r)
 	mapName := readNullString(r)
 	_ = readNullString(r) // folder
 	_ = readNullString(r) // game
@@ -107,8 +109,81 @@ func parseA2SInfo(data []byte, pingMS int) (*models.ServerStatus, error) {
 		PlayersNow:   int(playersNow),
 		PlayersMax:   int(playersMax),
 		CurrentMap:   mapName,
+		ServerName:   serverName,
 		PingMS:       pingMS,
 	}, nil
+}
+
+// QuerySourcePlayers выполняет A2S_PLAYER запрос и возвращает список игроков
+func QuerySourcePlayers(ip string, port uint16) ([]models.ServerPlayer, error) {
+	addr := fmt.Sprintf("%s:%d", ip, port)
+	conn, err := net.DialTimeout("udp", addr, udpTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("dial failed: %w", err)
+	}
+	defer conn.Close()
+	conn.SetDeadline(time.Now().Add(udpTimeout)) //nolint:errcheck
+
+	// Шаг 1: отправляем challenge запрос
+	challengeReq := []byte{0xFF, 0xFF, 0xFF, 0xFF, 0x55, 0xFF, 0xFF, 0xFF, 0xFF}
+	if _, err := conn.Write(challengeReq); err != nil {
+		return nil, fmt.Errorf("write challenge failed: %w", err)
+	}
+
+	buf := make([]byte, 4096)
+	n, err := conn.Read(buf)
+	if err != nil {
+		return nil, fmt.Errorf("read challenge response failed: %w", err)
+	}
+	data := buf[:n]
+
+	// Если получили challenge (0x41), повторяем с challenge bytes
+	if len(data) >= 9 && data[4] == 0x41 {
+		req := []byte{0xFF, 0xFF, 0xFF, 0xFF, 0x55, data[5], data[6], data[7], data[8]}
+		if _, err := conn.Write(req); err != nil {
+			return nil, fmt.Errorf("write player request failed: %w", err)
+		}
+		n, err = conn.Read(buf)
+		if err != nil {
+			return nil, fmt.Errorf("read player response failed: %w", err)
+		}
+		data = buf[:n]
+	}
+
+	// Парсим ответ A2S_PLAYER (0x44)
+	if len(data) < 6 || data[4] != 0x44 {
+		return nil, fmt.Errorf("unexpected player response type")
+	}
+
+	r := bytes.NewReader(data[5:])
+	var playerCount byte
+	if err := binary.Read(r, binary.LittleEndian, &playerCount); err != nil {
+		return nil, err
+	}
+
+	players := make([]models.ServerPlayer, 0, playerCount)
+	for i := byte(0); i < playerCount; i++ {
+		// index (1 byte)
+		var index byte
+		if err := binary.Read(r, binary.LittleEndian, &index); err != nil {
+			break
+		}
+		// name (null-terminated string)
+		name := readNullString(r)
+		// score (int32 LE) — пропускаем
+		var score int32
+		binary.Read(r, binary.LittleEndian, &score) //nolint:errcheck
+		// duration (float32 LE) — пропускаем
+		var durationBits uint32
+		binary.Read(r, binary.LittleEndian, &durationBits) //nolint:errcheck
+		_ = math.Float32frombits(durationBits)
+
+		name = strings.TrimSpace(name)
+		if name != "" {
+			players = append(players, models.ServerPlayer{Name: name})
+		}
+	}
+	return players, nil
 }
 
 func readNullString(r *bytes.Reader) string {

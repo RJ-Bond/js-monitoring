@@ -129,7 +129,7 @@ func (p *Poller) processResults() {
 				Columns:   []clause.Column{{Name: "server_id"}},
 				DoUpdates: clause.AssignmentColumns([]string{
 					"online_status", "players_now", "players_max",
-					"current_map", "ping_ms", "last_update",
+					"current_map", "server_name", "ping_ms", "last_update",
 				}),
 			}).Create(res.status)
 

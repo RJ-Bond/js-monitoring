@@ -37,6 +37,16 @@ export function useHistory(id: number, period: "24h" | "7d" | "30d" = "24h") {
   });
 }
 
+export function useServerPlayers(id: number, enabled: boolean) {
+  return useQuery({
+    queryKey: ["players", id],
+    queryFn: () => api.getServerPlayers(id),
+    enabled,
+    refetchInterval: 30_000,
+    staleTime: 20_000,
+  });
+}
+
 export function useCreateServer() {
   const qc = useQueryClient();
   return useMutation({
