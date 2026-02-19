@@ -11,7 +11,7 @@ import type { NewsItem } from "@/types/server";
 
 export default function AdminNewsPage() {
   const router = useRouter();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const { t } = useLanguage();
   const [news, setNews] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,12 +26,13 @@ export default function AdminNewsPage() {
   const [formError, setFormError] = useState("");
 
   useEffect(() => {
+    if (isLoading) return;
     if (!isAuthenticated || user?.role !== "admin") {
       router.replace("/");
       return;
     }
     fetchNews();
-  }, [isAuthenticated, user, router]);
+  }, [isAuthenticated, isLoading, user, router]);
 
   const fetchNews = async () => {
     setLoading(true);

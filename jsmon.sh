@@ -31,8 +31,14 @@ section() { echo -e "\n${CYAN}${BOLD}── $* ──${NC}"; }
 # ── Sanity check ──────────────────────────────────────────────────────────────
 [[ -d "$INSTALL_DIR" ]] || error "JS Monitor not found at ${INSTALL_DIR}. Run the installer first."
 
-# ── Language auto-detection ───────────────────────────────────────────────────
-AUTO_LANG=$(locale 2>/dev/null | grep -i "^LANG=" | cut -d= -f2 | cut -d_ -f1 | tr '[:upper:]' '[:lower:]' 2>/dev/null || echo "en")
+# ── Language: config file → locale fallback ───────────────────────────────────
+LANG_FILE="${INSTALL_DIR}/.jsmon-lang"
+if [[ -f "$LANG_FILE" ]]; then
+    AUTO_LANG=$(cat "$LANG_FILE" 2>/dev/null || echo "en")
+else
+    AUTO_LANG=$(locale 2>/dev/null | grep -i "^LANG=" | cut -d= -f2 | cut -d_ -f1 | tr '[:upper:]' '[:lower:]' 2>/dev/null || echo "en")
+fi
+[[ "$AUTO_LANG" == "ru" || "$AUTO_LANG" == "en" ]] || AUTO_LANG="en"
 
 if [[ "$AUTO_LANG" == "ru" ]]; then
     L_STATUS="Статус контейнеров"
@@ -74,7 +80,10 @@ if [[ "$AUTO_LANG" == "ru" ]]; then
     HELP_STOP="  stop              — остановить все сервисы"
     HELP_UPDATE="  update            — git pull + пересборка контейнеров"
     HELP_CONFIG="  config            — открыть .env в редакторе"
+    HELP_LANG="  lang <ru|en>      — сохранить язык интерфейса"
     HELP_HELP="  help              — показать эту справку"
+    L_LANG_SET="Язык интерфейса сохранён:"
+    L_LANG_USAGE="Использование: jsmon lang <ru|en>"
 else
     L_STATUS="Container status"
     L_LOGS_ALL="All logs (live)"
@@ -115,7 +124,10 @@ else
     HELP_STOP="  stop              — stop all services"
     HELP_UPDATE="  update            — git pull + rebuild containers"
     HELP_CONFIG="  config            — open .env in editor"
+    HELP_LANG="  lang <ru|en>      — save interface language"
     HELP_HELP="  help              — show this help"
+    L_LANG_SET="Interface language saved:"
+    L_LANG_USAGE="Usage: jsmon lang <ru|en>"
 fi
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -206,8 +218,19 @@ show_help() {
     echo -e "${HELP_STOP}"
     echo -e "${HELP_UPDATE}"
     echo -e "${HELP_CONFIG}"
+    echo -e "${HELP_LANG}"
     echo -e "${HELP_HELP}"
     echo
+}
+
+cmd_lang() {
+    local l="${1:-}"
+    if [[ "$l" != "ru" && "$l" != "en" ]]; then
+        warn "$L_LANG_USAGE"
+        exit 1
+    fi
+    echo "$l" > "$LANG_FILE"
+    info "${L_LANG_SET} ${l}"
 }
 
 # ── Interactive menu ──────────────────────────────────────────────────────────
@@ -265,6 +288,7 @@ case "$CMD" in
     stop)         cmd_stop            ;;
     update)       cmd_update          ;;
     config)       cmd_config          ;;
+    lang)         cmd_lang "$@"       ;;
     help|--help|-h) show_help         ;;
     *)
         warn "Unknown command: ${CMD}"

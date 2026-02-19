@@ -11,19 +11,20 @@ import type { User } from "@/types/server";
 
 export default function AdminPage() {
   const router = useRouter();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const { t } = useLanguage();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (isLoading) return;
     if (!isAuthenticated || user?.role !== "admin") {
       router.replace("/");
       return;
     }
     fetchUsers();
-  }, [isAuthenticated, user, router]);
+  }, [isAuthenticated, isLoading, user, router]);
 
   const fetchUsers = async () => {
     setLoading(true);
