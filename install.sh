@@ -98,20 +98,7 @@ if [[ "$UI_LANG" == "ru" ]]; then
     T_CMD_STATUS="# статус сервиса"
     T_CMD_LOGS="# логи в реальном времени"
     T_CMD_RESTART="# перезапуск"
-    T_MENU_TITLE=" Меню управления "
-    T_MENU_HINT="Ctrl-C — выход из логов и возврат в меню"
-    T_MENU_1="Все логи (live)"
-    T_MENU_2="Логи бэкенда"
-    T_MENU_3="Логи фронтенда"
-    T_MENU_4="Логи nginx"
-    T_MENU_5="Логи MySQL"
-    T_MENU_6="Статус контейнеров"
-    T_MENU_7="Перезапустить все сервисы"
-    T_MENU_0="Выход"
-    T_MENU_PROMPT="Выберите пункт"
-    T_MENU_INVALID="Неверный ввод — введите число от 0 до 7"
-    T_MENU_EXIT="До свидания!"
-    T_MENU_RESTARTING="Перезапуск сервисов…"
+    T_CMD_JSMON="# меню управления JS Monitor"
 else
     T_OS_WARN="Designed for Ubuntu 24.04"
     T_CLEANUP="Cleaning up stale APT repositories"
@@ -155,20 +142,7 @@ else
     T_CMD_STATUS="# service status"
     T_CMD_LOGS="# live logs"
     T_CMD_RESTART="# restart all"
-    T_MENU_TITLE=" Management Menu "
-    T_MENU_HINT="Ctrl-C — exit logs and return to menu"
-    T_MENU_1="All logs (live)"
-    T_MENU_2="Backend logs"
-    T_MENU_3="Frontend logs"
-    T_MENU_4="Nginx logs"
-    T_MENU_5="MySQL logs"
-    T_MENU_6="Container status"
-    T_MENU_7="Restart all services"
-    T_MENU_0="Exit"
-    T_MENU_PROMPT="Choose option"
-    T_MENU_INVALID="Invalid input — enter a number from 0 to 7"
-    T_MENU_EXIT="Goodbye!"
-    T_MENU_RESTARTING="Restarting services…"
+    T_CMD_JSMON="# JS Monitor management menu"
 fi
 
 # ── Fix: remove stale MySQL APT repo ──────────────────────────────────────────
@@ -271,6 +245,11 @@ ufw default allow outgoing >/dev/null 2>&1 || true
 ufw --force enable         >/dev/null 2>&1 || true
 info "$T_UFW_OK"
 
+# ── Install jsmon CLI ─────────────────────────────────────────────────────────
+cp "${INSTALL_DIR}/jsmon.sh" /usr/local/bin/jsmon
+chmod +x /usr/local/bin/jsmon
+info "jsmon CLI installed → /usr/local/bin/jsmon"
+
 # ── Systemd service ───────────────────────────────────────────────────────────
 section "$T_SYSTEMD"
 cat > "$SERVICE_FILE" <<EOF
@@ -340,54 +319,14 @@ echo -e "  📁 ${T_DONE_DIR}:   ${INSTALL_DIR}"
 echo -e "  🔧 ${T_DONE_CFG}:     ${INSTALL_DIR}/.env"
 echo
 echo -e "  ${T_DONE_CMDS}"
+echo -e "    ${YELLOW}jsmon${NC}                                                    ${T_CMD_JSMON}"
 echo -e "    ${YELLOW}systemctl status js-monitoring${NC}                          ${T_CMD_STATUS}"
 echo -e "    ${YELLOW}docker compose --project-directory ${INSTALL_DIR} logs -f${NC}  ${T_CMD_LOGS}"
 echo -e "    ${YELLOW}systemctl restart js-monitoring${NC}                         ${T_CMD_RESTART}"
 echo
 
 # ── Post-install management menu ──────────────────────────────────────────────
-DC="docker compose --project-directory ${INSTALL_DIR}"
-
-show_menu() {
-    echo
-    echo -e "${GREEN}╔══════════════════════════════════════════════╗${NC}"
-    echo -e "${GREEN}║       📋 ${T_MENU_TITLE}📋       ║${NC}"
-    echo -e "${GREEN}╠══════════════════════════════════════════════╣${NC}"
-    echo -e "${GREEN}║${NC}  ${YELLOW}1)${NC} ${T_MENU_1}"
-    echo -e "${GREEN}║${NC}  ${YELLOW}2)${NC} ${T_MENU_2}"
-    echo -e "${GREEN}║${NC}  ${YELLOW}3)${NC} ${T_MENU_3}"
-    echo -e "${GREEN}║${NC}  ${YELLOW}4)${NC} ${T_MENU_4}"
-    echo -e "${GREEN}║${NC}  ${YELLOW}5)${NC} ${T_MENU_5}"
-    echo -e "${GREEN}║${NC}  ${YELLOW}6)${NC} ${T_MENU_6}"
-    echo -e "${GREEN}║${NC}  ${YELLOW}7)${NC} ${T_MENU_7}"
-    echo -e "${GREEN}║${NC}  ${YELLOW}0)${NC} ${T_MENU_0}"
-    echo -e "${GREEN}╠══════════════════════════════════════════════╣${NC}"
-    echo -e "${GREEN}║${NC}  ${YELLOW}ℹ${NC}  ${T_MENU_HINT}"
-    echo -e "${GREEN}╚══════════════════════════════════════════════╝${NC}"
-    echo
-    echo -ne "  ${T_MENU_PROMPT} [0-7]: "
-}
-
-# Helper: run log follow — Ctrl-C kills only the child, not the script
-run_logs() {
-    trap '' INT          # parent ignores SIGINT; child still receives it
-    $DC logs -f --tail=100 "$@" || true
-    trap - INT           # restore default SIGINT after child exits
-}
-
-while true; do
-    show_menu
-    read -r CHOICE </dev/tty || break
-    echo
-    case "${CHOICE}" in
-        1) run_logs ;;
-        2) run_logs backend  ;;
-        3) run_logs frontend ;;
-        4) run_logs nginx    ;;
-        5) run_logs mysql    ;;
-        6) $DC ps || true ;;
-        7) info "$T_MENU_RESTARTING"; $DC restart || true ;;
-        0) echo -e "${GREEN}${T_MENU_EXIT}${NC}"; break ;;
-        *) warn "$T_MENU_INVALID" ;;
-    esac
-done
+# jsmon CLI was installed to /usr/local/bin/jsmon — use it directly
+if command -v jsmon &>/dev/null; then
+    jsmon
+fi
