@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Gamepad2, LogIn } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,7 +10,6 @@ import type { AuthResponse } from "@/types/server";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
 
-// Steam logo as inline SVG so we don't need a public asset
 function SteamIcon() {
   return (
     <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current" xmlns="http://www.w3.org/2000/svg">
@@ -19,7 +18,8 @@ function SteamIcon() {
   );
 }
 
-export default function LoginPage() {
+// Inner component that uses useSearchParams — must be inside <Suspense>
+function LoginInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login } = useAuth();
@@ -66,7 +66,6 @@ export default function LoginPage() {
         </div>
 
         <div className="glass-card rounded-2xl p-6 flex flex-col gap-4">
-          {/* Steam login */}
           <a
             href={`${BASE}/api/v1/auth/steam`}
             className="flex items-center justify-center gap-2.5 w-full py-3 rounded-xl font-semibold text-sm bg-[#1b2838] text-white border border-[#2a475e] hover:bg-[#2a475e] transition-all"
@@ -107,5 +106,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginInner />
+    </Suspense>
   );
 }

@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Gamepad2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
-export default function SteamAuthPage() {
+function SteamCallback() {
   const router = useRouter();
   const params = useSearchParams();
   const { login } = useAuth();
@@ -14,31 +14,17 @@ export default function SteamAuthPage() {
     const token = params.get("token");
     const errorParam = params.get("error");
 
-    if (errorParam === "banned") {
-      router.replace("/login?error=banned");
-      return;
-    }
+    if (errorParam === "banned") { router.replace("/login?error=banned"); return; }
+    if (!token) { router.replace("/login?error=steam_failed"); return; }
 
-    if (!token) {
-      router.replace("/login?error=steam_failed");
-      return;
-    }
-
-    // Decode JWT payload to get user info (no signature verification needed here)
     try {
       const payload = JSON.parse(atob(token.split(".")[1])) as {
-        sub: number;
-        username: string;
-        role: "admin" | "user";
+        sub: number; username: string; role: "admin" | "user";
       };
       login(token, {
-        id: payload.sub,
-        username: payload.username,
-        email: "",
-        role: payload.role,
-        banned: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        id: payload.sub, username: payload.username, email: "",
+        role: payload.role, banned: false,
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
       });
       router.replace("/");
     } catch {
@@ -55,5 +41,13 @@ export default function SteamAuthPage() {
         <p className="text-sm">Completing Steam sign-in…</p>
       </div>
     </div>
+  );
+}
+
+export default function SteamAuthPage() {
+  return (
+    <Suspense>
+      <SteamCallback />
+    </Suspense>
   );
 }
