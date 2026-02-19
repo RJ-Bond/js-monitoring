@@ -38,6 +38,10 @@ func CreateServer(c echo.Context) error {
 	if err := c.Bind(&server); err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()})
 	}
+	// Устанавливаем владельца из JWT
+	if uid, ok := c.Get("user_id").(float64); ok {
+		server.OwnerID = uint(uid)
+	}
 	if err := database.DB.Create(&server).Error; err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
 	}
@@ -60,10 +64,18 @@ func UpdateServer(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, echo.Map{"error": "server not found"})
 	}
 
+	// Проверка прав: владелец или админ
+	role, _ := c.Get("role").(string)
+	uid, _ := c.Get("user_id").(float64)
+	if role != "admin" && server.OwnerID != uint(uid) {
+		return c.JSON(http.StatusForbidden, echo.Map{"error": "not your server"})
+	}
+
 	// Use a dedicated payload struct so json:"-" on Server fields doesn't block binding
 	var payload struct {
 		Title      string `json:"title"`
 		IP         string `json:"ip"`
+		DisplayIP  string `json:"display_ip"`
 		Port       uint16 `json:"port"`
 		GameType   string `json:"game_type"`
 		SecretRCON string `json:"secret_rcon_key"`
@@ -73,10 +85,11 @@ func UpdateServer(c echo.Context) error {
 	}
 
 	updates := map[string]interface{}{
-		"title":     payload.Title,
-		"ip":        payload.IP,
-		"port":      payload.Port,
-		"game_type": payload.GameType,
+		"title":      payload.Title,
+		"ip":         payload.IP,
+		"display_ip": payload.DisplayIP,
+		"port":       payload.Port,
+		"game_type":  payload.GameType,
 	}
 	if payload.SecretRCON != "" {
 		updates["secret_rcon"] = payload.SecretRCON
@@ -103,6 +116,18 @@ func UpdateServer(c echo.Context) error {
 // DeleteServer DELETE /api/v1/servers/:id
 func DeleteServer(c echo.Context) error {
 	id := c.Param("id")
+	var server models.Server
+	if err := database.DB.First(&server, id).Error; err != nil {
+		return c.JSON(http.StatusNotFound, echo.Map{"error": "server not found"})
+	}
+
+	// Проверка прав: владелец или админ
+	role, _ := c.Get("role").(string)
+	uid, _ := c.Get("user_id").(float64)
+	if role != "admin" && server.OwnerID != uint(uid) {
+		return c.JSON(http.StatusForbidden, echo.Map{"error": "not your server"})
+	}
+
 	database.DB.Delete(&models.Server{}, id)
 	return c.JSON(http.StatusOK, echo.Map{"message": "server deleted"})
 }
@@ -181,6 +206,62 @@ func GetServerPlayers(c echo.Context) error {
 		players = []models.ServerPlayer{}
 	}
 	return c.JSON(http.StatusOK, players)
+}
+
+// ─── News ─────────────────────────────────────────────────────────────────────
+
+// GetNews GET /api/v1/news — публичный список новостей
+func GetNews(c echo.Context) error {
+	var news []models.NewsItem
+	database.DB.Order("created_at DESC").Limit(20).Find(&news)
+	return c.JSON(http.StatusOK, news)
+}
+
+// CreateNews POST /api/v1/admin/news — создать новость (только админ)
+func CreateNews(c echo.Context) error {
+	var req struct {
+		Title   string `json:"title"`
+		Content string `json:"content"`
+	}
+	if err := c.Bind(&req); err != nil || req.Title == "" || req.Content == "" {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "title and content required"})
+	}
+	var authorID uint
+	if uid, ok := c.Get("user_id").(float64); ok {
+		authorID = uint(uid)
+	}
+	item := models.NewsItem{Title: req.Title, Content: req.Content, AuthorID: authorID}
+	if err := database.DB.Create(&item).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
+	}
+	return c.JSON(http.StatusCreated, item)
+}
+
+// UpdateNews PUT /api/v1/admin/news/:id — обновить новость (только админ)
+func UpdateNews(c echo.Context) error {
+	id := c.Param("id")
+	var item models.NewsItem
+	if err := database.DB.First(&item, id).Error; err != nil {
+		return c.JSON(http.StatusNotFound, echo.Map{"error": "news not found"})
+	}
+	var req struct {
+		Title   string `json:"title"`
+		Content string `json:"content"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()})
+	}
+	if err := database.DB.Model(&item).Updates(map[string]interface{}{"title": req.Title, "content": req.Content}).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
+	}
+	return c.JSON(http.StatusOK, item)
+}
+
+// DeleteNews DELETE /api/v1/admin/news/:id — удалить новость (только админ)
+func DeleteNews(c echo.Context) error {
+	id := c.Param("id")
+	database.DB.Delete(&models.NewsItem{}, id)
+	return c.JSON(http.StatusOK, echo.Map{"message": "news deleted"})
 }
 
 // ─── GeoIP ───────────────────────────────────────────────────────────────────

@@ -28,6 +28,7 @@ export default function AddEditServerModal({ onClose, editServer, onUpdate }: Ad
   const [form, setForm] = useState({
     title: editServer?.title ?? "",
     ip: editServer?.ip ?? "",
+    display_ip: editServer?.display_ip ?? "",
     port: String(editServer?.port ?? 27015),
     game_type: (editServer?.game_type ?? "source") as GameType,
     secret_rcon_key: "",
@@ -81,6 +82,11 @@ export default function AddEditServerModal({ onClose, editServer, onUpdate }: Ad
               <label className="text-xs text-muted-foreground uppercase tracking-wide">{t.fieldPort}</label>
               <input className={field} type="number" min={1} max={65535} value={form.port} onChange={(e) => setForm({ ...form, port: e.target.value })} />
             </div>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-muted-foreground uppercase tracking-wide">{t.fieldDisplayIp}</label>
+            <input className={field} placeholder="play.myserver.com" value={form.display_ip} onChange={(e) => setForm({ ...form, display_ip: e.target.value })} />
+            <p className="text-xs text-muted-foreground/60 leading-relaxed">{t.fieldDisplayIpHint}</p>
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs text-muted-foreground uppercase tracking-wide">{t.fieldGameType}</label>

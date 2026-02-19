@@ -23,22 +23,23 @@ export function formatLastUpdate(dateStr: string): string {
   return `${Math.floor(seconds / 3600)}h ago`;
 }
 
-export function buildJoinLink(gameType: GameType, ip: string, port: number): string {
+export function buildJoinLink(gameType: GameType, ip: string, port: number, displayIp?: string): string {
+  const host = displayIp || ip;
   switch (gameType) {
     case "minecraft":
     case "minecraft_bedrock":
-      return `minecraft://?addExternalServer=Server|${ip}:${port}`;
+      return `minecraft://?addExternalServer=Server|${host}:${port}`;
     case "fivem":
-      return `fivem://connect/${ip}:${port}`;
+      return `fivem://connect/${host}:${port}`;
     case "samp":
-      return `samp://${ip}:${port}`;
+      return `samp://${host}:${port}`;
     case "source":
     case "gmod":
     case "valheim":
     case "squad":
     case "dayz":
     default:
-      return `steam://connect/${ip}:${port}`;
+      return `steam://connect/${host}:${port}`;
   }
 }
 

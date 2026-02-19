@@ -92,6 +92,29 @@ export const translations = {
     // Players table
     playersOnline: "Players online",
     playersNoData: "No player data available",
+    // Display IP
+    fieldDisplayIp: "Display IP / Domain (optional)",
+    fieldDisplayIpHint: "Shown on card and used for the connect button. Real IP is used for monitoring.",
+    // Delete modal
+    deleteModalTitle: "Delete server?",
+    deleteModalDesc: (title: string) => `Server "${title}" will be permanently deleted.`,
+    deleteModalConfirm: "Delete",
+    // News
+    newsTitle: "Announcements",
+    newsEmpty: "No announcements yet",
+    newsAdd: "New post",
+    newsEdit: "Edit",
+    newsDelete: "Delete",
+    newsPostTitle: "Title",
+    newsTitlePlaceholder: "Announcement title",
+    newsContent: "Content",
+    newsContentPlaceholder: "Write your announcement here…",
+    newsSave: "Save",
+    newsCancel: "Cancel",
+    newsSaving: "Saving…",
+    newsConfirmDelete: (title: string) => `Delete "${title}"?`,
+    newsAdminLink: "Manage News",
+    newsBackToMain: "← Back",
   },
 
   ru: {
@@ -185,6 +208,29 @@ export const translations = {
     // Players table
     playersOnline: "Игроки онлайн",
     playersNoData: "Данные об игроках недоступны",
+    // Display IP
+    fieldDisplayIp: "Отображаемый IP / Домен (необязательно)",
+    fieldDisplayIpHint: "Показывается на карточке и используется для кнопки подключения. Реальный IP используется для мониторинга.",
+    // Delete modal
+    deleteModalTitle: "Удалить сервер?",
+    deleteModalDesc: (title: string) => `Сервер "${title}" будет удалён без возможности восстановления.`,
+    deleteModalConfirm: "Удалить",
+    // News
+    newsTitle: "Объявления",
+    newsEmpty: "Объявлений пока нет",
+    newsAdd: "Новая запись",
+    newsEdit: "Редактировать",
+    newsDelete: "Удалить",
+    newsPostTitle: "Заголовок",
+    newsTitlePlaceholder: "Заголовок объявления",
+    newsContent: "Содержание",
+    newsContentPlaceholder: "Напишите объявление здесь…",
+    newsSave: "Сохранить",
+    newsCancel: "Отмена",
+    newsSaving: "Сохранение…",
+    newsConfirmDelete: (title: string) => `Удалить "${title}"?`,
+    newsAdminLink: "Управление новостями",
+    newsBackToMain: "← Назад",
   },
 } as const;
 

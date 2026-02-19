@@ -38,14 +38,25 @@ export interface Server {
   uuid: string;
   title: string;
   ip: string;
+  display_ip?: string;
   port: number;
   game_type: GameType;
   country_code?: string;
   country_name?: string;
+  owner_id?: number;
   created_at: string;
   updated_at: string;
   status?: ServerStatus;
   alert_config?: AlertConfig;
+}
+
+export interface NewsItem {
+  id: number;
+  title: string;
+  content: string;
+  author_id: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ServerPlayer {

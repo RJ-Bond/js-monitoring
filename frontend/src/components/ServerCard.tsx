@@ -51,7 +51,7 @@ export default function ServerCard({ server, onDelete, onEdit }: ServerCardProps
               <h3 className="font-bold text-base truncate text-foreground">{server.title}</h3>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-xs text-muted-foreground font-mono truncate">{server.ip}:{server.port}</p>
+              <p className="text-xs text-muted-foreground font-mono truncate">{server.display_ip || server.ip}:{server.port}</p>
               {server.country_code && (
                 <span className="text-xs text-muted-foreground flex items-center gap-1">
                   <span>{countryFlag(server.country_code)}</span>
@@ -156,7 +156,7 @@ export default function ServerCard({ server, onDelete, onEdit }: ServerCardProps
             </button>
           )}
           {online && (
-            <a href={buildJoinLink(server.game_type, server.ip, server.port)} title={t.playNow} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-neon-green/20 text-neon-green border border-neon-green/30 hover:bg-neon-green/30 transition-all">
+            <a href={buildJoinLink(server.game_type, server.ip, server.port, server.display_ip)} title={t.playNow} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-neon-green/20 text-neon-green border border-neon-green/30 hover:bg-neon-green/30 transition-all">
               <ExternalLink className="w-3.5 h-3.5" />{t.playNow}
             </a>
           )}
@@ -166,7 +166,7 @@ export default function ServerCard({ server, onDelete, onEdit }: ServerCardProps
             </button>
           )}
           {onDelete && (
-            <button onClick={() => { if (confirm(t.confirmDelete(server.title))) onDelete(server.id); }} title={t.deleteServer} className="p-1.5 rounded-lg text-muted-foreground hover:text-red-400 hover:bg-red-400/10 transition-colors">
+            <button onClick={() => onDelete(server.id)} title={t.deleteServer} className="p-1.5 rounded-lg text-muted-foreground hover:text-red-400 hover:bg-red-400/10 transition-colors">
               <Trash2 className="w-4 h-4" />
             </button>
           )}

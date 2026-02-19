@@ -26,16 +26,28 @@ type Server struct {
 	UUID        string    `gorm:"type:varchar(36);uniqueIndex;not null" json:"uuid"`
 	Title       string    `gorm:"type:varchar(255);not null"            json:"title"`
 	IP          string    `gorm:"type:varchar(45);not null"             json:"ip"`
+	DisplayIP   string    `gorm:"type:varchar(255)"                     json:"display_ip"`
 	Port        uint16    `gorm:"not null"                              json:"port"`
 	GameType    string    `gorm:"type:varchar(30);not null"             json:"game_type"`
 	SecretRCON  string    `gorm:"type:varchar(255)"                     json:"-"`
 	CountryCode string    `gorm:"type:varchar(2)"                       json:"country_code"`
 	CountryName string    `gorm:"type:varchar(100)"                     json:"country_name"`
+	OwnerID     uint      `gorm:"index"                                 json:"owner_id"`
 	CreatedAt   time.Time `                                             json:"created_at"`
 	UpdatedAt   time.Time `                                             json:"updated_at"`
 
 	Status      *ServerStatus `gorm:"foreignKey:ServerID" json:"status,omitempty"`
 	AlertConfig *AlertsConfig `gorm:"foreignKey:ServerID" json:"alert_config,omitempty"`
+}
+
+// NewsItem — новость / объявление (создаётся администратором)
+type NewsItem struct {
+	ID        uint      `gorm:"primaryKey;autoIncrement"   json:"id"`
+	Title     string    `gorm:"type:varchar(255);not null" json:"title"`
+	Content   string    `gorm:"type:text;not null"         json:"content"`
+	AuthorID  uint      `gorm:"index"                      json:"author_id"`
+	CreatedAt time.Time `                                  json:"created_at"`
+	UpdatedAt time.Time `                                  json:"updated_at"`
 }
 
 func (s *Server) BeforeCreate(_ *gorm.DB) error {

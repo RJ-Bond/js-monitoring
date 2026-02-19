@@ -1,18 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, RefreshCw, Gamepad2, Zap, LogOut, User, Shield } from "lucide-react";
+import { Plus, RefreshCw, Gamepad2, Zap, LogOut, User, Shield, Newspaper, CalendarDays } from "lucide-react";
 import { useServers, useDeleteServer } from "@/hooks/useServers";
 import { useServerWebSocket } from "@/hooks/useWebSocket";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
+import { useQuery } from "@tanstack/react-query";
 import ServerCard from "@/components/ServerCard";
 import StatsOverview from "@/components/StatsOverview";
 import AddEditServerModal from "@/components/AddEditServerModal";
+import DeleteConfirmModal from "@/components/DeleteConfirmModal";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import GameIcon from "@/components/GameIcon";
-import type { GameType, Server } from "@/types/server";
+import type { GameType, Server, NewsItem } from "@/types/server";
 import { GAME_META } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -25,9 +27,16 @@ export default function Home() {
   const qc = useQueryClient();
 
   const [modalServer, setModalServer] = useState<Server | null | "new">(null);
+  const [deleteTarget, setDeleteTarget] = useState<Server | null>(null);
   const [gameFilter, setGameFilter] = useState<GameType | "all">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "online" | "offline">("all");
   const [search, setSearch] = useState("");
+
+  const { data: news } = useQuery<NewsItem[]>({
+    queryKey: ["news"],
+    queryFn: api.getNews,
+    staleTime: 60_000,
+  });
 
   const filtered = (servers ?? []).filter((srv) => {
     if (gameFilter !== "all" && srv.game_type !== gameFilter) return false;
@@ -71,10 +80,16 @@ export default function Home() {
               </>
             )}
             {isAuthenticated && user?.role === "admin" && (
-              <a href="/admin" className="hidden sm:flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-medium border border-yellow-400/20 hover:border-yellow-400/40 text-yellow-400 hover:text-yellow-300 transition-all">
-                <Shield className="w-3.5 h-3.5" />
-                Admin
-              </a>
+              <>
+                <a href="/admin/news" className="hidden sm:flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-medium border border-blue-400/20 hover:border-blue-400/40 text-blue-400 hover:text-blue-300 transition-all">
+                  <Newspaper className="w-3.5 h-3.5" />
+                  {t.newsAdminLink}
+                </a>
+                <a href="/admin" className="hidden sm:flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-medium border border-yellow-400/20 hover:border-yellow-400/40 text-yellow-400 hover:text-yellow-300 transition-all">
+                  <Shield className="w-3.5 h-3.5" />
+                  Admin
+                </a>
+              </>
             )}
             {!isAuthenticated && (
               <a href="/login" className="px-3 py-2 rounded-xl text-xs font-semibold border border-white/10 hover:border-white/20 text-muted-foreground hover:text-foreground transition-all">
@@ -93,6 +108,30 @@ export default function Home() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+        {/* News / Announcements */}
+        {news && news.length > 0 && (
+          <section className="flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <Newspaper className="w-4 h-4 text-neon-blue" />
+              <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">{t.newsTitle}</h2>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {news.slice(0, 5).map((item) => (
+                <div key={item.id} className="glass-card rounded-2xl p-4 flex flex-col gap-2 border-l-2 border-neon-blue/40">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="text-sm font-semibold text-foreground leading-snug line-clamp-2">{item.title}</h3>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground flex-shrink-0">
+                      <CalendarDays className="w-3 h-3" />
+                      <span>{new Date(item.created_at).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">{item.content}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         <StatsOverview />
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1">
@@ -150,14 +189,17 @@ export default function Home() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filtered.map((srv) => (
-              <ServerCard
-                key={srv.id}
-                server={srv}
-                onEdit={(s) => setModalServer(s)}
-                onDelete={(id) => { if (confirm(t.confirmDelete(srv.title))) deleteServer(id); }}
-              />
-            ))}
+            {filtered.map((srv) => {
+              const canManage = user?.role === "admin" || user?.id === srv.owner_id;
+              return (
+                <ServerCard
+                  key={srv.id}
+                  server={srv}
+                  onEdit={canManage ? (s) => setModalServer(s) : undefined}
+                  onDelete={canManage ? () => setDeleteTarget(srv) : undefined}
+                />
+              );
+            })}
           </div>
         )}
       </main>
@@ -174,6 +216,14 @@ export default function Home() {
           onClose={() => setModalServer(null)}
           editServer={modalServer === "new" ? undefined : modalServer}
           onUpdate={modalServer !== "new" ? (data) => handleUpdate((modalServer as Server).id, data) : undefined}
+        />
+      )}
+
+      {deleteTarget && (
+        <DeleteConfirmModal
+          server={deleteTarget}
+          onConfirm={() => deleteServer(deleteTarget.id)}
+          onClose={() => setDeleteTarget(null)}
         />
       )}
     </div>

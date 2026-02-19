@@ -82,6 +82,7 @@ func main() {
 	v1.GET("/servers/:id", api.GetServer)
 	v1.GET("/servers/:id/history", api.GetServerHistory)
 	v1.GET("/servers/:id/players", api.GetServerPlayers)
+	v1.GET("/news", api.GetNews)
 
 	// ── Auth ─────────────────────────────────────────────────────────────────
 	authG := v1.Group("/auth")
@@ -101,6 +102,9 @@ func main() {
 	admin.GET("/users", api.AdminGetUsers)
 	admin.PUT("/users/:id", api.AdminUpdateUser)
 	admin.DELETE("/users/:id", api.AdminDeleteUser)
+	admin.POST("/news", api.CreateNews)
+	admin.PUT("/news/:id", api.UpdateNews)
+	admin.DELETE("/news/:id", api.DeleteNews)
 
 	port := env("PORT", "8080")
 	log.Printf("Starting server on :%s", port)

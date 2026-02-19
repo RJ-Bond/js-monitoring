@@ -56,5 +56,6 @@ func AutoMigrate() error {
 		&models.ServerStatus{},
 		&models.PlayerHistory{},
 		&models.AlertsConfig{},
+		&models.NewsItem{},
 	)
 }
