@@ -44,6 +44,7 @@ export default function Home() {
   const [statusFilter, setStatusFilter] = useState<"all" | "online" | "offline">("all");
   const [search, setSearch] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("default");
+  const [favOnly, setFavOnly] = useState(false);
   const [newsModal, setNewsModal] = useState<NewsItem | null>(null);
   const [showAllNews, setShowAllNews] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -65,11 +66,9 @@ export default function Home() {
     return () => window.removeEventListener("keydown", handler);
   }, [refetch, t]);
 
-  // Filter
-  const filtered = useMemo(() => (servers ?? []).filter((srv) => {
+  // Pre-status filter (for showing counts on Online/Offline buttons)
+  const preStatusFiltered = useMemo(() => (servers ?? []).filter((srv) => {
     if (gameFilter !== "all" && srv.game_type !== gameFilter) return false;
-    if (statusFilter === "online" && !srv.status?.online_status) return false;
-    if (statusFilter === "offline" && srv.status?.online_status !== false) return false;
     if (search) {
       const q = search.toLowerCase();
       if (
@@ -79,7 +78,17 @@ export default function Home() {
       ) return false;
     }
     return true;
-  }), [servers, gameFilter, statusFilter, search]);
+  }), [servers, gameFilter, search]);
+
+  const onlineFilterCount  = preStatusFiltered.filter((s) => s.status?.online_status).length;
+  const offlineFilterCount = preStatusFiltered.filter((s) => !s.status?.online_status).length;
+
+  // Filter
+  const filtered = useMemo(() => preStatusFiltered.filter((srv) => {
+    if (statusFilter === "online" && !srv.status?.online_status) return false;
+    if (statusFilter === "offline" && srv.status?.online_status !== false) return false;
+    return true;
+  }), [preStatusFiltered, statusFilter]);
 
   // Sort + favorites-first
   const sorted = useMemo(() => {
@@ -97,10 +106,11 @@ export default function Home() {
       );
       return a;
     };
-    const favs = filtered.filter((s) => favorites.includes(s.id));
-    const rest = filtered.filter((s) => !favorites.includes(s.id));
+    const base = favOnly ? filtered.filter((s) => favorites.includes(s.id)) : filtered;
+    const favs = base.filter((s) => favorites.includes(s.id));
+    const rest = base.filter((s) => !favorites.includes(s.id));
     return [...sortFn(favs), ...sortFn(rest)];
-  }, [filtered, sortMode, favorites]);
+  }, [filtered, sortMode, favorites, favOnly]);
 
   const onlineCount = (servers ?? []).filter((s) => s.status?.online_status).length;
 
@@ -282,13 +292,18 @@ export default function Home() {
 
         {/* Search + filters */}
         <div className="flex flex-col sm:flex-row gap-3">
-          <div className="flex-1">
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t.searchPlaceholder} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-neon-green/40 transition-all placeholder:text-muted-foreground" />
+          <div className="flex-1 relative">
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t.searchPlaceholder} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-neon-green/40 transition-all placeholder:text-muted-foreground pr-9" />
+            {search && (
+              <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
           <div className="flex gap-1 bg-white/5 rounded-xl p-1 flex-shrink-0">
             {(["all", "online", "offline"] as const).map((s) => (
               <button key={s} onClick={() => setStatusFilter(s)} className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-all ${statusFilter === s ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-                {s === "all" ? t.filterAll : s === "online" ? t.filterOnline : t.filterOffline}
+                {s === "all" ? t.filterAll : s === "online" ? `${t.filterOnline} (${onlineFilterCount})` : `${t.filterOffline} (${offlineFilterCount})`}
               </button>
             ))}
           </div>
@@ -304,7 +319,7 @@ export default function Home() {
 
         {/* Sort bar + export */}
         <div className="flex items-center justify-between gap-3 -mt-4">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs text-muted-foreground hidden sm:block">{t.sortBy}</span>
             <div className="flex gap-1 bg-white/5 rounded-xl p-1">
               {sortOptions.map((s) => (
@@ -313,6 +328,12 @@ export default function Home() {
                 </button>
               ))}
             </div>
+            <button
+              onClick={() => setFavOnly((v) => !v)}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-all ${favOnly ? "bg-yellow-400/10 border-yellow-400/40 text-yellow-400" : "border-white/10 text-muted-foreground hover:text-foreground hover:border-white/20"}`}
+            >
+              ★ {t.favOnly}{favOnly && favorites.length > 0 ? ` (${favorites.length})` : ""}
+            </button>
           </div>
           <button onClick={exportJSON} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs text-muted-foreground hover:text-foreground border border-white/10 hover:border-white/20 transition-all">
             <Download className="w-3.5 h-3.5" />
@@ -324,6 +345,14 @@ export default function Home() {
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {Array.from({ length: 6 }).map((_, i) => <div key={i} className="glass-card rounded-2xl h-56 animate-pulse" style={{ animationDelay: `${i * 100}ms` }} />)}
+          </div>
+        ) : sorted.length === 0 && favOnly ? (
+          <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-yellow-400/10 flex items-center justify-center"><span className="text-3xl">★</span></div>
+            <div>
+              <p className="font-semibold">{t.favOnly}</p>
+              <p className="text-sm text-muted-foreground mt-1">{t.favPin} ★</p>
+            </div>
           </div>
         ) : sorted.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
@@ -339,7 +368,7 @@ export default function Home() {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 transition-opacity duration-300 ${isRefetching ? "opacity-60" : "opacity-100"}`}>
             {sorted.map((srv) => {
               const canManage = user?.role === "admin" || user?.id === srv.owner_id;
               return (
@@ -360,8 +389,7 @@ export default function Home() {
       <footer className="border-t border-white/5 py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between text-xs text-muted-foreground">
           <span>JSMonitor © {new Date().getFullYear()}</span>
-          <span className="hidden sm:block opacity-40">R — refresh · N — add</span>
-          <span>{t.footerBuiltWith} <span className="text-neon-green">Go</span> + <span className="text-neon-blue">Next.js</span></span>
+<span>{t.footerBuiltWith} <span className="text-neon-green">Go</span> + <span className="text-neon-blue">Next.js</span></span>
         </div>
       </footer>
 

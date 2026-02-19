@@ -25,6 +25,7 @@ function LoginInner() {
   const { login } = useAuth();
   const { t } = useLanguage();
   const [form, setForm] = useState({ username: "", password: "" });
+  const [remember, setRemember] = useState(true);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -45,7 +46,7 @@ function LoginInner() {
       });
       if (!res.ok) { const d = await res.json() as { error: string }; throw new Error(d.error); }
       const data = await res.json() as AuthResponse;
-      login(data.token, data.user);
+      login(data.token, data.user, remember);
       router.push("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
@@ -89,6 +90,15 @@ function LoginInner() {
               <label className="text-xs text-muted-foreground uppercase tracking-wide">{t.authPassword}</label>
               <input className={field} type="password" placeholder="••••••••" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} autoComplete="current-password" />
             </div>
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={remember}
+                onChange={(e) => setRemember(e.target.checked)}
+                className="w-4 h-4 rounded border border-white/20 bg-white/5 accent-neon-green cursor-pointer"
+              />
+              <span className="text-xs text-muted-foreground">{t.rememberMe}</span>
+            </label>
             {error && <p className="text-red-400 text-xs bg-red-400/10 rounded-lg px-3 py-2">{error}</p>}
             <button type="submit" disabled={loading} className="flex items-center justify-center gap-2 w-full py-3 rounded-xl font-semibold text-sm bg-neon-green text-black hover:bg-neon-green/90 transition-all disabled:opacity-50">
               <LogIn className="w-4 h-4" />

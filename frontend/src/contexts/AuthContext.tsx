@@ -6,7 +6,7 @@ import type { User } from "@/types/server";
 interface AuthContextValue {
   user: User | null;
   token: string | null;
-  login: (token: string, user: User) => void;
+  login: (token: string, user: User, remember?: boolean) => void;
   logout: () => void;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -28,22 +28,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const t = localStorage.getItem(TOKEN_KEY);
-    const u = localStorage.getItem(USER_KEY);
+    const t = localStorage.getItem(TOKEN_KEY) ?? sessionStorage.getItem(TOKEN_KEY);
+    const u = localStorage.getItem(USER_KEY) ?? sessionStorage.getItem(USER_KEY);
     if (t && u) { setToken(t); setUser(JSON.parse(u) as User); }
     setIsLoading(false);
   }, []);
 
-  const login = useCallback((t: string, u: User) => {
+  const login = useCallback((t: string, u: User, remember = true) => {
     setToken(t); setUser(u);
-    localStorage.setItem(TOKEN_KEY, t);
-    localStorage.setItem(USER_KEY, JSON.stringify(u));
+    const storage = remember ? localStorage : sessionStorage;
+    storage.setItem(TOKEN_KEY, t);
+    storage.setItem(USER_KEY, JSON.stringify(u));
+    if (!remember) {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+    }
   }, []);
 
   const logout = useCallback(() => {
     setToken(null); setUser(null);
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(USER_KEY);
   }, []);
 
   return (

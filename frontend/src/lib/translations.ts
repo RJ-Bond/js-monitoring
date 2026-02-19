@@ -167,6 +167,17 @@ export const translations = {
     favUnpin: "Unpin",
     // Offline time
     offlineSince: "offline",
+    // Copy / Share
+    copyIp: "Copy IP",
+    toastCopied: "IP copied!",
+    toastLinkCopied: "Link copied!",
+    shareServer: "Share",
+    // Chart peak
+    chartPeak: (n: number) => `Peak: ${n}`,
+    // Remember me
+    rememberMe: "Remember me",
+    // Favorites filter
+    favOnly: "Starred",
   },
 
   ru: {
@@ -335,6 +346,17 @@ export const translations = {
     favUnpin: "Открепить",
     // Offline time
     offlineSince: "офлайн",
+    // Copy / Share
+    copyIp: "Скопировать IP",
+    toastCopied: "IP скопирован!",
+    toastLinkCopied: "Ссылка скопирована!",
+    shareServer: "Поделиться",
+    // Chart peak
+    chartPeak: (n: number) => `Пик: ${n}`,
+    // Remember me
+    rememberMe: "Запомнить меня",
+    // Favorites filter
+    favOnly: "Избранное",
   },
 } as const;
 

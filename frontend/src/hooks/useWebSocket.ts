@@ -13,6 +13,7 @@ export function useServerWebSocket() {
   const qc = useQueryClient();
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryCount = useRef(0);
 
   useEffect(() => {
     if (!WS_URL) return;
@@ -23,6 +24,7 @@ export function useServerWebSocket() {
 
       ws.onopen = () => {
         console.log("[WS] connected");
+        retryCount.current = 0;
       };
 
       ws.onmessage = (event) => {
@@ -43,8 +45,10 @@ export function useServerWebSocket() {
       };
 
       ws.onclose = () => {
-        console.log("[WS] disconnected, reconnecting in 5s…");
-        reconnectTimer.current = setTimeout(connect, 5000);
+        const delay = Math.min(30000, 1000 * Math.pow(2, retryCount.current));
+        retryCount.current++;
+        console.log(`[WS] disconnected, reconnecting in ${delay}ms… (attempt ${retryCount.current})`);
+        reconnectTimer.current = setTimeout(connect, delay);
       };
 
       ws.onerror = () => ws.close();

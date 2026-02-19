@@ -4,7 +4,7 @@ const BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 function getToken(): string {
   if (typeof window === "undefined") return "";
-  return localStorage.getItem("jsmon-token") ?? "";
+  return localStorage.getItem("jsmon-token") ?? sessionStorage.getItem("jsmon-token") ?? "";
 }
 
 async function fetchJSON<T>(path: string, options?: RequestInit): Promise<T> {

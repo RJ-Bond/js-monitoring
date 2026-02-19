@@ -45,15 +45,21 @@ export default function PlayerChart({ serverId }: PlayerChartProps) {
 
   const history = downsample(rawHistory ?? [], 60);
   const chartData = history.map((h) => ({ time: formatTime(h.timestamp, period, locale), players: h.count }));
+  const peak = chartData.length > 0 ? Math.max(...chartData.map((d) => d.players)) : 0;
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex gap-1">
-        {(["24h", "7d", "30d"] as Period[]).map((p) => (
-          <button key={p} onClick={() => setPeriod(p)} className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${period === p ? "bg-neon-green/20 text-neon-green border border-neon-green/40" : "text-muted-foreground hover:text-foreground"}`}>
-            {p}
-          </button>
-        ))}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex gap-1">
+          {(["24h", "7d", "30d"] as Period[]).map((p) => (
+            <button key={p} onClick={() => setPeriod(p)} className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${period === p ? "bg-neon-green/20 text-neon-green border border-neon-green/40" : "text-muted-foreground hover:text-foreground"}`}>
+              {p}
+            </button>
+          ))}
+        </div>
+        {peak > 0 && (
+          <span className="text-xs text-muted-foreground/70">{t.chartPeak(peak)}</span>
+        )}
       </div>
       <div className="h-28">
         {isLoading ? (

@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Users, Map, Wifi, Terminal, ExternalLink, Trash2, ChevronDown, Pencil, Star } from "lucide-react";
+import { Users, Map, Wifi, Terminal, ExternalLink, Trash2, ChevronDown, Pencil, Star, Copy, Share2 } from "lucide-react";
 import { cn, formatPlayers, formatPing, buildJoinLink, gameTypeLabel } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useServerPlayers } from "@/hooks/useServers";
+import { toast } from "@/lib/toast";
 import StatusIndicator from "./StatusIndicator";
 import PlayerChart from "./PlayerChart";
 import RconConsole from "./RconConsole";
@@ -58,6 +59,30 @@ export default function ServerCard({ server, onDelete, onEdit, isFavorite, onTog
     fillRatio >= 0.95 ? "ring-1 ring-red-400/50" :
     fillRatio >= 0.85 ? "ring-1 ring-orange-400/40" : "";
 
+  const pingMs = status?.ping_ms ?? 0;
+  const pingColor = !online ? "text-muted-foreground"
+    : pingMs < 50 ? "text-neon-green"
+    : pingMs < 120 ? "text-yellow-400"
+    : "text-red-400";
+  const pingDotColor = !online ? "bg-muted-foreground/30"
+    : pingMs < 50 ? "bg-neon-green"
+    : pingMs < 120 ? "bg-yellow-400"
+    : "bg-red-400";
+
+  const copyIP = () => {
+    const text = `${server.display_ip || server.ip}:${server.port}`;
+    navigator.clipboard.writeText(text).then(() => toast(t.toastCopied));
+  };
+
+  const shareServer = () => {
+    const url = `${window.location.origin}/?s=${server.id}`;
+    navigator.clipboard.writeText(url).then(() => toast(t.toastLinkCopied));
+  };
+
+  const lastUpdateTitle = status?.last_update
+    ? (locale === "ru" ? `Обновлено ${timeSince(status.last_update, locale)} назад` : `Updated ${timeSince(status.last_update, locale)} ago`)
+    : undefined;
+
   return (
     <>
       <div className={cn(
@@ -75,7 +100,14 @@ export default function ServerCard({ server, onDelete, onEdit, isFavorite, onTog
               </h3>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-xs text-muted-foreground font-mono truncate">{server.display_ip || server.ip}:{server.port}</p>
+              <button
+                onClick={copyIP}
+                title={t.copyIp}
+                className="flex items-center gap-1 text-xs text-muted-foreground font-mono truncate hover:text-foreground transition-colors group"
+              >
+                {server.display_ip || server.ip}:{server.port}
+                <Copy className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity flex-shrink-0" />
+              </button>
               {server.country_code && (
                 <span className="text-xs text-muted-foreground flex items-center gap-1">
                   <span>{countryFlag(server.country_code)}</span>
@@ -89,7 +121,9 @@ export default function ServerCard({ server, onDelete, onEdit, isFavorite, onTog
             <p className="text-xs text-muted-foreground mt-0.5">{gameTypeLabel(server.game_type)}</p>
           </div>
           <div className="flex flex-col items-end gap-1">
-            <StatusIndicator online={online} showLabel />
+            <div title={lastUpdateTitle}>
+              <StatusIndicator online={online} showLabel />
+            </div>
             {!online && status?.last_update && (
               <span className="text-xs text-muted-foreground/60">
                 {timeSince(status.last_update, locale)} {t.offlineSince}
@@ -108,13 +142,14 @@ export default function ServerCard({ server, onDelete, onEdit, isFavorite, onTog
           <div
             className="flex flex-col items-center gap-1 bg-white/5 rounded-xl p-2.5"
             title={online ? (
-              (status?.ping_ms ?? 0) < 50 ? "< 50 ms — excellent" :
-              (status?.ping_ms ?? 0) < 120 ? "< 120 ms — good" : "> 120 ms — high"
+              pingMs < 50 ? "< 50 ms — excellent" :
+              pingMs < 120 ? "< 120 ms — good" : "> 120 ms — high"
             ) : undefined}
           >
             <Wifi className="w-4 h-4 text-muted-foreground" />
-            <span className={cn("text-sm font-bold", !online ? "text-muted-foreground" : (status?.ping_ms ?? 0) < 50 ? "text-neon-green" : (status?.ping_ms ?? 0) < 120 ? "text-yellow-400" : "text-red-400")}>
-              {online ? formatPing(status!.ping_ms) : "—"}
+            <span className={cn("flex items-center gap-1.5 text-sm font-bold", pingColor)}>
+              <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", pingDotColor)} />
+              {online ? formatPing(pingMs) : "—"}
             </span>
             <span className="text-xs text-muted-foreground">{t.cardPing}</span>
           </div>
@@ -189,6 +224,9 @@ export default function ServerCard({ server, onDelete, onEdit, isFavorite, onTog
             {expanded ? t.hideChart : t.viewChart}
           </button>
           <div className="flex-1" />
+          <button onClick={shareServer} title={t.shareServer} className="p-1.5 rounded-lg text-muted-foreground hover:text-neon-blue hover:bg-neon-blue/10 transition-colors">
+            <Share2 className="w-4 h-4" />
+          </button>
           {onToggleFavorite && (
             <button
               onClick={onToggleFavorite}
