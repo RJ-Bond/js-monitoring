@@ -3,19 +3,21 @@
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Shield, Ban, Crown, UserX, RefreshCw, Gamepad2,
+  Shield, Ban, Crown, UserX, RefreshCw,
   Newspaper, Server, BarChart2, Users,
   Search, ChevronUp, ChevronDown, ChevronsUpDown,
-  Trash2, AlertTriangle,
+  Trash2, AlertTriangle, Settings,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useSiteSettings } from "@/contexts/SiteSettingsContext";
 import { api } from "@/lib/api";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import SiteBrand from "@/components/SiteBrand";
 import type { User, AdminServer } from "@/types/server";
 import { GAME_META } from "@/lib/utils";
 
-type AdminTab = "users" | "servers" | "stats";
+type AdminTab = "users" | "servers" | "stats" | "settings";
 type SortKey = "username" | "role" | "created_at" | "server_count";
 type RoleFilter = "all" | "admin" | "user" | "banned";
 
@@ -81,10 +83,130 @@ function ConfirmModal({ state, onClose }: { state: ConfirmState; onClose: () => 
   );
 }
 
+// ── Settings Tab ──────────────────────────────────────────────────────────────
+
+interface SettingsTabProps {
+  name: string;
+  logo: string;
+  saving: boolean;
+  saved: boolean;
+  onNameChange: (v: string) => void;
+  onLogoChange: (v: string) => void;
+  onSave: () => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  t: any;
+}
+
+function resizeLogo(file: File, maxSize = 64): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const blobUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      const side = Math.min(img.width, img.height);
+      const canvas = document.createElement("canvas");
+      canvas.width = maxSize;
+      canvas.height = maxSize;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, maxSize, maxSize);
+      URL.revokeObjectURL(blobUrl);
+      resolve(canvas.toDataURL("image/webp", 0.9));
+    };
+    img.onerror = () => { URL.revokeObjectURL(blobUrl); reject(new Error("load")); };
+    img.src = blobUrl;
+  });
+}
+
+function SettingsTab({ name, logo, saving, saved, onNameChange, onLogoChange, onSave, t }: SettingsTabProps) {
+  const inputCls = "bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-neon-green/50 transition-all placeholder:text-muted-foreground w-full";
+
+  async function handleLogoFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const data = await resizeLogo(file);
+      onLogoChange(data);
+    } catch {
+      // ignore
+    }
+    e.target.value = "";
+  }
+
+  return (
+    <div className="max-w-lg space-y-5">
+      {/* Site name */}
+      <div className="glass-card rounded-2xl p-5 space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t.adminSettingsName}</h2>
+        <input
+          className={inputCls}
+          value={name}
+          onChange={(e) => onNameChange(e.target.value)}
+          maxLength={60}
+          placeholder="JSMonitor"
+        />
+        <p className="text-xs text-muted-foreground">{t.adminSettingsNameHint}</p>
+      </div>
+
+      {/* Logo */}
+      <div className="glass-card rounded-2xl p-5 space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t.adminSettingsLogo}</h2>
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-neon-green/20 border border-neon-green/40 flex items-center justify-center flex-shrink-0">
+            {logo ? (
+              <img src={logo} alt="logo" className="w-7 h-7 object-contain" />
+            ) : (
+              <Settings className="w-6 h-6 text-neon-green/40" />
+            )}
+          </div>
+          <div className="flex-1 space-y-2">
+            <label className="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-xl border border-white/10 hover:border-white/20 text-sm text-muted-foreground hover:text-foreground transition-all w-fit">
+              {t.adminSettingsLogoUpload}
+              <input type="file" accept="image/*" className="hidden" onChange={handleLogoFile} />
+            </label>
+            {logo && (
+              <button
+                onClick={() => onLogoChange("")}
+                className="text-xs text-red-400 hover:text-red-300 transition-colors"
+              >
+                {t.adminSettingsLogoRemove}
+              </button>
+            )}
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground">{t.adminSettingsLogoHint}</p>
+      </div>
+
+      {/* Preview */}
+      <div className="glass-card rounded-2xl p-5 space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t.adminSettingsPreview}</h2>
+        <div className="flex items-center gap-2 p-3 rounded-xl bg-white/3 border border-white/5">
+          <div className="w-6 h-6 rounded-lg bg-neon-green/20 border border-neon-green/40 flex items-center justify-center">
+            {logo ? (
+              <img src={logo} alt="logo" className="w-3.5 h-3.5 object-contain" />
+            ) : (
+              <Settings className="w-3.5 h-3.5 text-neon-green" />
+            )}
+          </div>
+          <span className="font-black text-base tracking-tight">{name || "JSMonitor"}</span>
+        </div>
+      </div>
+
+      {/* Save */}
+      <button
+        onClick={onSave}
+        disabled={saving}
+        className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-neon-green text-background hover:bg-neon-green/90 disabled:opacity-60 transition-all flex items-center gap-2"
+      >
+        {saving ? t.adminSettingsSaving : saved ? t.adminSettingsSaved : t.adminSettingsSave}
+      </button>
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const router = useRouter();
   const { user, isAuthenticated, isLoading } = useAuth();
   const { t } = useLanguage();
+  const { siteName, logoData, refresh: refreshSettings } = useSiteSettings();
 
   const [tab, setTab] = useState<AdminTab>("users");
   const [users, setUsers] = useState<User[]>([]);
@@ -102,6 +224,12 @@ export default function AdminPage() {
   // Confirm modal
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
 
+  // Settings tab state
+  const [settingsName, setSettingsName] = useState("");
+  const [settingsLogo, setSettingsLogo] = useState("");
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsSaved, setSettingsSaved] = useState(false);
+
   useEffect(() => {
     if (isLoading) return;
     if (!isAuthenticated || user?.role !== "admin") {
@@ -110,6 +238,12 @@ export default function AdminPage() {
     }
     fetchUsers();
   }, [isAuthenticated, isLoading, user, router]);
+
+  // Sync settings state when context updates
+  useEffect(() => {
+    setSettingsName(siteName);
+    setSettingsLogo(logoData);
+  }, [siteName, logoData]);
 
   // Lazy-load servers when tab is activated
   useEffect(() => {
@@ -220,9 +354,10 @@ export default function AdminPage() {
   const inputCls = "bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-neon-green/50 transition-all placeholder:text-muted-foreground";
 
   const tabs: { key: AdminTab; label: string; icon: React.ReactNode }[] = [
-    { key: "users",   label: t.adminTabUsers,   icon: <Users className="w-4 h-4" /> },
-    { key: "servers", label: t.adminTabServers,  icon: <Server className="w-4 h-4" /> },
-    { key: "stats",   label: t.adminTabStats,    icon: <BarChart2 className="w-4 h-4" /> },
+    { key: "users",    label: t.adminTabUsers,    icon: <Users className="w-4 h-4" /> },
+    { key: "servers",  label: t.adminTabServers,  icon: <Server className="w-4 h-4" /> },
+    { key: "stats",    label: t.adminTabStats,    icon: <BarChart2 className="w-4 h-4" /> },
+    { key: "settings", label: t.adminTabSettings, icon: <Settings className="w-4 h-4" /> },
   ];
 
   return (
@@ -231,13 +366,10 @@ export default function AdminPage() {
       <header className="sticky top-0 z-40 border-b border-white/5 bg-background/80 backdrop-blur-xl">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-neon-green/20 border border-neon-green/40 rounded-xl flex items-center justify-center">
-              <Gamepad2 className="w-4 h-4 text-neon-green" />
-            </div>
-            <span className="font-black text-lg tracking-tight">
-              JS<span className="text-neon-green">Monitor</span>
-              <span className="ml-2 text-sm font-medium text-muted-foreground">{t.adminPanel}</span>
-            </span>
+            <SiteBrand
+              size="lg"
+              suffix={<span className="ml-2 text-sm font-medium text-muted-foreground">{t.adminPanel}</span>}
+            />
           </div>
           <div className="flex items-center gap-2">
             <LanguageSwitcher />
@@ -580,6 +712,33 @@ export default function AdminPage() {
               </p>
             )}
           </div>
+        )}
+
+        {/* ── SETTINGS TAB ── */}
+        {tab === "settings" && (
+          <SettingsTab
+            name={settingsName}
+            logo={settingsLogo}
+            saving={settingsSaving}
+            saved={settingsSaved}
+            onNameChange={setSettingsName}
+            onLogoChange={setSettingsLogo}
+            onSave={async () => {
+              setSettingsSaving(true);
+              setSettingsSaved(false);
+              try {
+                await api.updateSettings({ site_name: settingsName, logo_data: settingsLogo });
+                await refreshSettings();
+                setSettingsSaved(true);
+                setTimeout(() => setSettingsSaved(false), 2000);
+              } catch {
+                setError(t.adminSettingsSaveError);
+              } finally {
+                setSettingsSaving(false);
+              }
+            }}
+            t={t}
+          />
         )}
       </main>
 

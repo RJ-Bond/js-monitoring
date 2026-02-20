@@ -2,11 +2,12 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Newspaper, Plus, Pencil, Trash2, X, Save, Gamepad2, User } from "lucide-react";
+import { Newspaper, Plus, Pencil, Trash2, X, Save, User } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { api } from "@/lib/api";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import SiteBrand from "@/components/SiteBrand";
 import type { NewsItem } from "@/types/server";
 
 // Minimal safe markdown → HTML renderer (admin-only content)
@@ -183,9 +184,7 @@ export default function AdminNewsPage() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <a href="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
-              <div className="w-8 h-8 bg-neon-green/20 border border-neon-green/40 rounded-xl flex items-center justify-center">
-                <Gamepad2 className="w-4 h-4 text-neon-green" />
-              </div>
+              <SiteBrand size="lg" />
             </a>
             <span className="text-muted-foreground">/</span>
             <div className="flex items-center gap-2">

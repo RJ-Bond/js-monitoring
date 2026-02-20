@@ -2,13 +2,14 @@
 
 import { useState, useMemo, useEffect } from "react";
 import {
-  Plus, RefreshCw, Gamepad2, Zap, LogOut, User, Shield, Newspaper,
+  Plus, RefreshCw, Zap, LogOut, User, Shield, Newspaper,
   CalendarDays, Menu, X, Download, ChevronUp, ChevronDown, ArrowUpRight, Clock, Pencil,
 } from "lucide-react";
 import { useServers, useDeleteServer } from "@/hooks/useServers";
 import { useServerWebSocket } from "@/hooks/useWebSocket";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSiteSettings } from "@/contexts/SiteSettingsContext";
 import { useFavorites } from "@/hooks/useFavorites";
 import { api } from "@/lib/api";
 import { toast } from "@/lib/toast";
@@ -20,6 +21,7 @@ import AddEditServerModal from "@/components/AddEditServerModal";
 import DeleteConfirmModal from "@/components/DeleteConfirmModal";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import GameIcon from "@/components/GameIcon";
+import SiteBrand from "@/components/SiteBrand";
 import { ToastContainer } from "@/components/Toast";
 import type { GameType, Server, NewsItem } from "@/types/server";
 import { GAME_META } from "@/lib/utils";
@@ -74,6 +76,7 @@ export default function Home() {
   useServerWebSocket();
   const { t, locale } = useLanguage();
   const { user, logout, isAuthenticated } = useAuth();
+  const { siteName } = useSiteSettings();
   const { data: servers, isLoading, refetch, isRefetching } = useServers();
   const { mutate: deleteServer } = useDeleteServer();
   const qc = useQueryClient();
@@ -195,10 +198,7 @@ export default function Home() {
       <header className="sticky top-0 z-40 border-b border-white/5 bg-background/80 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2.5 flex-shrink-0">
-            <div className="w-8 h-8 bg-neon-green/20 border border-neon-green/40 rounded-xl flex items-center justify-center">
-              <Gamepad2 className="w-4 h-4 text-neon-green" />
-            </div>
-            <span className="font-black text-lg tracking-tight">JS<span className="text-neon-green">Monitor</span></span>
+            <SiteBrand size="lg" />
           </div>
           <div className="hidden sm:flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-neon-green animate-pulse" />
@@ -499,7 +499,7 @@ export default function Home() {
 
       <footer className="border-t border-white/5 py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between text-xs text-muted-foreground">
-          <span>JSMonitor © {new Date().getFullYear()}</span>
+          <span>{siteName} © {new Date().getFullYear()}</span>
 <span>{t.footerBuiltWith} <span className="text-neon-green">Go</span> + <span className="text-neon-blue">Next.js</span></span>
         </div>
       </footer>

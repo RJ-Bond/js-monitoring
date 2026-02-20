@@ -22,6 +22,12 @@ async function fetchJSON<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+export interface SiteSettings {
+  id: number;
+  site_name: string;
+  logo_data: string;
+}
+
 export interface PublicProfile {
   id: number;
   username: string;
@@ -83,6 +89,11 @@ export const api = {
     fetchJSON<void>("/api/v1/profile", { method: "DELETE" }),
   getProfileServers: () =>
     fetchJSON<Server[]>("/api/v1/profile/servers"),
+
+  // Site settings
+  getSettings: () => fetchJSON<SiteSettings>("/api/v1/settings"),
+  updateSettings: (data: { site_name?: string; logo_data?: string }) =>
+    fetchJSON<SiteSettings>("/api/v1/admin/settings", { method: "PUT", body: JSON.stringify(data) }),
 
   // Public profile
   getPublicProfile: (username: string) =>

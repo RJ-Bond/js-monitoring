@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Shield, CalendarDays, Server, Gamepad2, Loader2 } from "lucide-react";
+import { ArrowLeft, Shield, CalendarDays, Server, Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
 import type { PublicProfile } from "@/lib/api";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -10,6 +10,7 @@ import { cn, gameTypeLabel } from "@/lib/utils";
 import StatusIndicator from "@/components/StatusIndicator";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import GameIcon from "@/components/GameIcon";
+import SiteBrand from "@/components/SiteBrand";
 import { ToastContainer } from "@/components/Toast";
 
 const AVATAR_COLORS = [
@@ -71,12 +72,7 @@ export default function PublicProfilePage() {
             {t.profileBackToMain}
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-neon-green/20 border border-neon-green/40 rounded-lg flex items-center justify-center">
-              <Gamepad2 className="w-3.5 h-3.5 text-neon-green" />
-            </div>
-            <span className="font-black text-base tracking-tight hidden sm:block">
-              JS<span className="text-neon-green">Monitor</span>
-            </span>
+            <SiteBrand className="hidden sm:flex" />
             <LanguageSwitcher />
           </div>
         </div>

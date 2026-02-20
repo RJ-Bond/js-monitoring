@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft, Camera, Shield, User2, Mail, CalendarDays, Key,
-  Loader2, Check, Gamepad2, Code2, Copy, RefreshCw, Trash2,
+  Loader2, Check, Code2, Copy, RefreshCw, Trash2,
   Activity, Users, Server, Eye, EyeOff, ExternalLink, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,6 +15,7 @@ import { cn, gameTypeLabel } from "@/lib/utils";
 import { ToastContainer } from "@/components/Toast";
 import StatusIndicator from "@/components/StatusIndicator";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import SiteBrand from "@/components/SiteBrand";
 import type { Server as ServerType } from "@/types/server";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -300,12 +301,7 @@ export default function ProfilePage() {
             <ArrowLeft className="w-4 h-4" />{t.profileBackToMain}
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-neon-green/20 border border-neon-green/40 rounded-lg flex items-center justify-center">
-              <Gamepad2 className="w-3.5 h-3.5 text-neon-green" />
-            </div>
-            <span className="font-black text-base tracking-tight hidden sm:block">
-              JS<span className="text-neon-green">Monitor</span>
-            </span>
+            <SiteBrand className="hidden sm:flex" />
             <LanguageSwitcher />
           </div>
         </div>

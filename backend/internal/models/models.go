@@ -83,6 +83,13 @@ type PlayerHistory struct {
 	Timestamp time.Time `gorm:"index;not null"           json:"timestamp"`
 }
 
+// SiteSettings — настройки внешнего вида сайта (одна строка, ID=1)
+type SiteSettings struct {
+	ID       uint   `gorm:"primaryKey"                             json:"id"`
+	SiteName string `gorm:"type:varchar(100);not null;default:'JSMonitor'" json:"site_name"`
+	LogoData string `gorm:"type:mediumtext"                        json:"logo_data"`
+}
+
 // AlertsConfig — настройки Telegram-уведомлений
 type AlertsConfig struct {
 	ID             uint   `gorm:"primaryKey;autoIncrement" json:"id"`

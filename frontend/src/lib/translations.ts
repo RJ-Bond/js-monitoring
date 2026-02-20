@@ -241,6 +241,19 @@ export const translations = {
     publicProfileServers: "Servers",
     publicProfileJoined: "Joined",
     publicProfileNotFound: "User not found",
+    // Admin settings
+    adminTabSettings: "Settings",
+    adminSettingsName: "Site name",
+    adminSettingsNameHint: "Displayed in the header across all pages.",
+    adminSettingsLogo: "Logo",
+    adminSettingsLogoUpload: "Upload image",
+    adminSettingsLogoRemove: "Remove logo",
+    adminSettingsLogoHint: "The image will be cropped to a square and resized to 64×64 px.",
+    adminSettingsPreview: "Preview",
+    adminSettingsSave: "Save settings",
+    adminSettingsSaving: "Saving…",
+    adminSettingsSaved: "Saved!",
+    adminSettingsSaveError: "Failed to save settings",
   },
 
   ru: {
@@ -483,6 +496,19 @@ export const translations = {
     publicProfileServers: "Серверы",
     publicProfileJoined: "Зарегистрирован",
     publicProfileNotFound: "Пользователь не найден",
+    // Admin settings
+    adminTabSettings: "Настройки",
+    adminSettingsName: "Название сайта",
+    adminSettingsNameHint: "Отображается в заголовке на всех страницах.",
+    adminSettingsLogo: "Логотип",
+    adminSettingsLogoUpload: "Загрузить изображение",
+    adminSettingsLogoRemove: "Удалить логотип",
+    adminSettingsLogoHint: "Изображение будет обрезано до квадрата и уменьшено до 64×64 пикселей.",
+    adminSettingsPreview: "Предпросмотр",
+    adminSettingsSave: "Сохранить настройки",
+    adminSettingsSaving: "Сохранение…",
+    adminSettingsSaved: "Сохранено!",
+    adminSettingsSaveError: "Не удалось сохранить настройки",
   },
 } as const;
 

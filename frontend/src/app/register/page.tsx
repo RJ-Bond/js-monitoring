@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Gamepad2, UserPlus } from "lucide-react";
+import { UserPlus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import SiteBrand from "@/components/SiteBrand";
 import type { AuthResponse } from "@/types/server";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
@@ -44,10 +45,7 @@ export default function RegisterPage() {
     <div className="min-h-screen bg-background bg-grid flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center gap-3 mb-8">
-          <div className="w-12 h-12 bg-neon-green/20 border border-neon-green/40 rounded-2xl flex items-center justify-center">
-            <Gamepad2 className="w-6 h-6 text-neon-green" />
-          </div>
-          <h1 className="text-2xl font-black">JS<span className="text-neon-green">Monitor</span></h1>
+          <SiteBrand size="lg" className="scale-125" />
         </div>
         <div className="glass-card rounded-2xl p-6">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">

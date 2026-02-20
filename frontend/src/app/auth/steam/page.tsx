@@ -2,8 +2,8 @@
 
 import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Gamepad2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import SiteBrand from "@/components/SiteBrand";
 
 function SteamCallback() {
   const router = useRouter();
@@ -35,8 +35,8 @@ function SteamCallback() {
   return (
     <div className="min-h-screen bg-background bg-grid flex items-center justify-center">
       <div className="flex flex-col items-center gap-4 text-muted-foreground">
-        <div className="w-12 h-12 bg-neon-green/20 border border-neon-green/40 rounded-2xl flex items-center justify-center animate-pulse">
-          <Gamepad2 className="w-6 h-6 text-neon-green" />
+        <div className="animate-pulse">
+          <SiteBrand size="lg" className="scale-150" />
         </div>
         <p className="text-sm">Completing Steam sign-in…</p>
       </div>
