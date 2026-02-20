@@ -204,6 +204,43 @@ export const translations = {
     profileJoined: "Joined",
     profileNoEmail: "—",
     profileBackToMain: "← Back",
+    // Profile — email change
+    profileEmailChange: "Email",
+    profileEmailSave: "Save",
+    profileEmailSaving: "Saving…",
+    profileEmailUpdated: "Email updated",
+    profileEmailTaken: "Email already in use",
+    // Profile — avatar preview
+    profileAvatarPreview: "Save photo",
+    profileAvatarCancel: "Cancel",
+    // Profile — stats
+    profileStatServers: "My servers",
+    profileStatOnline: "Online",
+    profileStatPlayers: "Players",
+    // Profile — my servers
+    profileMyServers: "My Servers",
+    profileMyServersEmpty: "You haven't added any servers yet",
+    // Profile — API token
+    profileApiToken: "API Token",
+    profileApiTokenHint: "Use this token in the Authorization: Bearer header to access the API on your behalf.",
+    profileApiTokenNone: "No token generated yet",
+    profileApiTokenGenerate: "Generate token",
+    profileApiTokenRegenerate: "Regenerate",
+    profileApiTokenCopied: "Token copied!",
+    profileApiTokenReveal: "Show",
+    profileApiTokenHide: "Hide",
+    profileApiTokenWarning: "Regenerating will invalidate the old token",
+    // Profile — danger zone
+    profileDangerZone: "Danger Zone",
+    profileDeleteAccount: "Delete account",
+    profileDeleteAccountHint: "All your servers will also be deleted. This action cannot be undone.",
+    profileDeleteAccountConfirm: (u: string) => `Type "${u}" to confirm`,
+    profileDeleting: "Deleting…",
+    profileDeleteLastAdmin: "Cannot delete the last admin account",
+    // Public profile
+    publicProfileServers: "Servers",
+    publicProfileJoined: "Joined",
+    publicProfileNotFound: "User not found",
   },
 
   ru: {
@@ -409,6 +446,43 @@ export const translations = {
     profileJoined: "Зарегистрирован",
     profileNoEmail: "—",
     profileBackToMain: "← Назад",
+    // Profile — email change
+    profileEmailChange: "Email",
+    profileEmailSave: "Сохранить",
+    profileEmailSaving: "Сохранение…",
+    profileEmailUpdated: "Email обновлён",
+    profileEmailTaken: "Email уже используется",
+    // Profile — avatar preview
+    profileAvatarPreview: "Сохранить фото",
+    profileAvatarCancel: "Отмена",
+    // Profile — stats
+    profileStatServers: "Мои серверы",
+    profileStatOnline: "Онлайн",
+    profileStatPlayers: "Игроки",
+    // Profile — my servers
+    profileMyServers: "Мои серверы",
+    profileMyServersEmpty: "Вы ещё не добавили ни одного сервера",
+    // Profile — API token
+    profileApiToken: "API-токен",
+    profileApiTokenHint: "Используйте этот токен в заголовке Authorization: Bearer для доступа к API от вашего имени.",
+    profileApiTokenNone: "Токен ещё не сгенерирован",
+    profileApiTokenGenerate: "Сгенерировать токен",
+    profileApiTokenRegenerate: "Пересоздать",
+    profileApiTokenCopied: "Токен скопирован!",
+    profileApiTokenReveal: "Показать",
+    profileApiTokenHide: "Скрыть",
+    profileApiTokenWarning: "Пересоздание токена аннулирует старый",
+    // Profile — danger zone
+    profileDangerZone: "Опасная зона",
+    profileDeleteAccount: "Удалить аккаунт",
+    profileDeleteAccountHint: "Все ваши серверы также будут удалены. Это действие нельзя отменить.",
+    profileDeleteAccountConfirm: (u: string) => `Введите "${u}" для подтверждения`,
+    profileDeleting: "Удаление…",
+    profileDeleteLastAdmin: "Нельзя удалить последнего администратора",
+    // Public profile
+    publicProfileServers: "Серверы",
+    publicProfileJoined: "Зарегистрирован",
+    publicProfileNotFound: "Пользователь не найден",
   },
 } as const;
 

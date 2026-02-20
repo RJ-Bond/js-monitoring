@@ -15,6 +15,7 @@ type User struct {
 	PasswordHash string    `gorm:"type:varchar(255)"                     json:"-"`
 	SteamID      string    `gorm:"type:varchar(30);uniqueIndex"          json:"steam_id,omitempty"`
 	Avatar       string    `gorm:"type:mediumtext"                       json:"avatar,omitempty"`
+	APIToken     string    `gorm:"type:varchar(64);uniqueIndex"          json:"api_token,omitempty"`
 	Role         string    `gorm:"type:varchar(20);default:'user'"       json:"role"`
 	Banned       bool      `gorm:"default:false"                         json:"banned"`
 	CreatedAt    time.Time `                                             json:"created_at"`

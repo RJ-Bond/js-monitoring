@@ -1,6 +1,8 @@
 package api
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"net/http"
 	"strings"
 
@@ -25,7 +27,7 @@ func GetProfile(c echo.Context) error {
 	return c.JSON(http.StatusOK, user)
 }
 
-// UpdateProfile PUT /api/v1/profile — update username and/or password
+// UpdateProfile PUT /api/v1/profile — update username, email and/or password
 func UpdateProfile(c echo.Context) error {
 	id := profileUserID(c)
 
@@ -36,6 +38,7 @@ func UpdateProfile(c echo.Context) error {
 
 	var req struct {
 		Username        string `json:"username"`
+		Email           string `json:"email"`
 		CurrentPassword string `json:"current_password"`
 		NewPassword     string `json:"new_password"`
 	}
@@ -47,6 +50,10 @@ func UpdateProfile(c echo.Context) error {
 
 	if req.Username != "" && req.Username != user.Username {
 		updates["username"] = strings.TrimSpace(req.Username)
+	}
+
+	if req.Email != user.Email {
+		updates["email"] = strings.TrimSpace(req.Email)
 	}
 
 	if req.NewPassword != "" {
@@ -70,7 +77,7 @@ func UpdateProfile(c echo.Context) error {
 	}
 
 	if err := database.DB.Model(&user).Updates(updates).Error; err != nil {
-		return c.JSON(http.StatusConflict, echo.Map{"error": "username already taken"})
+		return c.JSON(http.StatusConflict, echo.Map{"error": "username or email already taken"})
 	}
 
 	database.DB.First(&user, id)
@@ -91,7 +98,6 @@ func UpdateAvatar(c echo.Context) error {
 	if req.Avatar != "" && !strings.HasPrefix(req.Avatar, "data:image/") {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid avatar format"})
 	}
-	// ~800KB base64 ≈ 600KB raw image — generous limit for a WebP thumbnail
 	if len(req.Avatar) > 800*1024 {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "avatar too large (max ~600KB)"})
 	}
@@ -106,4 +112,84 @@ func UpdateAvatar(c echo.Context) error {
 	}
 	user.Avatar = req.Avatar
 	return c.JSON(http.StatusOK, user)
+}
+
+// GenerateAPIToken POST /api/v1/profile/token — generate (or regenerate) personal API token
+func GenerateAPIToken(c echo.Context) error {
+	id := profileUserID(c)
+
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "failed to generate token"})
+	}
+	token := hex.EncodeToString(b)
+
+	var user models.User
+	if err := database.DB.First(&user, id).Error; err != nil {
+		return c.JSON(http.StatusNotFound, echo.Map{"error": "user not found"})
+	}
+	if err := database.DB.Model(&user).Update("api_token", token).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "failed to save token"})
+	}
+	user.APIToken = token
+	return c.JSON(http.StatusOK, user)
+}
+
+// DeleteProfile DELETE /api/v1/profile — delete own account
+func DeleteProfile(c echo.Context) error {
+	id := profileUserID(c)
+
+	var user models.User
+	if err := database.DB.First(&user, id).Error; err != nil {
+		return c.JSON(http.StatusNotFound, echo.Map{"error": "user not found"})
+	}
+
+	// Prevent deleting the last admin
+	if user.Role == "admin" {
+		var adminCount int64
+		database.DB.Model(&models.User{}).Where("role = ?", "admin").Count(&adminCount)
+		if adminCount <= 1 {
+			return c.JSON(http.StatusForbidden, echo.Map{"error": "cannot delete the last admin account"})
+		}
+	}
+
+	// Delete user's servers (and their statuses via cascade or manual)
+	database.DB.Where("owner_id = ?", id).Delete(&models.Server{})
+
+	// Delete user
+	if err := database.DB.Delete(&models.User{}, id).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "failed to delete account"})
+	}
+	return c.JSON(http.StatusOK, echo.Map{"message": "account deleted"})
+}
+
+// GetProfileServers GET /api/v1/profile/servers — current user's servers with status
+func GetProfileServers(c echo.Context) error {
+	id := profileUserID(c)
+	var servers []models.Server
+	if err := database.DB.Preload("Status").Where("owner_id = ?", id).Find(&servers).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
+	}
+	return c.JSON(http.StatusOK, servers)
+}
+
+// GetPublicProfile GET /api/v1/users/:username — public profile
+func GetPublicProfile(c echo.Context) error {
+	username := c.Param("username")
+	var user models.User
+	if err := database.DB.Where("username = ?", username).First(&user).Error; err != nil {
+		return c.JSON(http.StatusNotFound, echo.Map{"error": "user not found"})
+	}
+
+	var servers []models.Server
+	database.DB.Preload("Status").Where("owner_id = ?", user.ID).Find(&servers)
+
+	return c.JSON(http.StatusOK, echo.Map{
+		"id":         user.ID,
+		"username":   user.Username,
+		"avatar":     user.Avatar,
+		"role":       user.Role,
+		"created_at": user.CreatedAt,
+		"servers":    servers,
+	})
 }

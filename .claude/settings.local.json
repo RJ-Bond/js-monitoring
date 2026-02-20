@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git remote add:*)",
+      "Bash(git branch:*)",
+      "Bash(git push:*)",
+      "Bash(dir:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(cmd /c \"dir /b \"\"d:\\\\Исходники\\\\js-monitoring\\\\frontend\\\\src\\\\app\"\"\")",
+      "Bash(go build:*)",
+      "Bash(GONOSUMDB='*' GOFLAGS='-mod=mod' go vet:*)",
+      "Bash(npx tsc:*)",
+      "Bash(node_modules/.bin/tsc:*)",
+      "Bash(git -C \"d:/Исходники/js-monitoring\" status)",
+      "Bash(git -C:*)",
+      "Bash(./node_modules/.bin/tsc:*)"
+    ]
+  }
+}

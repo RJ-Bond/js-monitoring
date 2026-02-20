@@ -90,6 +90,7 @@ export interface User {
   email: string;
   steam_id?: string;
   avatar?: string;
+  api_token?: string;
   role: "admin" | "user";
   banned: boolean;
   created_at: string;

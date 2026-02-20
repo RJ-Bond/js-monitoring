@@ -83,6 +83,7 @@ func main() {
 	v1.GET("/servers/:id/history", api.GetServerHistory)
 	v1.GET("/servers/:id/players", api.GetServerPlayers)
 	v1.GET("/news", api.GetNews)
+	v1.GET("/users/:username", api.GetPublicProfile)
 
 	// ── Auth ─────────────────────────────────────────────────────────────────
 	authG := v1.Group("/auth")
@@ -99,6 +100,9 @@ func main() {
 	protected.GET("/profile", api.GetProfile)
 	protected.PUT("/profile", api.UpdateProfile)
 	protected.PUT("/profile/avatar", api.UpdateAvatar)
+	protected.POST("/profile/token", api.GenerateAPIToken)
+	protected.DELETE("/profile", api.DeleteProfile)
+	protected.GET("/profile/servers", api.GetProfileServers)
 
 	// ── Admin routes (JWT + admin role) ───────────────────────────────────────
 	admin := v1.Group("/admin", api.JWTMiddleware, api.AdminMiddleware)

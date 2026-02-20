@@ -22,6 +22,15 @@ async function fetchJSON<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+export interface PublicProfile {
+  id: number;
+  username: string;
+  avatar: string;
+  role: string;
+  created_at: string;
+  servers: Server[];
+}
+
 export const api = {
   // Servers
   getServers: () => fetchJSON<Server[]>("/api/v1/servers"),
@@ -64,10 +73,20 @@ export const api = {
 
   // Profile
   getProfile: () => fetchJSON<User>("/api/v1/profile"),
-  updateProfile: (data: { username?: string; current_password?: string; new_password?: string }) =>
+  updateProfile: (data: { username?: string; email?: string; current_password?: string; new_password?: string }) =>
     fetchJSON<User>("/api/v1/profile", { method: "PUT", body: JSON.stringify(data) }),
   updateAvatar: (avatar: string) =>
     fetchJSON<User>("/api/v1/profile/avatar", { method: "PUT", body: JSON.stringify({ avatar }) }),
+  generateToken: () =>
+    fetchJSON<User>("/api/v1/profile/token", { method: "POST" }),
+  deleteProfile: (): Promise<void> =>
+    fetchJSON<void>("/api/v1/profile", { method: "DELETE" }),
+  getProfileServers: () =>
+    fetchJSON<Server[]>("/api/v1/profile/servers"),
+
+  // Public profile
+  getPublicProfile: (username: string) =>
+    fetchJSON<PublicProfile>(`/api/v1/users/${username}`),
 
   // News
   getNews: () => fetchJSON<NewsItem[]>("/api/v1/news"),
