@@ -83,11 +83,13 @@ type PlayerHistory struct {
 	Timestamp time.Time `gorm:"index;not null"           json:"timestamp"`
 }
 
-// SiteSettings — настройки внешнего вида сайта (одна строка, ID=1)
+// SiteSettings — настройки сайта (одна строка, ID=1)
 type SiteSettings struct {
-	ID       uint   `gorm:"primaryKey"                             json:"id"`
-	SiteName string `gorm:"type:varchar(100);not null;default:'JSMonitor'" json:"site_name"`
-	LogoData string `gorm:"type:mediumtext"                        json:"logo_data"`
+	ID          uint   `gorm:"primaryKey"                             json:"id"`
+	SiteName    string `gorm:"type:varchar(100);not null;default:'JSMonitor'" json:"site_name"`
+	LogoData    string `gorm:"type:mediumtext"                        json:"logo_data"`
+	SteamAPIKey string `gorm:"type:varchar(255)"                      json:"-"` // никогда не раскрывается через API
+	AppURL      string `gorm:"type:varchar(255)"                      json:"app_url"`
 }
 
 // AlertsConfig — настройки Telegram-уведомлений

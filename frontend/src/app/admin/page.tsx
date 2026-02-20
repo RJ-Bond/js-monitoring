@@ -6,13 +6,15 @@ import {
   Shield, Ban, Crown, UserX, RefreshCw,
   Newspaper, Server, BarChart2, Users,
   Search, ChevronUp, ChevronDown, ChevronsUpDown,
-  Trash2, AlertTriangle, Settings,
+  Trash2, AlertTriangle, Settings, Eye, EyeOff, ExternalLink, Tag,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useSiteSettings } from "@/contexts/SiteSettingsContext";
-import { api } from "@/lib/api";
+import { api, type AdminSiteSettings } from "@/lib/api";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import ThemeToggle from "@/components/ThemeToggle";
+import { APP_VERSION } from "@/lib/version";
 import SiteBrand from "@/components/SiteBrand";
 import type { User, AdminServer } from "@/types/server";
 import { GAME_META } from "@/lib/utils";
@@ -88,10 +90,19 @@ function ConfirmModal({ state, onClose }: { state: ConfirmState; onClose: () => 
 interface SettingsTabProps {
   name: string;
   logo: string;
+  appUrl: string;
+  steamKeySet: boolean;
+  steamKeyHint: string;
+  steamKeySource: string;
+  steamNewKey: string;
+  steamClear: boolean;
   saving: boolean;
   saved: boolean;
   onNameChange: (v: string) => void;
   onLogoChange: (v: string) => void;
+  onAppUrlChange: (v: string) => void;
+  onSteamNewKeyChange: (v: string) => void;
+  onSteamClear: () => void;
   onSave: () => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   t: any;
@@ -116,7 +127,11 @@ function resizeLogo(file: File, maxSize = 64): Promise<string> {
   });
 }
 
-function SettingsTab({ name, logo, saving, saved, onNameChange, onLogoChange, onSave, t }: SettingsTabProps) {
+function SettingsTab({
+  name, logo, appUrl, steamKeySet, steamKeyHint, steamKeySource, steamNewKey, steamClear,
+  saving, saved, onNameChange, onLogoChange, onAppUrlChange, onSteamNewKeyChange, onSteamClear, onSave, t,
+}: SettingsTabProps) {
+  const [showKey, setShowKey] = useState(false);
   const inputCls = "bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-neon-green/50 transition-all placeholder:text-muted-foreground w-full";
 
   async function handleLogoFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -190,6 +205,109 @@ function SettingsTab({ name, logo, saving, saved, onNameChange, onLogoChange, on
         </div>
       </div>
 
+      {/* App URL */}
+      <div className="glass-card rounded-2xl p-5 space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t.adminSettingsSteamTitle}</h2>
+        <div className="space-y-2">
+          <label className="text-xs text-muted-foreground">{t.adminSettingsAppUrl}</label>
+          <input
+            className={inputCls}
+            value={appUrl}
+            onChange={(e) => onAppUrlChange(e.target.value)}
+            placeholder="https://yourdomain.com"
+          />
+          <p className="text-xs text-muted-foreground">{t.adminSettingsAppUrlHint}</p>
+        </div>
+
+        {/* Steam API Key */}
+        <div className="space-y-2 pt-1 border-t border-white/5">
+          <label className="text-xs text-muted-foreground">{t.adminSettingsSteamKey}</label>
+
+          {steamKeySet && !steamClear && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-neon-green/5 border border-neon-green/20 text-xs">
+              <span className="font-mono text-neon-green/80 flex-1">{steamKeyHint}</span>
+              <span className="text-muted-foreground/50">
+                {steamKeySource === "env" ? t.adminSettingsSteamFromEnv : t.adminSettingsSteamFromDb}
+              </span>
+              {steamKeySource === "db" && (
+                <button
+                  onClick={onSteamClear}
+                  className="text-red-400 hover:text-red-300 transition-colors ml-1"
+                  title={t.adminSettingsSteamClear}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          )}
+
+          {steamClear && (
+            <div className="px-3 py-2 rounded-xl bg-red-400/10 border border-red-400/20 text-xs text-red-400">
+              {t.adminSettingsSteamWillClear}
+              <button
+                onClick={onSteamClear}
+                className="ml-2 underline hover:no-underline"
+              >
+                {t.btnCancel}
+              </button>
+            </div>
+          )}
+
+          {(!steamKeySet || steamClear) && (
+            <div className="relative">
+              <input
+                className={inputCls}
+                type={showKey ? "text" : "password"}
+                value={steamNewKey}
+                onChange={(e) => onSteamNewKeyChange(e.target.value)}
+                placeholder={t.adminSettingsSteamKeyPlaceholder}
+                autoComplete="off"
+              />
+              <button
+                type="button"
+                onClick={() => setShowKey((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          )}
+
+          {steamKeySet && !steamClear && steamKeySource === "db" && (
+            <div className="relative">
+              <input
+                className={inputCls}
+                type={showKey ? "text" : "password"}
+                value={steamNewKey}
+                onChange={(e) => onSteamNewKeyChange(e.target.value)}
+                placeholder={t.adminSettingsSteamKeyChangePlaceholder}
+                autoComplete="off"
+              />
+              <button
+                type="button"
+                onClick={() => setShowKey((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          )}
+
+          <p className="text-xs text-muted-foreground flex items-center gap-1">
+            {t.adminSettingsSteamKeyHint}
+            <a
+              href="https://steamcommunity.com/dev/apikey"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-0.5 text-neon-blue hover:underline"
+            >
+              {t.adminSettingsSteamKeyLink}
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          </p>
+        </div>
+      </div>
+
       {/* Save */}
       <button
         onClick={onSave}
@@ -227,6 +345,12 @@ export default function AdminPage() {
   // Settings tab state
   const [settingsName, setSettingsName] = useState("");
   const [settingsLogo, setSettingsLogo] = useState("");
+  const [settingsAppUrl, setSettingsAppUrl] = useState("");
+  const [steamKeySet, setSteamKeySet] = useState(false);
+  const [steamKeyHint, setSteamKeyHint] = useState("");
+  const [steamKeySource, setSteamKeySource] = useState("db");
+  const [steamNewKey, setSteamNewKey] = useState("");
+  const [steamClear, setSteamClear] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSaved, setSettingsSaved] = useState(false);
 
@@ -249,6 +373,16 @@ export default function AdminPage() {
   useEffect(() => {
     if (tab === "servers" && servers.length === 0 && !loadingServers) {
       fetchServers();
+    }
+    if (tab === "settings") {
+      api.getAdminSettings().then((s: AdminSiteSettings) => {
+        setSteamKeySet(s.steam_key_set);
+        setSteamKeyHint(s.steam_key_hint);
+        setSteamKeySource(s.steam_key_source);
+        setSettingsAppUrl(s.app_url ?? "");
+        setSteamNewKey("");
+        setSteamClear(false);
+      }).catch(() => {});
     }
   }, [tab]);
 
@@ -372,6 +506,7 @@ export default function AdminPage() {
             />
           </div>
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <LanguageSwitcher />
             <button
               onClick={() => { fetchUsers(); if (tab === "servers") fetchServers(); }}
@@ -711,6 +846,28 @@ export default function AdminPage() {
                 {t.adminNoServers} — <button onClick={() => { setTab("servers"); fetchServers(); }} className="underline hover:text-foreground">{t.adminTabServers}</button>
               </p>
             )}
+
+            {/* Version card */}
+            <div className="glass-card rounded-2xl px-5 py-4 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/5">
+                  <Tag className="w-5 h-5 text-muted-foreground" />
+                </div>
+                <div>
+                  <div className="text-sm font-bold font-mono">{APP_VERSION}</div>
+                  <div className="text-xs text-muted-foreground">{t.adminStatsVersion}</div>
+                </div>
+              </div>
+              <a
+                href="https://github.com/RJ-Bond/js-monitoring/releases"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-white/10 hover:border-white/20 px-3 py-1.5 rounded-xl transition-all"
+              >
+                {t.adminStatsCheckUpdates}
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
           </div>
         )}
 
@@ -719,16 +876,40 @@ export default function AdminPage() {
           <SettingsTab
             name={settingsName}
             logo={settingsLogo}
+            appUrl={settingsAppUrl}
+            steamKeySet={steamKeySet}
+            steamKeyHint={steamKeyHint}
+            steamKeySource={steamKeySource}
+            steamNewKey={steamNewKey}
+            steamClear={steamClear}
             saving={settingsSaving}
             saved={settingsSaved}
             onNameChange={setSettingsName}
             onLogoChange={setSettingsLogo}
+            onAppUrlChange={setSettingsAppUrl}
+            onSteamNewKeyChange={(v) => { setSteamNewKey(v); if (v) setSteamClear(false); }}
+            onSteamClear={() => { setSteamClear((prev) => { if (prev) setSteamNewKey(""); return !prev; }); }}
             onSave={async () => {
               setSettingsSaving(true);
               setSettingsSaved(false);
               try {
-                await api.updateSettings({ site_name: settingsName, logo_data: settingsLogo });
+                let steamApiKey = "";
+                if (steamClear) steamApiKey = "__CLEAR__";
+                else if (steamNewKey) steamApiKey = steamNewKey;
+                await api.updateSettings({
+                  site_name: settingsName,
+                  logo_data: settingsLogo,
+                  app_url: settingsAppUrl,
+                  steam_api_key: steamApiKey,
+                });
                 await refreshSettings();
+                // Refresh Steam key info
+                const updated = await api.getAdminSettings();
+                setSteamKeySet(updated.steam_key_set);
+                setSteamKeyHint(updated.steam_key_hint);
+                setSteamKeySource(updated.steam_key_source);
+                setSteamNewKey("");
+                setSteamClear(false);
                 setSettingsSaved(true);
                 setTimeout(() => setSettingsSaved(false), 2000);
               } catch {

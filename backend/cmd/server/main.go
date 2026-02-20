@@ -114,6 +114,7 @@ func main() {
 	admin.POST("/news", api.CreateNews)
 	admin.PUT("/news/:id", api.UpdateNews)
 	admin.DELETE("/news/:id", api.DeleteNews)
+	admin.GET("/settings", api.GetAdminSettings)
 	admin.PUT("/settings", api.UpdateSettings)
 
 	port := env("PORT", "8080")

@@ -4,6 +4,7 @@ import "./globals.css";
 import QueryProvider from "@/providers/QueryProvider";
 import { SetupGuard } from "@/components/SetupGuard";
 import { SiteSettingsProvider } from "@/contexts/SiteSettingsContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 
 const inter = Inter({ subsets: ["latin", "cyrillic"] });
 
@@ -15,12 +16,22 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ru" className="dark">
+    <html lang="ru" suppressHydrationWarning>
+      <head>
+        {/* Prevent flash of wrong theme — runs before React hydration */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){var t=localStorage.getItem('jsmon-theme')||'dark';document.documentElement.className=t;})()`,
+          }}
+        />
+      </head>
       <body className={`${inter.className} antialiased min-h-screen bg-background`}>
         <QueryProvider>
-          <SiteSettingsProvider>
-            <SetupGuard>{children}</SetupGuard>
-          </SiteSettingsProvider>
+          <ThemeProvider>
+            <SiteSettingsProvider>
+              <SetupGuard>{children}</SetupGuard>
+            </SiteSettingsProvider>
+          </ThemeProvider>
         </QueryProvider>
       </body>
     </html>

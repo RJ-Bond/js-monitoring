@@ -254,6 +254,25 @@ export const translations = {
     adminSettingsSaving: "Saving…",
     adminSettingsSaved: "Saved!",
     adminSettingsSaveError: "Failed to save settings",
+    // Steam auth settings
+    adminSettingsSteamTitle: "Steam Authentication",
+    adminSettingsAppUrl: "Application URL",
+    adminSettingsAppUrlHint: "Public URL of the app — used for Steam OpenID callback. Must match what Steam sees in the browser.",
+    adminSettingsSteamKey: "Steam API Key",
+    adminSettingsSteamKeyHint: "Required to fetch player names from Steam. Get yours at",
+    adminSettingsSteamKeyLink: "steamcommunity.com/dev/apikey",
+    adminSettingsSteamKeyPlaceholder: "Enter Steam Web API key…",
+    adminSettingsSteamKeyChangePlaceholder: "Enter new key to replace (leave blank to keep current)…",
+    adminSettingsSteamFromDb: "from database",
+    adminSettingsSteamFromEnv: "from env var",
+    adminSettingsSteamClear: "Remove key",
+    adminSettingsSteamWillClear: "Steam API key will be removed on save.",
+    // Theme
+    themeLight: "Light theme",
+    themeDark: "Dark theme",
+    // Version
+    adminStatsVersion: "Current version",
+    adminStatsCheckUpdates: "Releases on GitHub",
   },
 
   ru: {
@@ -509,6 +528,25 @@ export const translations = {
     adminSettingsSaving: "Сохранение…",
     adminSettingsSaved: "Сохранено!",
     adminSettingsSaveError: "Не удалось сохранить настройки",
+    // Steam auth settings
+    adminSettingsSteamTitle: "Авторизация через Steam",
+    adminSettingsAppUrl: "URL приложения",
+    adminSettingsAppUrlHint: "Публичный адрес приложения — используется для Steam OpenID callback. Должен совпадать с тем, что видит браузер.",
+    adminSettingsSteamKey: "Steam Web API ключ",
+    adminSettingsSteamKeyHint: "Нужен для получения имён игроков из Steam. Получить на",
+    adminSettingsSteamKeyLink: "steamcommunity.com/dev/apikey",
+    adminSettingsSteamKeyPlaceholder: "Введите Steam Web API ключ…",
+    adminSettingsSteamKeyChangePlaceholder: "Введите новый ключ для замены (оставьте пустым, чтобы не менять)…",
+    adminSettingsSteamFromDb: "из базы данных",
+    adminSettingsSteamFromEnv: "из переменной окружения",
+    adminSettingsSteamClear: "Удалить ключ",
+    adminSettingsSteamWillClear: "Steam API ключ будет удалён при сохранении.",
+    // Theme
+    themeLight: "Светлая тема",
+    themeDark: "Тёмная тема",
+    // Version
+    adminStatsVersion: "Текущая версия",
+    adminStatsCheckUpdates: "Релизы на GitHub",
   },
 } as const;
 

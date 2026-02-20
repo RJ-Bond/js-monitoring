@@ -161,11 +161,23 @@ func Login(c echo.Context) error {
 // ─── Steam OpenID 2.0 ────────────────────────────────────────────────────────
 
 func appURL() string {
+	var s models.SiteSettings
+	if database.DB.First(&s, 1).Error == nil && s.AppURL != "" {
+		return strings.TrimRight(s.AppURL, "/")
+	}
 	u := os.Getenv("APP_URL")
 	if u == "" {
 		u = "http://localhost"
 	}
 	return strings.TrimRight(u, "/")
+}
+
+func steamAPIKey() string {
+	var s models.SiteSettings
+	if database.DB.First(&s, 1).Error == nil && s.SteamAPIKey != "" {
+		return s.SteamAPIKey
+	}
+	return os.Getenv("STEAM_API_KEY")
 }
 
 // SteamInit GET /api/v1/auth/steam — redirects browser to Steam OpenID login
@@ -265,7 +277,7 @@ func verifySteamOpenID(params url.Values) (string, error) {
 }
 
 func getSteamProfile(steamID string) (username, avatar string) {
-	apiKey := os.Getenv("STEAM_API_KEY")
+	apiKey := steamAPIKey()
 	if apiKey == "" {
 		return "steam_" + steamID[len(steamID)-8:], ""
 	}

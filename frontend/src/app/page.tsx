@@ -20,11 +20,13 @@ import StatsOverview from "@/components/StatsOverview";
 import AddEditServerModal from "@/components/AddEditServerModal";
 import DeleteConfirmModal from "@/components/DeleteConfirmModal";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import ThemeToggle from "@/components/ThemeToggle";
 import GameIcon from "@/components/GameIcon";
 import SiteBrand from "@/components/SiteBrand";
 import { ToastContainer } from "@/components/Toast";
 import type { GameType, Server, NewsItem } from "@/types/server";
 import { GAME_META } from "@/lib/utils";
+import { APP_VERSION } from "@/lib/version";
 import { useQueryClient } from "@tanstack/react-query";
 
 type SortMode = "default" | "players" | "ping" | "name" | "status";
@@ -205,6 +207,7 @@ export default function Home() {
             <span className="text-xs text-muted-foreground">{t.onlineCount(onlineCount)}</span>
           </div>
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <LanguageSwitcher />
             {isAuthenticated && user && (
               <>
@@ -499,8 +502,8 @@ export default function Home() {
 
       <footer className="border-t border-white/5 py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between text-xs text-muted-foreground">
-          <span>{siteName} © {new Date().getFullYear()}</span>
-<span>{t.footerBuiltWith} <span className="text-neon-green">Go</span> + <span className="text-neon-blue">Next.js</span></span>
+          <span>{siteName} © {new Date().getFullYear()} · <span className="opacity-50">{APP_VERSION}</span></span>
+          <span>{t.footerBuiltWith} <span className="text-neon-green">Go</span> + <span className="text-neon-blue">Next.js</span></span>
         </div>
       </footer>
 

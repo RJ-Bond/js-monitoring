@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { LogIn } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useSiteSettings } from "@/contexts/SiteSettingsContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import SiteBrand from "@/components/SiteBrand";
 import type { AuthResponse } from "@/types/server";
@@ -25,6 +26,7 @@ function LoginInner() {
   const searchParams = useSearchParams();
   const { login } = useAuth();
   const { t } = useLanguage();
+  const { steamEnabled } = useSiteSettings();
   const [form, setForm] = useState({ username: "", password: "" });
   const [remember, setRemember] = useState(true);
   const [error, setError] = useState("");
@@ -64,19 +66,23 @@ function LoginInner() {
         </div>
 
         <div className="glass-card rounded-2xl p-6 flex flex-col gap-4">
-          <a
-            href={`${BASE}/api/v1/auth/steam`}
-            className="flex items-center justify-center gap-2.5 w-full py-3 rounded-xl font-semibold text-sm bg-[#1b2838] text-white border border-[#2a475e] hover:bg-[#2a475e] transition-all"
-          >
-            <SteamIcon />
-            {t.authLoginWithSteam}
-          </a>
+          {steamEnabled && (
+            <>
+              <a
+                href={`${BASE}/api/v1/auth/steam`}
+                className="flex items-center justify-center gap-2.5 w-full py-3 rounded-xl font-semibold text-sm bg-[#1b2838] text-white border border-[#2a475e] hover:bg-[#2a475e] transition-all"
+              >
+                <SteamIcon />
+                {t.authLoginWithSteam}
+              </a>
 
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-white/10" />
-            <span className="text-xs text-muted-foreground">or</span>
-            <div className="flex-1 h-px bg-white/10" />
-          </div>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px bg-white/10" />
+                <span className="text-xs text-muted-foreground">or</span>
+                <div className="flex-1 h-px bg-white/10" />
+              </div>
+            </>
+          )}
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">

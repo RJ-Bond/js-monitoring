@@ -6,19 +6,27 @@ import { api, type SiteSettings } from "@/lib/api";
 interface SiteSettingsCtx {
   siteName: string;
   logoData: string;
+  steamEnabled: boolean;
   refresh: () => Promise<void>;
 }
 
 const DEFAULT: SiteSettingsCtx = {
   siteName: "JSMonitor",
   logoData: "",
+  steamEnabled: false,
   refresh: async () => {},
 };
 
 const SiteSettingsContext = createContext<SiteSettingsCtx>(DEFAULT);
 
 export function SiteSettingsProvider({ children }: { children: React.ReactNode }) {
-  const [settings, setSettings] = useState<SiteSettings>({ id: 1, site_name: "JSMonitor", logo_data: "" });
+  const [settings, setSettings] = useState<SiteSettings>({
+    id: 1,
+    site_name: "JSMonitor",
+    logo_data: "",
+    steam_enabled: false,
+    app_url: "",
+  });
 
   const load = useCallback(async () => {
     try {
@@ -33,7 +41,12 @@ export function SiteSettingsProvider({ children }: { children: React.ReactNode }
 
   return (
     <SiteSettingsContext.Provider
-      value={{ siteName: settings.site_name, logoData: settings.logo_data, refresh: load }}
+      value={{
+        siteName: settings.site_name,
+        logoData: settings.logo_data,
+        steamEnabled: settings.steam_enabled,
+        refresh: load,
+      }}
     >
       {children}
     </SiteSettingsContext.Provider>

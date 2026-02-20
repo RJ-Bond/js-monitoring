@@ -26,6 +26,18 @@ export interface SiteSettings {
   id: number;
   site_name: string;
   logo_data: string;
+  steam_enabled: boolean;
+  app_url: string;
+}
+
+export interface AdminSiteSettings {
+  id: number;
+  site_name: string;
+  logo_data: string;
+  app_url: string;
+  steam_key_set: boolean;
+  steam_key_hint: string;
+  steam_key_source: "db" | "env";
 }
 
 export interface PublicProfile {
@@ -92,7 +104,8 @@ export const api = {
 
   // Site settings
   getSettings: () => fetchJSON<SiteSettings>("/api/v1/settings"),
-  updateSettings: (data: { site_name?: string; logo_data?: string }) =>
+  getAdminSettings: () => fetchJSON<AdminSiteSettings>("/api/v1/admin/settings"),
+  updateSettings: (data: { site_name?: string; logo_data?: string; app_url?: string; steam_api_key?: string }) =>
     fetchJSON<SiteSettings>("/api/v1/admin/settings", { method: "PUT", body: JSON.stringify(data) }),
 
   // Public profile
