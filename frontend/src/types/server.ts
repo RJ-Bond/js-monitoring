@@ -56,6 +56,7 @@ export interface NewsItem {
   content: string;
   author_id: number;
   author_name?: string;
+  author_avatar?: string;
   created_at: string;
   updated_at: string;
 }

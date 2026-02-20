@@ -210,10 +210,11 @@ func GetServerPlayers(c echo.Context) error {
 
 // ─── News ─────────────────────────────────────────────────────────────────────
 
-// newsResponse extends NewsItem with the author's username
+// newsResponse extends NewsItem with the author's username and avatar
 type newsResponse struct {
 	models.NewsItem
-	AuthorName string `json:"author_name"`
+	AuthorName   string `json:"author_name"`
+	AuthorAvatar string `json:"author_avatar"`
 }
 
 // GetNews GET /api/v1/news — публичный список новостей
@@ -232,16 +233,18 @@ func GetNews(c echo.Context) error {
 	}
 	var users []models.User
 	if len(ids) > 0 {
-		database.DB.Select("id, username").Where("id IN ?", ids).Find(&users)
+		database.DB.Select("id, username, avatar").Where("id IN ?", ids).Find(&users)
 	}
-	nameOf := map[uint]string{}
+	nameOf   := map[uint]string{}
+	avatarOf := map[uint]string{}
 	for _, u := range users {
-		nameOf[u.ID] = u.Username
+		nameOf[u.ID]   = u.Username
+		avatarOf[u.ID] = u.Avatar
 	}
 
 	result := make([]newsResponse, len(items))
 	for i, n := range items {
-		result[i] = newsResponse{NewsItem: n, AuthorName: nameOf[n.AuthorID]}
+		result[i] = newsResponse{NewsItem: n, AuthorName: nameOf[n.AuthorID], AuthorAvatar: avatarOf[n.AuthorID]}
 	}
 	return c.JSON(http.StatusOK, result)
 }

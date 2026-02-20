@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import {
   Plus, RefreshCw, Gamepad2, Zap, LogOut, User, Shield, Newspaper,
-  CalendarDays, Menu, X, Download, ChevronUp, ChevronDown, ArrowUpRight,
+  CalendarDays, Menu, X, Download, ChevronUp, ChevronDown, ArrowUpRight, Clock, Pencil,
 } from "lucide-react";
 import { useServers, useDeleteServer } from "@/hooks/useServers";
 import { useServerWebSocket } from "@/hooks/useWebSocket";
@@ -41,20 +41,33 @@ function relativeTime(dateStr: string, locale: string): string {
   return new Date(dateStr).toLocaleDateString(locale === "ru" ? "ru-RU" : "en-US", { day: "numeric", month: "short" });
 }
 
-function AuthorAvatar({ name, size = "sm" }: { name: string; size?: "sm" | "md" }) {
+function AuthorAvatar({ name, avatar, size = "sm" }: { name: string; avatar?: string; size?: "sm" | "md" }) {
   const colors = [
     "bg-neon-green/15 text-neon-green border-neon-green/25",
     "bg-neon-blue/15 text-neon-blue border-neon-blue/25",
     "bg-neon-purple/15 text-neon-purple border-neon-purple/25",
     "bg-yellow-400/15 text-yellow-400 border-yellow-400/25",
   ];
-  const idx = name.charCodeAt(0) % colors.length;
   const sz = size === "md" ? "w-6 h-6 text-[11px]" : "w-5 h-5 text-[10px]";
+  if (avatar) {
+    return <img src={avatar} alt={name} className={`${sz} rounded-full object-cover flex-shrink-0`} />;
+  }
+  const idx = name.charCodeAt(0) % colors.length;
   return (
     <span className={`${sz} rounded-full flex items-center justify-center font-bold flex-shrink-0 border ${colors[idx]}`}>
       {name[0].toUpperCase()}
     </span>
   );
+}
+
+function readingTime(content: string, locale: string): string {
+  const words = content.trim().split(/\s+/).length;
+  const mins = Math.max(1, Math.ceil(words / 200));
+  return locale === "ru" ? `~${mins} мин` : `~${mins} min`;
+}
+
+function wasEdited(item: { created_at: string; updated_at: string }): boolean {
+  return Math.abs(new Date(item.updated_at).getTime() - new Date(item.created_at).getTime()) > 60_000;
 }
 
 export default function Home() {
@@ -325,14 +338,26 @@ export default function Home() {
                   <div className="flex items-center gap-3 pt-3 border-t border-white/[0.06]">
                     {visibleNews[0].author_name && (
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <AuthorAvatar name={visibleNews[0].author_name} size="md" />
+                        <AuthorAvatar name={visibleNews[0].author_name} avatar={visibleNews[0].author_avatar} size="md" />
                         <span>{visibleNews[0].author_name}</span>
                       </div>
                     )}
-                    <span className="text-xs text-muted-foreground/50 ml-auto flex items-center gap-1">
-                      <CalendarDays className="w-3 h-3" />
-                      {relativeTime(visibleNews[0].created_at, locale)}
-                    </span>
+                    <div className="ml-auto flex items-center gap-3">
+                      {wasEdited(visibleNews[0]) && (
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground/50">
+                          <Pencil className="w-2.5 h-2.5" />
+                          {locale === "ru" ? "ред." : "edited"}
+                        </span>
+                      )}
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground/50">
+                        <Clock className="w-3 h-3" />
+                        {readingTime(visibleNews[0].content, locale)}
+                      </span>
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground/50">
+                        <CalendarDays className="w-3 h-3" />
+                        {relativeTime(visibleNews[0].created_at, locale)}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -356,11 +381,16 @@ export default function Home() {
                     <div className="flex items-center gap-2 pt-2 border-t border-white/[0.06]">
                       {item.author_name && (
                         <div className="flex items-center gap-1 text-xs text-muted-foreground/70">
-                          <AuthorAvatar name={item.author_name} />
+                          <AuthorAvatar name={item.author_name} avatar={item.author_avatar} />
                           <span className="truncate max-w-[70px]">{item.author_name}</span>
                         </div>
                       )}
-                      <span className="text-xs text-muted-foreground/40 ml-auto">{relativeTime(item.created_at, locale)}</span>
+                      <div className="ml-auto flex items-center gap-2">
+                        {wasEdited(item) && <Pencil className="w-2.5 h-2.5 text-muted-foreground/40" />}
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground/40">
+                          <Clock className="w-2.5 h-2.5" />{readingTime(item.content, locale)}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -492,13 +522,23 @@ export default function Home() {
                 <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                   {newsModal.author_name && (
                     <div className="flex items-center gap-1.5">
-                      <AuthorAvatar name={newsModal.author_name} size="md" />
+                      <AuthorAvatar name={newsModal.author_name} avatar={newsModal.author_avatar} size="md" />
                       <span>{newsModal.author_name}</span>
                     </div>
                   )}
                   <span className="flex items-center gap-1 text-muted-foreground/50">
                     <CalendarDays className="w-3 h-3" />
                     {relativeTime(newsModal.created_at, locale)}
+                  </span>
+                  {wasEdited(newsModal) && (
+                    <span className="flex items-center gap-1 text-muted-foreground/40">
+                      <Pencil className="w-2.5 h-2.5" />
+                      {locale === "ru" ? `обновлено ${relativeTime(newsModal.updated_at, locale)}` : `edited ${relativeTime(newsModal.updated_at, locale)}`}
+                    </span>
+                  )}
+                  <span className="flex items-center gap-1 text-muted-foreground/40">
+                    <Clock className="w-3 h-3" />
+                    {readingTime(newsModal.content, locale)}
                   </span>
                 </div>
               </div>
