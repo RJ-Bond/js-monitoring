@@ -82,6 +82,7 @@ func main() {
 	v1.GET("/servers/:id", api.GetServer)
 	v1.GET("/servers/:id/history", api.GetServerHistory)
 	v1.GET("/servers/:id/players", api.GetServerPlayers)
+	v1.GET("/servers/:id/leaderboard", api.GetLeaderboard)
 	v1.GET("/news", api.GetNews)
 	v1.GET("/settings", api.GetSettings)
 	v1.GET("/users/:username", api.GetPublicProfile)

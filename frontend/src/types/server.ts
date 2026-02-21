@@ -72,6 +72,13 @@ export interface PlayerHistory {
   timestamp: string;
 }
 
+export interface LeaderboardEntry {
+  player_name: string;
+  total_seconds: number;
+  sessions: number;
+  last_seen: string | null;
+}
+
 export interface Stats {
   total_servers: number;
   online_servers: number;

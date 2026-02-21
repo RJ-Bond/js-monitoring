@@ -58,5 +58,6 @@ func AutoMigrate() error {
 		&models.AlertsConfig{},
 		&models.NewsItem{},
 		&models.SiteSettings{},
+		&models.PlayerSession{},
 	)
 }

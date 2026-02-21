@@ -47,6 +47,14 @@ export function useServerPlayers(id: number, enabled: boolean) {
   });
 }
 
+export function useLeaderboard(id: number, period: "7d" | "30d" | "all" = "7d") {
+  return useQuery({
+    queryKey: ["leaderboard", id, period],
+    queryFn: () => api.getLeaderboard(id, period),
+    staleTime: 300_000,
+  });
+}
+
 export function useCreateServer() {
   const qc = useQueryClient();
   return useMutation({

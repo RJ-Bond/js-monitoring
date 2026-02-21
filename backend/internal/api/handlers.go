@@ -208,6 +208,55 @@ func GetServerPlayers(c echo.Context) error {
 	return c.JSON(http.StatusOK, players)
 }
 
+// GetLeaderboard GET /api/v1/servers/:id/leaderboard?period=7d|30d|all
+func GetLeaderboard(c echo.Context) error {
+	serverID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid id"})
+	}
+
+	period := c.QueryParam("period")
+	var since time.Time
+	switch period {
+	case "30d":
+		since = time.Now().AddDate(0, 0, -30)
+	case "all":
+		// нулевое значение — без ограничения по времени
+	default: // 7d
+		since = time.Now().AddDate(0, 0, -7)
+	}
+
+	type leaderboardEntry struct {
+		PlayerName   string     `json:"player_name"`
+		TotalSeconds int        `json:"total_seconds"`
+		Sessions     int        `json:"sessions"`
+		LastSeen     *time.Time `json:"last_seen"`
+	}
+
+	var rows []leaderboardEntry
+	q := database.DB.Model(&models.PlayerSession{}).
+		Select(`player_name,
+			SUM(CASE WHEN ended_at IS NOT NULL THEN duration
+				ELSE GREATEST(0, TIMESTAMPDIFF(SECOND, started_at, NOW())) END) AS total_seconds,
+			COUNT(*) AS sessions,
+			MAX(COALESCE(ended_at, NOW())) AS last_seen`).
+		Where("server_id = ?", serverID).
+		Group("player_name").
+		Order("total_seconds DESC").
+		Limit(20)
+
+	if !since.IsZero() {
+		q = q.Where("started_at > ?", since)
+	}
+
+	q.Scan(&rows)
+
+	if rows == nil {
+		rows = []leaderboardEntry{}
+	}
+	return c.JSON(http.StatusOK, rows)
+}
+
 // ─── News ─────────────────────────────────────────────────────────────────────
 
 // newsResponse extends NewsItem with the author's username and avatar

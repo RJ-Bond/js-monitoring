@@ -174,6 +174,10 @@ export const translations = {
     shareServer: "Share",
     // Chart peak
     chartPeak: (n: number) => `Peak: ${n}`,
+    chartTabHistory: "History",
+    chartTabLeaderboard: "Top Players",
+    leaderboardNoData: "No data yet — stats appear when players join",
+    leaderboardSessions: "sessions",
     // Remember me
     rememberMe: "Remember me",
     // Favorites filter
@@ -448,6 +452,10 @@ export const translations = {
     shareServer: "Поделиться",
     // Chart peak
     chartPeak: (n: number) => `Пик: ${n}`,
+    chartTabHistory: "История",
+    chartTabLeaderboard: "Топ игроков",
+    leaderboardNoData: "Нет данных — статистика появится когда игроки зайдут на сервер",
+    leaderboardSessions: "сессий",
     // Remember me
     rememberMe: "Запомнить меня",
     // Favorites filter

@@ -1,4 +1,4 @@
-import type { Server, ServerPlayer, PlayerHistory, Stats, AuthResponse, User, NewsItem, AdminServer } from "@/types/server";
+import type { Server, ServerPlayer, PlayerHistory, LeaderboardEntry, Stats, AuthResponse, User, NewsItem, AdminServer } from "@/types/server";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
 
@@ -69,6 +69,8 @@ export const api = {
   // Players
   getServerPlayers: (id: number) =>
     fetchJSON<ServerPlayer[]>(`/api/v1/servers/${id}/players`),
+  getLeaderboard: (id: number, period: "7d" | "30d" | "all" = "7d") =>
+    fetchJSON<LeaderboardEntry[]>(`/api/v1/servers/${id}/leaderboard?period=${period}`),
 
   // Setup
   setupStatus: () => fetchJSON<{ needed: boolean }>("/api/v1/setup/status"),

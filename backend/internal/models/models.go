@@ -83,6 +83,16 @@ type PlayerHistory struct {
 	Timestamp time.Time `gorm:"index;not null"           json:"timestamp"`
 }
 
+// PlayerSession — сессия игрока на сервере (от входа до выхода)
+type PlayerSession struct {
+	ID         uint       `gorm:"primaryKey;autoIncrement"                     json:"id"`
+	ServerID   uint       `gorm:"index:idx_sess_srv_start,priority:1;not null"  json:"server_id"`
+	PlayerName string     `gorm:"type:varchar(64);index;not null"               json:"player_name"`
+	StartedAt  time.Time  `gorm:"index:idx_sess_srv_start,priority:2;not null"  json:"started_at"`
+	EndedAt    *time.Time `gorm:"index"                                         json:"ended_at"`
+	Duration   int        `gorm:"default:0"                                     json:"duration"` // секунды
+}
+
 // SiteSettings — настройки сайта (одна строка, ID=1)
 type SiteSettings struct {
 	ID          uint   `gorm:"primaryKey"                             json:"id"`

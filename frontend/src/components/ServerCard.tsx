@@ -8,6 +8,7 @@ import { useServerPlayers } from "@/hooks/useServers";
 import { toast } from "@/lib/toast";
 import StatusIndicator from "./StatusIndicator";
 import PlayerChart from "./PlayerChart";
+import PlayerLeaderboard from "./PlayerLeaderboard";
 import RconConsole from "./RconConsole";
 import GameIcon from "./GameIcon";
 import type { Server } from "@/types/server";
@@ -44,11 +45,13 @@ const PLAYER_SUPPORTED: Server["game_type"][] = [
 export default function ServerCard({ server, onDelete, onEdit, isFavorite, onToggleFavorite }: ServerCardProps) {
   const { t, locale } = useLanguage();
   const [expanded, setExpanded] = useState(false);
+  const [chartTab, setChartTab] = useState<"history" | "leaderboard">("history");
   const [rconOpen, setRconOpen] = useState(false);
   const status = server.status;
   const online = status?.online_status ?? false;
 
   const showPlayers = expanded && online && (status?.players_now ?? 0) > 0 && PLAYER_SUPPORTED.includes(server.game_type);
+  const showLeaderboard = PLAYER_SUPPORTED.includes(server.game_type);
   const { data: players, isLoading: playersLoading } = useServerPlayers(server.id, showPlayers);
 
   const serverNameDiffers = online && status?.server_name && status.server_name !== server.title;
@@ -185,7 +188,35 @@ export default function ServerCard({ server, onDelete, onEdit, isFavorite, onTog
         {/* Expanded: chart + player list */}
         {expanded && (
           <>
-            <PlayerChart serverId={server.id} />
+            {showLeaderboard && (
+              <div className="flex gap-1 border-b border-white/5 pb-2">
+                <button
+                  onClick={() => setChartTab("history")}
+                  className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
+                    chartTab === "history"
+                      ? "text-foreground bg-white/5"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {t.chartTabHistory}
+                </button>
+                <button
+                  onClick={() => setChartTab("leaderboard")}
+                  className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
+                    chartTab === "leaderboard"
+                      ? "text-foreground bg-white/5"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {t.chartTabLeaderboard}
+                </button>
+              </div>
+            )}
+            {chartTab === "history" || !showLeaderboard ? (
+              <PlayerChart serverId={server.id} />
+            ) : (
+              <PlayerLeaderboard serverId={server.id} />
+            )}
             {showPlayers && (
               <div className="flex flex-col gap-2">
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">
