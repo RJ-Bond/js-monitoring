@@ -57,8 +57,18 @@ export interface NewsItem {
   author_id: number;
   author_name?: string;
   author_avatar?: string;
+  image_url?: string;
+  tags?: string;
+  pinned: boolean;
+  published: boolean;
+  publish_at?: string | null;
+  views: number;
   created_at: string;
   updated_at: string;
+}
+
+export function parseTags(item: NewsItem): string[] {
+  return item.tags?.split(",").map(s => s.trim()).filter(Boolean) ?? [];
 }
 
 export interface ServerPlayer {

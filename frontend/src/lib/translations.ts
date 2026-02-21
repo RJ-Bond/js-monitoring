@@ -157,6 +157,17 @@ export const translations = {
     // News extras
     newsShowAll: (n: number) => `Show all (${n})`,
     newsShowLess: "Collapse",
+    newsPinned: "Pinned",
+    newsDraft: "Draft",
+    newsScheduled: "Scheduled",
+    newsImageUrl: "Cover image URL",
+    newsTags: "Tags (comma-separated)",
+    newsPublished: "Published",
+    newsPublishAt: "Scheduled publish",
+    newsViews: "views",
+    newsSearchPlaceholder: "Search announcements…",
+    newsLoadMore: "Load more",
+    newsFilterPinned: "Pinned only",
     // Export
     exportJson: "Export",
     // Toasts
@@ -435,6 +446,17 @@ export const translations = {
     // News extras
     newsShowAll: (n: number) => `Показать все (${n})`,
     newsShowLess: "Свернуть",
+    newsPinned: "Закреплено",
+    newsDraft: "Черновик",
+    newsScheduled: "Запланировано",
+    newsImageUrl: "URL изображения обложки",
+    newsTags: "Теги (через запятую)",
+    newsPublished: "Опубликовано",
+    newsPublishAt: "Запланировать публикацию",
+    newsViews: "просмотров",
+    newsSearchPlaceholder: "Поиск по объявлениям…",
+    newsLoadMore: "Загрузить ещё",
+    newsFilterPinned: "Только закреплённые",
     // Export
     exportJson: "Экспорт",
     // Toasts

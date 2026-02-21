@@ -44,12 +44,18 @@ type Server struct {
 
 // NewsItem — новость / объявление (создаётся администратором)
 type NewsItem struct {
-	ID        uint      `gorm:"primaryKey;autoIncrement"   json:"id"`
-	Title     string    `gorm:"type:varchar(255);not null" json:"title"`
-	Content   string    `gorm:"type:text;not null"         json:"content"`
-	AuthorID  uint      `gorm:"index"                      json:"author_id"`
-	CreatedAt time.Time `                                  json:"created_at"`
-	UpdatedAt time.Time `                                  json:"updated_at"`
+	ID        uint       `gorm:"primaryKey;autoIncrement"   json:"id"`
+	Title     string     `gorm:"type:varchar(255);not null" json:"title"`
+	Content   string     `gorm:"type:text;not null"         json:"content"`
+	AuthorID  uint       `gorm:"index"                      json:"author_id"`
+	ImageURL  string     `gorm:"type:varchar(500)"          json:"image_url"`
+	Tags      string     `gorm:"type:varchar(500)"          json:"tags"` // через запятую: "Важно,Обновление"
+	Pinned    bool       `gorm:"default:false;index"        json:"pinned"`
+	Published bool       `gorm:"default:true;index"         json:"published"`
+	PublishAt *time.Time `gorm:"index"                      json:"publish_at"`
+	Views     int        `gorm:"default:0"                  json:"views"`
+	CreatedAt time.Time  `                                  json:"created_at"`
+	UpdatedAt time.Time  `                                  json:"updated_at"`
 }
 
 func (s *Server) BeforeCreate(_ *gorm.DB) error {

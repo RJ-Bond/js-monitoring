@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import {
   Plus, RefreshCw, Zap, LogOut, User, Shield, Newspaper,
-  CalendarDays, Menu, X, Download, ChevronUp, ChevronDown, ArrowUpRight, Clock, Pencil,
+  CalendarDays, Menu, X, Download, ArrowUpRight, Clock, Pencil,
+  Eye, Search, Pin,
 } from "lucide-react";
 import { useServers, useDeleteServer } from "@/hooks/useServers";
 import { useServerWebSocket } from "@/hooks/useWebSocket";
@@ -14,7 +15,6 @@ import { useFavorites } from "@/hooks/useFavorites";
 import { api } from "@/lib/api";
 import { toast } from "@/lib/toast";
 import { renderMarkdown, stripMarkdown } from "@/lib/markdown";
-import { useQuery } from "@tanstack/react-query";
 import ServerCard from "@/components/ServerCard";
 import StatsOverview from "@/components/StatsOverview";
 import AddEditServerModal from "@/components/AddEditServerModal";
@@ -25,13 +25,12 @@ import GameIcon from "@/components/GameIcon";
 import SiteBrand from "@/components/SiteBrand";
 import { ToastContainer } from "@/components/Toast";
 import type { GameType, Server, NewsItem } from "@/types/server";
+import { parseTags } from "@/types/server";
 import { GAME_META } from "@/lib/utils";
 import { APP_VERSION } from "@/lib/version";
 import { useQueryClient } from "@tanstack/react-query";
 
 type SortMode = "default" | "players" | "ping" | "name" | "status";
-
-const NEWS_PREVIEW = 3;
 
 function relativeTime(dateStr: string, locale: string): string {
   const diffMs = Date.now() - new Date(dateStr).getTime();
@@ -92,14 +91,63 @@ export default function Home() {
   const [sortMode, setSortMode] = useState<SortMode>("default");
   const [favOnly, setFavOnly] = useState(false);
   const [newsModal, setNewsModal] = useState<NewsItem | null>(null);
-  const [showAllNews, setShowAllNews] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const { data: news } = useQuery<NewsItem[]>({
-    queryKey: ["news"],
-    queryFn: api.getNews,
-    staleTime: 60_000,
-  });
+  // News state
+  const [allNews, setAllNews] = useState<NewsItem[]>([]);
+  const [newsTotal, setNewsTotal] = useState(0);
+  const [newsPage, setNewsPage] = useState(1);
+  const [newsSearchInput, setNewsSearchInput] = useState("");
+  const [newsSearch, setNewsSearch] = useState("");
+  const [newsTag, setNewsTag] = useState("");
+  const [newsFilterPinned, setNewsFilterPinned] = useState(false);
+  const [newsLoadingMore, setNewsLoadingMore] = useState(false);
+
+  // Debounce news search input → newsSearch
+  useEffect(() => {
+    const timer = setTimeout(() => setNewsSearch(newsSearchInput), 300);
+    return () => clearTimeout(timer);
+  }, [newsSearchInput]);
+
+  const fetchNews = useCallback(async (page: number, search: string, tag: string) => {
+    setNewsLoadingMore(true);
+    try {
+      const result = await api.getNews({
+        page,
+        search: search || undefined,
+        tag: tag || undefined,
+      });
+      setAllNews((prev) => page === 1 ? result.items : [...prev, ...result.items]);
+      setNewsTotal(result.total);
+      setNewsPage(page);
+    } finally {
+      setNewsLoadingMore(false);
+    }
+  }, []);
+
+  // Re-fetch from page 1 when search or tag filter changes
+  useEffect(() => {
+    fetchNews(1, newsSearch, newsTag);
+  }, [newsSearch, newsTag, fetchNews]);
+
+  const loadMoreNews = () => fetchNews(newsPage + 1, newsSearch, newsTag);
+
+  const openNewsModal = (item: NewsItem) => {
+    setNewsModal(item);
+    api.trackView(item.id);
+    // optimistically increment views
+    setAllNews((prev) => prev.map((n) => n.id === item.id ? { ...n, views: (n.views ?? 0) + 1 } : n));
+  };
+
+  // Collect unique tags from all loaded news
+  const allTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    allNews.forEach((n) => parseTags(n).forEach((tag) => tagSet.add(tag)));
+    return Array.from(tagSet);
+  }, [allNews]);
+
+  // Local pinned filter (backend already orders pinned first)
+  const visibleNews = newsFilterPinned ? allNews.filter((n) => n.pinned) : allNews;
 
   // Keyboard shortcuts: R = refresh, N = new server
   useEffect(() => {
@@ -129,14 +177,12 @@ export default function Home() {
   const onlineFilterCount  = preStatusFiltered.filter((s) => s.status?.online_status).length;
   const offlineFilterCount = preStatusFiltered.filter((s) => !s.status?.online_status).length;
 
-  // Filter
   const filtered = useMemo(() => preStatusFiltered.filter((srv) => {
     if (statusFilter === "online" && !srv.status?.online_status) return false;
     if (statusFilter === "offline" && srv.status?.online_status !== false) return false;
     return true;
   }), [preStatusFiltered, statusFilter]);
 
-  // Sort + favorites-first
   const sorted = useMemo(() => {
     const sortFn = (arr: Server[]) => {
       const a = [...arr];
@@ -192,8 +238,6 @@ export default function Home() {
     { key: "ping",    label: t.sortPing },
     { key: "name",    label: t.sortName },
   ];
-
-  const visibleNews = showAllNews ? (news ?? []) : (news ?? []).slice(0, NEWS_PREVIEW);
 
   return (
     <div className="min-h-screen bg-background bg-grid">
@@ -294,41 +338,95 @@ export default function Home() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
         {/* News */}
-        {news && news.length > 0 && (
+        {(allNews.length > 0 || newsSearch || newsTag) && (
           <section className="flex flex-col gap-4">
             {/* Section header */}
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Newspaper className="w-4 h-4 text-neon-blue" />
-                <h2 className="text-sm font-semibold uppercase tracking-wide">{t.newsTitle}</h2>
-                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-neon-blue/10 text-neon-blue/80 border border-neon-blue/20">{news.length}</span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Newspaper className="w-4 h-4 text-neon-blue flex-shrink-0" />
+              <h2 className="text-sm font-semibold uppercase tracking-wide">{t.newsTitle}</h2>
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-neon-blue/10 text-neon-blue/80 border border-neon-blue/20">{newsTotal}</span>
+
+              {/* Pinned filter toggle */}
+              <button
+                onClick={() => setNewsFilterPinned((v) => !v)}
+                className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border transition-all ${
+                  newsFilterPinned
+                    ? "bg-neon-green/10 border-neon-green/30 text-neon-green"
+                    : "border-white/10 text-muted-foreground hover:text-foreground hover:border-white/20"
+                }`}
+              >
+                <Pin className="w-3 h-3" />
+                {t.newsFilterPinned}
+              </button>
+
+              {/* Search */}
+              <div className="ml-auto flex items-center gap-1.5 relative">
+                <Search className="w-3 h-3 text-muted-foreground absolute left-2.5 pointer-events-none" />
+                <input
+                  value={newsSearchInput}
+                  onChange={(e) => setNewsSearchInput(e.target.value)}
+                  placeholder={t.newsSearchPlaceholder}
+                  className="bg-white/5 border border-white/10 rounded-lg pl-7 pr-3 py-1 text-xs outline-none focus:border-neon-blue/40 transition-all placeholder:text-muted-foreground w-40 sm:w-52"
+                />
+                {newsSearchInput && (
+                  <button
+                    onClick={() => setNewsSearchInput("")}
+                    className="absolute right-2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
               </div>
-              {news.length > NEWS_PREVIEW && (
-                <button
-                  onClick={() => setShowAllNews((v) => !v)}
-                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  {showAllNews
-                    ? <><ChevronUp className="w-3.5 h-3.5" />{t.newsShowLess}</>
-                    : <><ChevronDown className="w-3.5 h-3.5" />{t.newsShowAll(news.length)}</>
-                  }
-                </button>
-              )}
             </div>
+
+            {/* Tag filter pills */}
+            {allTags.length > 0 && (
+              <div className="flex gap-1.5 flex-wrap -mt-2">
+                {allTags.map((tag) => (
+                  <button
+                    key={tag}
+                    onClick={() => setNewsTag(newsTag === tag ? "" : tag)}
+                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium border transition-all ${
+                      newsTag === tag
+                        ? "bg-neon-blue/15 border-neon-blue/40 text-neon-blue"
+                        : "border-white/10 text-muted-foreground hover:text-foreground hover:border-white/20"
+                    }`}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {/* Featured first item */}
             {visibleNews[0] && (
               <div
-                onClick={() => setNewsModal(visibleNews[0])}
-                className="relative glass-card rounded-2xl p-5 sm:p-6 cursor-pointer group border border-neon-blue/20 hover:border-neon-blue/45 transition-all overflow-hidden"
+                onClick={() => openNewsModal(visibleNews[0])}
+                className="relative glass-card rounded-2xl cursor-pointer group border border-neon-blue/20 hover:border-neon-blue/45 transition-all overflow-hidden"
               >
+                {/* Cover image */}
+                {visibleNews[0].image_url && (
+                  <img
+                    src={visibleNews[0].image_url}
+                    alt=""
+                    className="w-full h-32 object-cover"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                  />
+                )}
                 {/* Gradient bg overlay */}
                 <div className="absolute inset-0 bg-gradient-to-r from-neon-blue/[0.06] via-transparent to-transparent pointer-events-none" />
                 <div className="absolute top-0 left-10 right-10 h-px bg-gradient-to-r from-transparent via-neon-blue/40 to-transparent" />
-                <div className="relative flex flex-col gap-3">
+                <div className="relative flex flex-col gap-3 p-5 sm:p-6">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <span className="text-[10px] font-bold text-neon-blue/70 uppercase tracking-widest mb-2 block">📢 {t.newsTitle}</span>
+                      <div className="flex items-center gap-2 flex-wrap mb-2">
+                        <span className="text-[10px] font-bold text-neon-blue/70 uppercase tracking-widest">📢 {t.newsTitle}</span>
+                        {visibleNews[0].pinned && (
+                          <span className="flex items-center gap-0.5 text-[10px] text-neon-green font-semibold">
+                            <Pin className="w-2.5 h-2.5" /> {t.newsPinned}
+                          </span>
+                        )}
+                      </div>
                       <h3 className="text-base sm:text-lg font-bold leading-snug group-hover:text-neon-blue transition-colors duration-200 line-clamp-2">
                         {visibleNews[0].title}
                       </h3>
@@ -338,6 +436,20 @@ export default function Home() {
                   <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 sm:line-clamp-3">
                     {stripMarkdown(visibleNews[0].content)}
                   </p>
+                  {/* Tags */}
+                  {parseTags(visibleNews[0]).length > 0 && (
+                    <div className="flex gap-1 flex-wrap">
+                      {parseTags(visibleNews[0]).map((tag) => (
+                        <span
+                          key={tag}
+                          onClick={(e) => { e.stopPropagation(); setNewsTag(newsTag === tag ? "" : tag); }}
+                          className="px-2 py-0.5 rounded-full text-[10px] bg-neon-blue/10 text-neon-blue border border-neon-blue/20 cursor-pointer hover:bg-neon-blue/20 transition-colors"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   <div className="flex items-center gap-3 pt-3 border-t border-white/[0.06]">
                     {visibleNews[0].author_name && (
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -372,32 +484,76 @@ export default function Home() {
                 {visibleNews.slice(1).map((item) => (
                   <div
                     key={item.id}
-                    onClick={() => setNewsModal(item)}
-                    className="glass-card rounded-2xl p-4 flex flex-col gap-2 cursor-pointer group hover:border-white/16 transition-all"
+                    onClick={() => openNewsModal(item)}
+                    className="glass-card rounded-2xl overflow-hidden flex flex-col cursor-pointer group hover:border-white/16 transition-all"
                   >
-                    <h3 className="text-sm font-semibold leading-snug line-clamp-2 group-hover:text-neon-blue transition-colors duration-200">
-                      {item.title}
-                    </h3>
-                    <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3 flex-1">
-                      {stripMarkdown(item.content)}
-                    </p>
-                    <div className="flex items-center gap-2 pt-2 border-t border-white/[0.06]">
-                      {item.author_name && (
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground/70">
-                          <AuthorAvatar name={item.author_name} avatar={item.author_avatar} />
-                          <span className="truncate max-w-[70px]">{item.author_name}</span>
+                    {item.image_url && (
+                      <img
+                        src={item.image_url}
+                        alt=""
+                        className="w-full h-20 object-cover"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                      />
+                    )}
+                    <div className="p-4 flex flex-col gap-2 flex-1">
+                      <div className="flex items-start gap-1.5 flex-wrap">
+                        {item.pinned && <Pin className="w-3 h-3 text-neon-green flex-shrink-0 mt-0.5" />}
+                        <h3 className="text-sm font-semibold leading-snug line-clamp-2 group-hover:text-neon-blue transition-colors duration-200">
+                          {item.title}
+                        </h3>
+                      </div>
+                      <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3 flex-1">
+                        {stripMarkdown(item.content)}
+                      </p>
+                      {parseTags(item).length > 0 && (
+                        <div className="flex gap-1 flex-wrap">
+                          {parseTags(item).slice(0, 3).map((tag) => (
+                            <span
+                              key={tag}
+                              onClick={(e) => { e.stopPropagation(); setNewsTag(newsTag === tag ? "" : tag); }}
+                              className="px-1.5 py-0.5 rounded-full text-[10px] bg-white/5 text-muted-foreground border border-white/10 cursor-pointer hover:border-neon-blue/30 hover:text-neon-blue transition-colors"
+                            >
+                              {tag}
+                            </span>
+                          ))}
                         </div>
                       )}
-                      <div className="ml-auto flex items-center gap-2">
-                        {wasEdited(item) && <Pencil className="w-2.5 h-2.5 text-muted-foreground/40" />}
-                        <span className="flex items-center gap-1 text-xs text-muted-foreground/40">
-                          <Clock className="w-2.5 h-2.5" />{readingTime(item.content, locale)}
-                        </span>
+                      <div className="flex items-center gap-2 pt-2 border-t border-white/[0.06]">
+                        {item.author_name && (
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground/70">
+                            <AuthorAvatar name={item.author_name} avatar={item.author_avatar} />
+                            <span className="truncate max-w-[70px]">{item.author_name}</span>
+                          </div>
+                        )}
+                        <div className="ml-auto flex items-center gap-2">
+                          {wasEdited(item) && <Pencil className="w-2.5 h-2.5 text-muted-foreground/40" />}
+                          <span className="flex items-center gap-1 text-xs text-muted-foreground/40">
+                            <Clock className="w-2.5 h-2.5" />{readingTime(item.content, locale)}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
+            )}
+
+            {/* Load more */}
+            {allNews.length < newsTotal && !newsFilterPinned && (
+              <div className="flex justify-center">
+                <button
+                  onClick={loadMoreNews}
+                  disabled={newsLoadingMore}
+                  className="px-5 py-2 rounded-xl text-sm font-medium border border-white/10 text-muted-foreground hover:text-foreground hover:border-white/20 transition-all disabled:opacity-50"
+                >
+                  {newsLoadingMore ? t.chartLoading : t.newsLoadMore}
+                </button>
+              </div>
+            )}
+
+            {/* No results */}
+            {allNews.length === 0 && !newsLoadingMore && (newsSearch || newsTag) && (
+              <p className="text-center text-sm text-muted-foreground py-8">{t.newsEmpty}</p>
             )}
           </section>
         )}
@@ -514,14 +670,42 @@ export default function Home() {
           onClick={(e) => { if (e.target === e.currentTarget) setNewsModal(null); }}
         >
           <div className="w-full max-w-2xl glass-card rounded-2xl overflow-hidden shadow-2xl max-h-[88vh] flex flex-col animate-fade-in border border-neon-blue/20">
+            {/* Cover image */}
+            {newsModal.image_url && (
+              <img
+                src={newsModal.image_url}
+                alt=""
+                className="w-full h-36 object-cover"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+              />
+            )}
             {/* Modal header */}
             <div className="relative flex items-start justify-between gap-4 px-6 pt-6 pb-5 border-b border-white/8">
               <div className="absolute top-0 left-10 right-10 h-px bg-gradient-to-r from-transparent via-neon-blue/40 to-transparent" />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
                   <span className="text-[10px] font-bold text-neon-blue/70 uppercase tracking-widest">📢 {t.newsTitle}</span>
+                  {newsModal.pinned && (
+                    <span className="flex items-center gap-0.5 text-[10px] text-neon-green font-semibold">
+                      <Pin className="w-2.5 h-2.5" /> {t.newsPinned}
+                    </span>
+                  )}
                 </div>
                 <h2 className="font-bold text-xl leading-snug mb-3">{newsModal.title}</h2>
+                {/* Tags */}
+                {parseTags(newsModal).length > 0 && (
+                  <div className="flex gap-1 flex-wrap mb-3">
+                    {parseTags(newsModal).map((tag) => (
+                      <span
+                        key={tag}
+                        onClick={() => { setNewsModal(null); setNewsTag(newsTag === tag ? "" : tag); }}
+                        className="px-2 py-0.5 rounded-full text-[10px] bg-neon-blue/10 text-neon-blue border border-neon-blue/20 cursor-pointer hover:bg-neon-blue/20 transition-colors"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                   {newsModal.author_name && (
                     <div className="flex items-center gap-1.5">
@@ -543,6 +727,12 @@ export default function Home() {
                     <Clock className="w-3 h-3" />
                     {readingTime(newsModal.content, locale)}
                   </span>
+                  {newsModal.views > 0 && (
+                    <span className="flex items-center gap-1 text-muted-foreground/40">
+                      <Eye className="w-3 h-3" />
+                      {newsModal.views} {t.newsViews}
+                    </span>
+                  )}
                 </div>
               </div>
               <button onClick={() => setNewsModal(null)} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors flex-shrink-0">

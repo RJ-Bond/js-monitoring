@@ -266,12 +266,34 @@ type newsResponse struct {
 	AuthorAvatar string `json:"author_avatar"`
 }
 
-// GetNews GET /api/v1/news — публичный список новостей
+// GetNews GET /api/v1/news?page=1&search=X&tag=Y — публичный список новостей
 func GetNews(c echo.Context) error {
-	var items []models.NewsItem
-	database.DB.Order("created_at DESC").Limit(20).Find(&items)
+	page, _ := strconv.Atoi(c.QueryParam("page"))
+	if page < 1 {
+		page = 1
+	}
+	const limit = 10
+	offset := (page - 1) * limit
 
-	// Collect unique author IDs
+	search := c.QueryParam("search")
+	tag := c.QueryParam("tag")
+
+	q := database.DB.Model(&models.NewsItem{}).
+		Where("published = ? AND (publish_at IS NULL OR publish_at <= NOW())", true)
+	if search != "" {
+		like := "%" + search + "%"
+		q = q.Where("title LIKE ? OR content LIKE ?", like, like)
+	}
+	if tag != "" {
+		q = q.Where("FIND_IN_SET(?, tags) > 0", tag)
+	}
+
+	var total int64
+	q.Count(&total)
+
+	var items []models.NewsItem
+	q.Order("pinned DESC, created_at DESC").Limit(limit).Offset(offset).Find(&items)
+
 	seen := map[uint]bool{}
 	ids := make([]uint, 0, len(items))
 	for _, n := range items {
@@ -284,10 +306,10 @@ func GetNews(c echo.Context) error {
 	if len(ids) > 0 {
 		database.DB.Select("id, username, avatar").Where("id IN ?", ids).Find(&users)
 	}
-	nameOf   := map[uint]string{}
+	nameOf := map[uint]string{}
 	avatarOf := map[uint]string{}
 	for _, u := range users {
-		nameOf[u.ID]   = u.Username
+		nameOf[u.ID] = u.Username
 		avatarOf[u.ID] = u.Avatar
 	}
 
@@ -295,14 +317,49 @@ func GetNews(c echo.Context) error {
 	for i, n := range items {
 		result[i] = newsResponse{NewsItem: n, AuthorName: nameOf[n.AuthorID], AuthorAvatar: avatarOf[n.AuthorID]}
 	}
-	return c.JSON(http.StatusOK, result)
+	return c.JSON(http.StatusOK, echo.Map{"items": result, "total": total})
+}
+
+// GetAdminNews GET /api/v1/admin/news — полный список (включая черновики)
+func GetAdminNews(c echo.Context) error {
+	var items []models.NewsItem
+	database.DB.Order("pinned DESC, created_at DESC").Find(&items)
+
+	seen := map[uint]bool{}
+	ids := make([]uint, 0, len(items))
+	for _, n := range items {
+		if !seen[n.AuthorID] {
+			ids = append(ids, n.AuthorID)
+			seen[n.AuthorID] = true
+		}
+	}
+	var users []models.User
+	if len(ids) > 0 {
+		database.DB.Select("id, username, avatar").Where("id IN ?", ids).Find(&users)
+	}
+	nameOf := map[uint]string{}
+	avatarOf := map[uint]string{}
+	for _, u := range users {
+		nameOf[u.ID] = u.Username
+		avatarOf[u.ID] = u.Avatar
+	}
+	result := make([]newsResponse, len(items))
+	for i, n := range items {
+		result[i] = newsResponse{NewsItem: n, AuthorName: nameOf[n.AuthorID], AuthorAvatar: avatarOf[n.AuthorID]}
+	}
+	return c.JSON(http.StatusOK, echo.Map{"items": result, "total": int64(len(items))})
 }
 
 // CreateNews POST /api/v1/admin/news — создать новость (только админ)
 func CreateNews(c echo.Context) error {
 	var req struct {
-		Title   string `json:"title"`
-		Content string `json:"content"`
+		Title     string  `json:"title"`
+		Content   string  `json:"content"`
+		ImageURL  string  `json:"image_url"`
+		Tags      string  `json:"tags"`
+		Pinned    bool    `json:"pinned"`
+		Published *bool   `json:"published"`
+		PublishAt *string `json:"publish_at"`
 	}
 	if err := c.Bind(&req); err != nil || req.Title == "" || req.Content == "" {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "title and content required"})
@@ -311,7 +368,24 @@ func CreateNews(c echo.Context) error {
 	if uid, ok := c.Get("user_id").(float64); ok {
 		authorID = uint(uid)
 	}
-	item := models.NewsItem{Title: req.Title, Content: req.Content, AuthorID: authorID}
+	published := true
+	if req.Published != nil {
+		published = *req.Published
+	}
+	var publishAt *time.Time
+	if req.PublishAt != nil && *req.PublishAt != "" {
+		publishAt = parsePublishAt(*req.PublishAt)
+	}
+	item := models.NewsItem{
+		Title:     req.Title,
+		Content:   req.Content,
+		AuthorID:  authorID,
+		ImageURL:  req.ImageURL,
+		Tags:      req.Tags,
+		Pinned:    req.Pinned,
+		Published: published,
+		PublishAt: publishAt,
+	}
 	if err := database.DB.Create(&item).Error; err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
 	}
@@ -326,16 +400,49 @@ func UpdateNews(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, echo.Map{"error": "news not found"})
 	}
 	var req struct {
-		Title   string `json:"title"`
-		Content string `json:"content"`
+		Title     string  `json:"title"`
+		Content   string  `json:"content"`
+		ImageURL  string  `json:"image_url"`
+		Tags      string  `json:"tags"`
+		Pinned    *bool   `json:"pinned"`
+		Published *bool   `json:"published"`
+		PublishAt *string `json:"publish_at"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()})
 	}
-	if err := database.DB.Model(&item).Updates(map[string]interface{}{"title": req.Title, "content": req.Content}).Error; err != nil {
+	updates := map[string]interface{}{
+		"title":     req.Title,
+		"content":   req.Content,
+		"image_url": req.ImageURL,
+		"tags":      req.Tags,
+	}
+	if req.Pinned != nil {
+		updates["pinned"] = *req.Pinned
+	}
+	if req.Published != nil {
+		updates["published"] = *req.Published
+	}
+	// publish_at: nil from JSON = clear field; non-empty string = set new value
+	if req.PublishAt == nil || *req.PublishAt == "" {
+		updates["publish_at"] = nil
+	} else {
+		if t := parsePublishAt(*req.PublishAt); t != nil {
+			updates["publish_at"] = *t
+		}
+	}
+	if err := database.DB.Model(&item).Updates(updates).Error; err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
 	}
+	database.DB.First(&item, id)
 	return c.JSON(http.StatusOK, item)
+}
+
+// TrackView POST /api/v1/news/:id/view — увеличить счётчик просмотров
+func TrackView(c echo.Context) error {
+	id := c.Param("id")
+	database.DB.Exec("UPDATE news_items SET views = views + 1 WHERE id = ?", id)
+	return c.NoContent(http.StatusNoContent)
 }
 
 // DeleteNews DELETE /api/v1/admin/news/:id — удалить новость (только админ)
@@ -343,6 +450,16 @@ func DeleteNews(c echo.Context) error {
 	id := c.Param("id")
 	database.DB.Delete(&models.NewsItem{}, id)
 	return c.JSON(http.StatusOK, echo.Map{"message": "news deleted"})
+}
+
+// parsePublishAt парсит строку datetime-local ("2006-01-02T15:04") или RFC3339 в *time.Time
+func parsePublishAt(s string) *time.Time {
+	for _, layout := range []string{time.RFC3339, "2006-01-02T15:04:05", "2006-01-02T15:04"} {
+		if t, err := time.ParseInLocation(layout, s, time.UTC); err == nil {
+			return &t
+		}
+	}
+	return nil
 }
 
 // ─── GeoIP ───────────────────────────────────────────────────────────────────

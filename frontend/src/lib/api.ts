@@ -1,5 +1,20 @@
 import type { Server, ServerPlayer, PlayerHistory, LeaderboardEntry, Stats, AuthResponse, User, NewsItem, AdminServer } from "@/types/server";
 
+export interface NewsPage {
+  items: NewsItem[];
+  total: number;
+}
+
+export interface NewsFormData {
+  title: string;
+  content: string;
+  image_url?: string;
+  tags?: string;
+  pinned?: boolean;
+  published?: boolean;
+  publish_at?: string | null;
+}
+
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 function getToken(): string {
@@ -83,6 +98,9 @@ export const api = {
   register: (username: string, email: string, password: string) =>
     fetchJSON<AuthResponse>("/api/v1/auth/register", { method: "POST", body: JSON.stringify({ username, email, password }) }),
 
+  // Admin - News
+  getAdminNews: () => fetchJSON<NewsPage>("/api/v1/admin/news"),
+
   // Admin - Users
   adminGetUsers: () => fetchJSON<User[]>("/api/v1/admin/users"),
   adminGetServers: () => fetchJSON<AdminServer[]>("/api/v1/admin/servers"),
@@ -115,11 +133,20 @@ export const api = {
     fetchJSON<PublicProfile>(`/api/v1/users/${username}`),
 
   // News
-  getNews: () => fetchJSON<NewsItem[]>("/api/v1/news"),
-  createNews: (title: string, content: string) =>
-    fetchJSON<NewsItem>("/api/v1/admin/news", { method: "POST", body: JSON.stringify({ title, content }) }),
-  updateNews: (id: number, title: string, content: string) =>
-    fetchJSON<NewsItem>(`/api/v1/admin/news/${id}`, { method: "PUT", body: JSON.stringify({ title, content }) }),
+  getNews: (params?: { page?: number; search?: string; tag?: string }) => {
+    const p = new URLSearchParams();
+    if (params?.page && params.page > 1) p.set("page", String(params.page));
+    if (params?.search) p.set("search", params.search);
+    if (params?.tag) p.set("tag", params.tag);
+    const qs = p.toString() ? `?${p.toString()}` : "";
+    return fetchJSON<NewsPage>(`/api/v1/news${qs}`);
+  },
+  createNews: (data: NewsFormData) =>
+    fetchJSON<NewsItem>("/api/v1/admin/news", { method: "POST", body: JSON.stringify(data) }),
+  updateNews: (id: number, data: NewsFormData) =>
+    fetchJSON<NewsItem>(`/api/v1/admin/news/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   deleteNews: (id: number): Promise<void> =>
     fetchJSON<void>(`/api/v1/admin/news/${id}`, { method: "DELETE" }),
+  trackView: (id: number): Promise<void> =>
+    fetchJSON<void>(`/api/v1/news/${id}/view`, { method: "POST" }),
 };
