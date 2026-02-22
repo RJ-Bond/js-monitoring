@@ -356,6 +356,7 @@ export const translations = {
     exportCsv: "Export CSV",
     exportServers: "Export servers",
     exportPlayers: "Export players",
+    exportAudit: "Export audit",
     // MOTD
     serverMotd: "MOTD",
     // Compare
@@ -761,6 +762,7 @@ export const translations = {
     exportCsv: "Экспорт CSV",
     exportServers: "Экспорт серверов",
     exportPlayers: "Экспорт игроков",
+    exportAudit: "Экспорт аудита",
     // MOTD
     serverMotd: "MOTD",
     // Compare

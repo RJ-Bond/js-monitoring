@@ -83,6 +83,32 @@ func ExportServers(c echo.Context) error {
 	return nil
 }
 
+// ExportAudit GET /api/v1/admin/export/audit.csv — admin only
+func ExportAudit(c echo.Context) error {
+	var logs []models.AuditLog
+	database.DB.Order("created_at DESC").Limit(5000).Find(&logs)
+
+	c.Response().Header().Set("Content-Type", "text/csv; charset=utf-8")
+	c.Response().Header().Set("Content-Disposition", "attachment; filename=audit.csv")
+	c.Response().WriteHeader(http.StatusOK)
+
+	w := csv.NewWriter(c.Response().Writer)
+	_ = w.Write([]string{"ID", "Actor", "Action", "Entity Type", "Entity ID", "Details", "Created At"})
+	for _, l := range logs {
+		_ = w.Write([]string{
+			fmt.Sprint(l.ID),
+			l.ActorName,
+			l.Action,
+			l.EntityType,
+			fmt.Sprint(l.EntityID),
+			l.Details,
+			l.CreatedAt.Format(time.RFC3339),
+		})
+	}
+	w.Flush()
+	return nil
+}
+
 // ExportPlayers GET /api/v1/admin/export/players.csv — admin only
 func ExportPlayers(c echo.Context) error {
 	type playerRow struct {

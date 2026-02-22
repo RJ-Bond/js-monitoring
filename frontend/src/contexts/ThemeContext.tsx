@@ -16,7 +16,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const stored = localStorage.getItem("jsmon-theme") as Theme | null;
-    if (stored === "light") setTheme("light");
+    if (stored === "light" || stored === "dark") {
+      setTheme(stored);
+    } else {
+      const sys: Theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      setTheme(sys);
+      document.documentElement.className = sys;
+    }
   }, []);
 
   const toggle = () => {

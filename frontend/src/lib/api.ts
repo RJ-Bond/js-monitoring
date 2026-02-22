@@ -213,6 +213,7 @@ export const api = {
   // CSV export (admin)
   exportServersUrl: () => `${BASE}/api/v1/admin/export/servers.csv`,
   exportPlayersUrl: () => `${BASE}/api/v1/admin/export/players.csv`,
+  exportAuditUrl:   () => `${BASE}/api/v1/admin/export/audit.csv`,
 
   // Bulk operations (admin)
   bulkUsers: (action: string, ids: number[]): Promise<{ ok: boolean; count: number }> =>

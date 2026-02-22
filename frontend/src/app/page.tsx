@@ -17,6 +17,8 @@ import { api } from "@/lib/api";
 import { toast } from "@/lib/toast";
 import { renderMarkdown, stripMarkdown } from "@/lib/markdown";
 import ServerCard from "@/components/ServerCard";
+import ServerCardSkeleton from "@/components/ServerCardSkeleton";
+import CommandPalette from "@/components/CommandPalette";
 import StatsOverview from "@/components/StatsOverview";
 import AddEditServerModal from "@/components/AddEditServerModal";
 import DeleteConfirmModal from "@/components/DeleteConfirmModal";
@@ -97,6 +99,7 @@ export default function Home() {
   const [readProgress, setReadProgress] = useState(0);
   const articleBodyRef = useRef<HTMLDivElement>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
 
   // News state
   const [allNews, setAllNews] = useState<NewsItem[]>([]);
@@ -163,6 +166,7 @@ export default function Home() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if ((e.key === "k" || e.key === "K") && (e.ctrlKey || e.metaKey)) { e.preventDefault(); setCmdPaletteOpen(true); return; }
       if (e.key === "r" || e.key === "R") { refetch(); toast(t.toastRefreshed); }
       if (e.key === "n" || e.key === "N") setModalServer("new");
       if (newsModal && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
@@ -267,6 +271,14 @@ export default function Home() {
             <span className="text-xs text-muted-foreground">{t.onlineCount(onlineCount)}</span>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCmdPaletteOpen(true)}
+              title={locale === "ru" ? "Быстрый поиск (Ctrl+K)" : "Quick search (Ctrl+K)"}
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs text-muted-foreground border border-white/10 hover:border-white/20 hover:text-foreground transition-all"
+            >
+              <Search className="w-3.5 h-3.5" />
+              <kbd className="font-mono opacity-60">⌘K</kbd>
+            </button>
             <ThemeToggle />
             <LanguageSwitcher />
             {isAuthenticated && user && (
@@ -648,7 +660,7 @@ export default function Home() {
         {/* Server grid */}
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {Array.from({ length: 6 }).map((_, i) => <div key={i} className="glass-card rounded-2xl h-56 animate-pulse" style={{ animationDelay: `${i * 100}ms` }} />)}
+            {Array.from({ length: 6 }).map((_, i) => <ServerCardSkeleton key={i} />)}
           </div>
         ) : sorted.length === 0 && favOnly ? (
           <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
@@ -678,7 +690,7 @@ export default function Home() {
                 const canManage = user?.role === "admin" || user?.id === srv.owner_id;
                 const inCompare = compareIDs.has(srv.id);
                 return (
-                  <div key={srv.id} className={`relative group ${inCompare ? "ring-2 ring-neon-blue/50 rounded-2xl" : ""}`}>
+                  <div key={srv.id} id={`server-${srv.id}`} className={`relative group ${inCompare ? "ring-2 ring-neon-blue/50 rounded-2xl" : ""}`}>
                     <ServerCard
                       server={srv}
                       isFavorite={favorites.includes(srv.id)}
@@ -881,6 +893,17 @@ export default function Home() {
           server={deleteTarget}
           onConfirm={() => { deleteServer(deleteTarget.id); toast(t.toastServerDeleted); }}
           onClose={() => setDeleteTarget(null)}
+        />
+      )}
+
+      {cmdPaletteOpen && (
+        <CommandPalette
+          servers={servers ?? []}
+          onSelectServer={(srv) => {
+            const el = document.getElementById(`server-${srv.id}`);
+            el?.scrollIntoView({ behavior: "smooth", block: "center" });
+          }}
+          onClose={() => setCmdPaletteOpen(false)}
         />
       )}
 

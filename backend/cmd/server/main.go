@@ -156,6 +156,7 @@ func main() {
 	admin.POST("/discord/:serverID/test", api.SendDiscordTest)
 	admin.GET("/export/servers.csv", api.ExportServers)
 	admin.GET("/export/players.csv", api.ExportPlayers)
+	admin.GET("/export/audit.csv", api.ExportAudit)
 	admin.POST("/users/bulk", api.AdminBulkUsers)
 	admin.POST("/servers/bulk", api.AdminBulkServers)
 

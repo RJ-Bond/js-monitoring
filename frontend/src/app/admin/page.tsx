@@ -8,7 +8,12 @@ import {
   Search, ChevronUp, ChevronDown, ChevronsUpDown,
   Trash2, AlertTriangle, Settings, Eye, EyeOff, ExternalLink, Tag,
   Bell, KeyRound, ClipboardList, Copy, X, MessageSquare, Download, CheckSquare, Square,
+  CalendarDays, Mail, UserCheck,
 } from "lucide-react";
+import {
+  AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
+  ResponsiveContainer, CartesianGrid,
+} from "recharts";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useSiteSettings } from "@/contexts/SiteSettingsContext";
@@ -351,7 +356,7 @@ function SettingsTab({
 export default function AdminPage() {
   const router = useRouter();
   const { user, isAuthenticated, isLoading } = useAuth();
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const { siteName, logoData, refresh: refreshSettings } = useSiteSettings();
 
   const [tab, setTab] = useState<AdminTab>("users");
@@ -633,6 +638,35 @@ export default function AdminPage() {
     onlineServers: servers.filter((s) => s.status?.online_status).length,
   }), [users, servers]);
 
+  // Registrations by week (last 10 weeks) from users.created_at
+  const regByWeek = useMemo(() => {
+    const weeks: { label: string; count: number }[] = [];
+    const now = Date.now();
+    for (let i = 9; i >= 0; i--) {
+      const from = now - (i + 1) * 7 * 86400_000;
+      const to   = now - i       * 7 * 86400_000;
+      const count = users.filter((u) => {
+        const ts = new Date(u.created_at).getTime();
+        return ts >= from && ts < to;
+      }).length;
+      const d = new Date(to);
+      weeks.push({ label: `${d.getMonth() + 1}/${d.getDate()}`, count });
+    }
+    return weeks;
+  }, [users]);
+
+  // Game type distribution
+  const gameTypeDist = useMemo(() => {
+    const map: Record<string, number> = {};
+    servers.forEach((s) => { map[s.game_type] = (map[s.game_type] ?? 0) + 1; });
+    return Object.entries(map)
+      .map(([game, count]) => ({ game: GAME_META[game as keyof typeof GAME_META]?.label ?? game, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [servers]);
+
+  // User detail modal
+  const [userDetailUser, setUserDetailUser] = useState<User | null>(null);
+
   const inputCls = "bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-neon-green/50 transition-all placeholder:text-muted-foreground";
 
   const tabs: { key: AdminTab; label: string; icon: React.ReactNode; badge?: number }[] = [
@@ -836,11 +870,14 @@ export default function AdminPage() {
                             )}
                           </td>
                           <td className="px-5 py-3">
-                            <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setUserDetailUser(u)}
+                              className="flex items-center gap-2 hover:text-neon-blue transition-colors group"
+                            >
                               <UserAvatar username={u.username} role={u.role} />
-                              <span className="font-medium truncate max-w-[120px]">{u.username}</span>
+                              <span className="font-medium truncate max-w-[120px] group-hover:underline">{u.username}</span>
                               {u.steam_id && <span title="Steam" className="text-xs">🎮</span>}
-                            </div>
+                            </button>
                           </td>
                           <td className="px-5 py-3 hidden sm:table-cell text-muted-foreground truncate max-w-[180px]">
                             {u.email || "—"}
@@ -1191,6 +1228,60 @@ export default function AdminPage() {
               </p>
             )}
 
+            {/* Registrations by week */}
+            {users.length > 0 && (
+              <div className="glass-card rounded-2xl p-5 space-y-3">
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  {locale === "ru" ? "Регистрации по неделям" : "Registrations by week"}
+                </h2>
+                <div className="h-40">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={regByWeek} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="regGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#00d4ff" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="#00d4ff" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                      <XAxis dataKey="label" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} allowDecimals={false} />
+                      <Tooltip
+                        contentStyle={{ background: "hsl(var(--card))", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, fontSize: 12 }}
+                        labelStyle={{ color: "hsl(var(--muted-foreground))" }}
+                        itemStyle={{ color: "#00d4ff" }}
+                      />
+                      <Area type="monotone" dataKey="count" stroke="#00d4ff" strokeWidth={2} fill="url(#regGrad)" dot={false} name={locale === "ru" ? "Регистрации" : "Registrations"} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+
+            {/* Game type distribution */}
+            {gameTypeDist.length > 0 && (
+              <div className="glass-card rounded-2xl p-5 space-y-3">
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  {locale === "ru" ? "Серверы по типу игры" : "Servers by game type"}
+                </h2>
+                <div className="h-40">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={gameTypeDist} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                      <XAxis dataKey="game" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} allowDecimals={false} />
+                      <Tooltip
+                        contentStyle={{ background: "hsl(var(--card))", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, fontSize: 12 }}
+                        labelStyle={{ color: "hsl(var(--muted-foreground))" }}
+                        itemStyle={{ color: "#a855f7" }}
+                      />
+                      <Bar dataKey="count" fill="#a855f7" fillOpacity={0.8} radius={[4, 4, 0, 0]} name={locale === "ru" ? "Серверов" : "Servers"} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+
             {/* Version card */}
             <div className="glass-card rounded-2xl px-5 py-4 flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
@@ -1218,19 +1309,31 @@ export default function AdminPage() {
         {/* ── AUDIT TAB ── */}
         {tab === "audit" && (
           <div className="flex flex-col gap-4">
-            {/* Action filter pills */}
-            <div className="flex gap-1 bg-white/5 rounded-xl p-1 w-fit">
-              {(["all", "create", "update", "delete"] as const).map((f) => (
-                <button
-                  key={f}
-                  onClick={() => setAuditActionFilter(f)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    auditActionFilter === f ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground"
-                  }`}
+            {/* Action filter + export */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex gap-1 bg-white/5 rounded-xl p-1">
+                {(["all", "create", "update", "delete"] as const).map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setAuditActionFilter(f)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      auditActionFilter === f ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {f === "all" ? t.adminFilterAll : f}
+                  </button>
+                ))}
+              </div>
+              <div className="ml-auto">
+                <a
+                  href={api.exportAuditUrl()}
+                  download
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border border-white/10 hover:border-white/20 text-muted-foreground hover:text-foreground transition-all"
                 >
-                  {f === "all" ? t.adminFilterAll : f}
-                </button>
-              ))}
+                  <Download className="w-3.5 h-3.5" />
+                  {t.exportAudit}
+                </a>
+              </div>
             </div>
 
             {auditLoading && auditLogs.length === 0 ? (
@@ -1367,6 +1470,90 @@ export default function AdminPage() {
           serverName={discordServerName}
           onClose={() => { setDiscordServerID(null); setDiscordServerName(""); }}
         />
+      )}
+
+      {userDetailUser && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setUserDetailUser(null); }}
+        >
+          <div className="w-full max-w-sm glass-card rounded-2xl overflow-hidden shadow-2xl animate-fade-in">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+              <div className="flex items-center gap-2">
+                <UserCheck className="w-4 h-4 text-neon-blue" />
+                <h2 className="font-bold text-sm">{t.adminUsername}</h2>
+              </div>
+              <button onClick={() => setUserDetailUser(null)} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="px-5 py-5 flex flex-col gap-4">
+              {/* Avatar + name */}
+              <div className="flex items-center gap-4">
+                <UserAvatar username={userDetailUser.username} role={userDetailUser.role} />
+                <div>
+                  <p className="font-bold text-base">{userDetailUser.username}</p>
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-md ${userDetailUser.role === "admin" ? "bg-yellow-400/10 text-yellow-400" : "bg-white/5 text-muted-foreground"}`}>
+                    {userDetailUser.role === "admin" ? t.roleAdmin : t.roleUser}
+                  </span>
+                  {userDetailUser.banned && (
+                    <span className="ml-1 text-xs font-medium px-2 py-0.5 rounded-md bg-red-400/10 text-red-400">{t.adminBanned}</span>
+                  )}
+                </div>
+              </div>
+              {/* Info rows */}
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Mail className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="truncate">{userDetailUser.email || "—"}</span>
+                </div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <CalendarDays className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span>{new Date(userDetailUser.created_at).toLocaleDateString()}</span>
+                </div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Server className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span>{userDetailUser.server_count ?? 0} {t.adminServersCount}</span>
+                </div>
+                {userDetailUser.steam_id && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <span className="text-xs">🎮</span>
+                    <span className="font-mono text-xs">{userDetailUser.steam_id}</span>
+                  </div>
+                )}
+              </div>
+              {/* Quick actions */}
+              {userDetailUser.id !== user?.id && (
+                <div className="flex flex-wrap gap-2 pt-2 border-t border-white/5">
+                  <button
+                    onClick={() => { handleGenerateResetToken(userDetailUser.id); setUserDetailUser(null); }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs border border-white/10 hover:border-neon-blue/40 text-muted-foreground hover:text-neon-blue transition-all"
+                  >
+                    <KeyRound className="w-3.5 h-3.5" /> {t.resetPasswordBtn}
+                  </button>
+                  <button
+                    onClick={() => {
+                      showConfirm(t.adminConfirmTitle, userDetailUser.banned ? t.adminUnbanConfirm(userDetailUser.username) : t.adminBanConfirm(userDetailUser.username), () => updateUser(userDetailUser.id, { banned: !userDetailUser.banned }));
+                      setUserDetailUser(null);
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs border transition-all ${userDetailUser.banned ? "border-neon-green/30 text-neon-green hover:bg-neon-green/10" : "border-red-400/30 text-red-400 hover:bg-red-400/10"}`}
+                  >
+                    <Ban className="w-3.5 h-3.5" /> {userDetailUser.banned ? t.adminUnban : t.adminBan}
+                  </button>
+                  <button
+                    onClick={() => {
+                      showConfirm(t.adminConfirmTitle, userDetailUser.role === "admin" ? t.adminMakeUserConfirm(userDetailUser.username) : t.adminMakeAdminConfirm(userDetailUser.username), () => updateUser(userDetailUser.id, { role: userDetailUser.role === "admin" ? "user" : "admin" }));
+                      setUserDetailUser(null);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs border border-yellow-400/30 text-yellow-400 hover:bg-yellow-400/10 transition-all"
+                  >
+                    <Crown className="w-3.5 h-3.5" /> {userDetailUser.role === "admin" ? t.adminMakeUser : t.adminMakeAdmin}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {resetLink && (
