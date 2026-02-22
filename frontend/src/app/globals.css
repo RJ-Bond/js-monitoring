@@ -22,19 +22,19 @@
 
   /* ── Light theme variables ─────────────────────────────────────────────── */
   html.light {
-    --background: 220 20% 96%;
-    --foreground: 225 25% 12%;
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 225 25% 12%;
-    --primary: 152 55% 28%;
+    --card-foreground: 222 47% 11%;
+    --primary: 160 91% 31%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 220 15% 91%;
-    --secondary-foreground: 225 20% 20%;
-    --muted: 220 15% 92%;
-    --muted-foreground: 220 15% 42%;
-    --accent: 200 65% 36%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 199 89% 40%;
     --accent-foreground: 0 0% 100%;
-    --border: 220 15% 86%;
+    --border: 214 32% 91%;
   }
 }
 
@@ -186,121 +186,181 @@
 
 /* ── Light theme component overrides ──────────────────────────────────────── */
 
+/* Cards: чистый белый, без glassmorphism, тени как у Vercel */
 html.light .glass-card {
-  background: rgba(0, 0, 0, 0.025);
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 4px 24px rgba(0, 0, 0, 0.06);
+  background: #ffffff;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 1px solid rgb(229 231 235);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.04);
 }
 html.light .glass-card:hover {
-  border-color: rgba(0, 0, 0, 0.14);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 12px 40px rgba(0, 0, 0, 0.1);
+  border-color: rgb(209 213 219);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04);
 }
 
+/* Белый фон с тонкой сеткой и мягкими цветными акцентами */
 html.light .bg-grid {
+  background-color: #f9fafb;
   background-image:
-    radial-gradient(ellipse 70% 55% at 5% -5%, rgba(0, 180, 90, 0.07) 0%, transparent 65%),
-    radial-gradient(ellipse 55% 45% at 95% 105%, rgba(0, 150, 200, 0.05) 0%, transparent 65%),
-    radial-gradient(ellipse 40% 30% at 50% 50%, rgba(120, 60, 200, 0.02) 0%, transparent 70%),
-    linear-gradient(rgba(0, 0, 0, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 0, 0, 0.025) 1px, transparent 1px);
-  background-size: 100% 100%, 100% 100%, 100% 100%, 60px 60px, 60px 60px;
+    radial-gradient(ellipse 80% 50% at 5% -5%,  rgba(5, 150, 105, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 95% 100%, rgba(2, 132, 199, 0.06) 0%, transparent 60%),
+    linear-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 48px 48px, 48px 48px;
 }
 
+/* Status dots — насыщенные, без неонового glow */
 html.light .status-dot-online {
-  background: #1a7a48;
-  box-shadow: 0 0 6px #1a7a48, 0 0 14px #1a7a4866;
+  background: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
   animation: pulse-online-light 2.5s ease-in-out infinite;
 }
 html.light .status-dot-offline {
-  background: #b01a2e;
-  box-shadow: 0 0 6px #b01a2e, 0 0 14px #b01a2e66;
+  background: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
   animation: pulse-offline-light 3s ease-in-out infinite;
 }
 
+/* Card glows — тонкая обводка + мягкая тень */
 html.light .card-glow-online {
-  box-shadow:
-    0 0 0 1px rgba(26, 122, 72, 0.28),
-    0 4px 32px rgba(26, 122, 72, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.3), 0 4px 20px rgba(16, 185, 129, 0.08);
 }
 html.light .card-glow-online:hover {
-  box-shadow:
-    0 0 0 1px rgba(26, 122, 72, 0.4),
-    0 8px 40px rgba(26, 122, 72, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.45), 0 8px 32px rgba(16, 185, 129, 0.12);
 }
 html.light .card-glow-offline {
-  box-shadow:
-    0 0 0 1px rgba(176, 26, 46, 0.16),
-    0 4px 24px rgba(176, 26, 46, 0.05),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.15), 0 4px 16px rgba(239, 68, 68, 0.05);
 }
 html.light .card-glow-offline:hover {
-  box-shadow:
-    0 0 0 1px rgba(176, 26, 46, 0.28),
-    0 8px 32px rgba(176, 26, 46, 0.09),
-    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.28), 0 8px 24px rgba(239, 68, 68, 0.08);
 }
 
 html.light .card-accent-online::before {
-  background: linear-gradient(90deg, transparent, rgba(26, 122, 72, 0.5), transparent);
+  background: linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.55), transparent);
 }
 html.light .card-accent-offline::before {
-  background: linear-gradient(90deg, transparent, rgba(176, 26, 46, 0.3), transparent);
+  background: linear-gradient(90deg, transparent, rgba(239, 68, 68, 0.35), transparent);
 }
 
 html.light .terminal {
-  background: rgba(0, 0, 0, 0.06);
-  border-color: rgba(0, 0, 0, 0.12);
+  background: #f3f4f6;
+  border-color: rgb(229 231 235);
+  color: #111827;
 }
 
-/* Chart tooltip — solid background */
+/* Chart tooltip */
 .chart-tooltip {
   background: hsl(220, 25%, 10%);
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
 html.light .chart-tooltip {
-  background: hsl(220, 25%, 98%);
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  background: #ffffff;
+  border: 1px solid rgb(229 231 235);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  color: #111827;
 }
 
+/* Selection + scrollbar */
 html.light ::selection {
-  background: rgba(26, 122, 72, 0.2);
-  color: #000;
+  background: rgba(5, 150, 105, 0.18);
+  color: #111827;
 }
 html.light ::-webkit-scrollbar-thumb {
-  background: rgba(26, 122, 72, 0.25);
+  background: rgba(5, 150, 105, 0.25);
 }
 html.light ::-webkit-scrollbar-thumb:hover {
-  background: rgba(26, 122, 72, 0.45);
+  background: rgba(5, 150, 105, 0.45);
 }
 
-/* Приглушённые neon-цвета в светлой теме */
-html.light .text-neon-green { color: #1a7a48 !important; }
-html.light .text-neon-blue  { color: #0d6b8c !important; }
-html.light .text-neon-purple { color: #6b3fa0 !important; }
-html.light .text-neon-red { color: #b01a2e !important; }
-html.light .border-neon-green\/40,
-html.light .border-neon-green\/30,
-html.light .border-neon-green\/20 { border-color: rgba(26, 122, 72, 0.3) !important; }
-html.light .bg-neon-green\/20 { background-color: rgba(26, 122, 72, 0.12) !important; }
-html.light .bg-neon-green\/10 { background-color: rgba(26, 122, 72, 0.08) !important; }
-html.light .bg-neon-green\/5  { background-color: rgba(26, 122, 72, 0.05) !important; }
-html.light .bg-neon-blue\/10  { background-color: rgba(13, 107, 140, 0.08) !important; }
-html.light .bg-neon-purple\/10 { background-color: rgba(107, 63, 160, 0.08) !important; }
+/* ── Цвета акцентов в светлой теме ────────────────────────────────────────── */
+html.light .text-neon-green  { color: #059669 !important; }
+html.light .text-neon-blue   { color: #0284c7 !important; }
+html.light .text-neon-purple { color: #7c3aed !important; }
+html.light .text-neon-red    { color: #dc2626 !important; }
 
-/* Фиксируем хардкодные border-white и bg-white/N в светлой теме */
+/* Yellow (admin badges) — amber-700 */
+html.light .text-yellow-400   { color: #b45309 !important; }
+html.light .bg-yellow-400\/10 { background-color: rgba(180, 83, 9, 0.08) !important; }
+html.light .bg-yellow-400\/15 { background-color: rgba(180, 83, 9, 0.10) !important; }
+html.light .bg-yellow-400\/20 { background-color: rgba(180, 83, 9, 0.12) !important; }
+html.light .bg-yellow-400\/30 { background-color: rgba(180, 83, 9, 0.14) !important; }
+html.light .border-yellow-400\/20,
+html.light .border-yellow-400\/25,
+html.light .border-yellow-400\/30 { border-color: rgba(180, 83, 9, 0.28) !important; }
+
+/* Red danger zones */
+html.light .text-red-400     { color: #dc2626 !important; }
+html.light .bg-red-400\/10   { background-color: rgba(220, 38, 38, 0.07) !important; }
+html.light .bg-red-500\/15   { background-color: rgba(220, 38, 38, 0.07) !important; }
+html.light .bg-red-500\/20   { background-color: rgba(220, 38, 38, 0.09) !important; }
+html.light .bg-red-500\/30   { background-color: rgba(220, 38, 38, 0.14) !important; }
+html.light .border-red-400\/20,
+html.light .border-red-500\/15,
+html.light .border-red-500\/25,
+html.light .border-red-500\/30 { border-color: rgba(220, 38, 38, 0.3) !important; }
+
+/* Green neon backgrounds */
+html.light .bg-neon-green    { background-color: #059669 !important; }
+html.light .bg-neon-green\/5  { background-color: rgba(5, 150, 105, 0.05) !important; }
+html.light .bg-neon-green\/10 { background-color: rgba(5, 150, 105, 0.07) !important; }
+html.light .bg-neon-green\/15 { background-color: rgba(5, 150, 105, 0.09) !important; }
+html.light .bg-neon-green\/20 { background-color: rgba(5, 150, 105, 0.11) !important; }
+html.light .bg-neon-green\/25 { background-color: rgba(5, 150, 105, 0.13) !important; }
+html.light .bg-neon-green\/30 { background-color: rgba(5, 150, 105, 0.15) !important; }
+html.light .border-neon-green\/20,
+html.light .border-neon-green\/25,
+html.light .border-neon-green\/30,
+html.light .border-neon-green\/40 { border-color: rgba(5, 150, 105, 0.35) !important; }
+
+/* Blue neon backgrounds */
+html.light .bg-neon-blue\/5  { background-color: rgba(2, 132, 199, 0.05) !important; }
+html.light .bg-neon-blue\/10 { background-color: rgba(2, 132, 199, 0.07) !important; }
+html.light .bg-neon-blue\/15 { background-color: rgba(2, 132, 199, 0.09) !important; }
+html.light .bg-neon-blue\/20 { background-color: rgba(2, 132, 199, 0.11) !important; }
+html.light .bg-neon-blue\/25 { background-color: rgba(2, 132, 199, 0.13) !important; }
+html.light .border-neon-blue\/20,
+html.light .border-neon-blue\/25,
+html.light .border-neon-blue\/30 { border-color: rgba(2, 132, 199, 0.35) !important; }
+
+/* Purple neon backgrounds */
+html.light .bg-neon-purple\/5  { background-color: rgba(124, 58, 237, 0.05) !important; }
+html.light .bg-neon-purple\/10 { background-color: rgba(124, 58, 237, 0.07) !important; }
+html.light .bg-neon-purple\/15 { background-color: rgba(124, 58, 237, 0.09) !important; }
+html.light .bg-neon-purple\/20 { background-color: rgba(124, 58, 237, 0.11) !important; }
+html.light .bg-neon-purple\/30 { background-color: rgba(124, 58, 237, 0.14) !important; }
+html.light .border-neon-purple\/30 { border-color: rgba(124, 58, 237, 0.3) !important; }
+
+/* Белые полупрозрачные элементы → тёмные на белом фоне */
+html.light .bg-white\/3  { background-color: rgba(0, 0, 0, 0.02) !important; }
+html.light .bg-white\/5  { background-color: rgba(0, 0, 0, 0.03) !important; }
+html.light .bg-white\/10 { background-color: rgba(0, 0, 0, 0.05) !important; }
+html.light .bg-white\/20 { background-color: rgba(0, 0, 0, 0.08) !important; }
+
+html.light .border-white\/5  { border-color: rgba(0, 0, 0, 0.06) !important; }
+html.light .border-white\/10 { border-color: rgba(0, 0, 0, 0.08) !important; }
+
+html.light [class*="divide-white"] > * + * {
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+/* Header border */
 html.light header {
-  border-bottom-color: rgba(0, 0, 0, 0.08);
+  border-bottom-color: rgba(0, 0, 0, 0.07);
+}
+
+/* Placeholder text */
+html.light .placeholder\:text-muted-foreground::placeholder {
+  color: #9ca3af;
 }
 
 @keyframes pulse-online-light {
-  0%, 100% { box-shadow: 0 0 4px #1a7a48, 0 0 10px #1a7a4866; }
-  50%       { box-shadow: 0 0 8px #1a7a48, 0 0 18px #1a7a4899; }
+  0%, 100% { box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.20); }
+  50%       { box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.12); }
 }
 @keyframes pulse-offline-light {
-  0%, 100% { box-shadow: 0 0 4px #b01a2e, 0 0 10px #b01a2e66; }
-  50%       { box-shadow: 0 0 8px #b01a2e, 0 0 18px #b01a2e88; }
+  0%, 100% { box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.20); }
+  50%       { box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12); }
 }
