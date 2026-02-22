@@ -31,10 +31,10 @@
     --secondary: 210 40% 96%;
     --secondary-foreground: 222 47% 11%;
     --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    --muted-foreground: 215 20% 38%;
     --accent: 199 89% 40%;
     --accent-foreground: 0 0% 100%;
-    --border: 214 32% 91%;
+    --border: 214 32% 88%;
   }
 }
 
@@ -334,16 +334,16 @@ html.light .bg-neon-purple\/30 { background-color: rgba(124, 58, 237, 0.14) !imp
 html.light .border-neon-purple\/30 { border-color: rgba(124, 58, 237, 0.3) !important; }
 
 /* Белые полупрозрачные элементы → тёмные на белом фоне */
-html.light .bg-white\/3  { background-color: rgba(0, 0, 0, 0.02) !important; }
-html.light .bg-white\/5  { background-color: rgba(0, 0, 0, 0.03) !important; }
-html.light .bg-white\/10 { background-color: rgba(0, 0, 0, 0.05) !important; }
-html.light .bg-white\/20 { background-color: rgba(0, 0, 0, 0.08) !important; }
+html.light .bg-white\/3  { background-color: rgba(0, 0, 0, 0.03) !important; }
+html.light .bg-white\/5  { background-color: rgba(0, 0, 0, 0.05) !important; }
+html.light .bg-white\/10 { background-color: rgba(0, 0, 0, 0.07) !important; }
+html.light .bg-white\/20 { background-color: rgba(0, 0, 0, 0.10) !important; }
 
-html.light .border-white\/5  { border-color: rgba(0, 0, 0, 0.06) !important; }
-html.light .border-white\/10 { border-color: rgba(0, 0, 0, 0.08) !important; }
+html.light .border-white\/5  { border-color: rgba(0, 0, 0, 0.09) !important; }
+html.light .border-white\/10 { border-color: rgba(0, 0, 0, 0.12) !important; }
 
 html.light [class*="divide-white"] > * + * {
-  border-color: rgba(0, 0, 0, 0.06);
+  border-color: rgba(0, 0, 0, 0.09);
 }
 
 /* Header border */

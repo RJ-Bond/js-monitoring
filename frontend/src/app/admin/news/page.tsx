@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Newspaper, Plus, Pencil, Trash2, X, Save, User, Pin, Eye } from "lucide-react";
+import { Newspaper, Plus, Pencil, Trash2, X, Save, User, Pin, Eye, Copy } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { api } from "@/lib/api";
@@ -197,6 +197,22 @@ export default function AdminNewsPage() {
     }
   };
 
+  const duplicateItem = (item: NewsItem) => {
+    setEditItem(null);
+    setForm({
+      title: `${item.title} (copy)`,
+      content: item.content,
+      image_url: item.image_url ?? "",
+      tags: item.tags ?? "",
+      pinned: false,
+      published: false,
+      publish_at: null,
+    });
+    setFormError("");
+    setEditorTab("write");
+    setModalOpen(true);
+  };
+
   const togglePin = async (item: NewsItem) => {
     try {
       const updated = await api.updateNews(item.id, {
@@ -357,6 +373,13 @@ export default function AdminNewsPage() {
                       <Pin className="w-4 h-4" />
                     </button>
                     <button
+                      onClick={() => duplicateItem(item)}
+                      className="p-1.5 rounded-lg text-muted-foreground hover:text-neon-purple hover:bg-neon-purple/10 transition-colors"
+                      title="Duplicate"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                    <button
                       onClick={() => openEdit(item)}
                       className="p-1.5 rounded-lg text-muted-foreground hover:text-neon-blue hover:bg-neon-blue/10 transition-colors"
                       title={t.newsEdit}
@@ -445,24 +468,29 @@ export default function AdminNewsPage() {
               <div className="flex flex-col gap-1">
                 <div className="flex items-center justify-between">
                   <label className="text-xs text-muted-foreground uppercase tracking-wide">{t.newsContent}</label>
-                  <div className="flex gap-0.5 bg-white/5 rounded-lg p-0.5">
-                    {(["write", "preview"] as const).map((tab) => (
-                      <button
-                        key={tab}
-                        type="button"
-                        onClick={() => setEditorTab(tab)}
-                        className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
-                          editorTab === tab ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground"
-                        }`}
-                      >
-                        {tab === "write" ? t.newsWrite : t.newsPreview}
-                      </button>
-                    ))}
+                  <div className="flex items-center gap-2">
+                    {/* Tab toggle — mobile only */}
+                    <div className="md:hidden flex gap-0.5 bg-white/5 rounded-lg p-0.5">
+                      {(["write", "preview"] as const).map((tab) => (
+                        <button
+                          key={tab}
+                          type="button"
+                          onClick={() => setEditorTab(tab)}
+                          className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
+                            editorTab === tab ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          {tab === "write" ? t.newsWrite : t.newsPreview}
+                        </button>
+                      ))}
+                    </div>
+                    <span className="hidden md:inline text-xs text-muted-foreground/40">Split view</span>
                   </div>
                 </div>
 
-                {editorTab === "write" ? (
-                  <div>
+                <div className="md:grid md:grid-cols-2 md:gap-3">
+                  {/* Write panel */}
+                  <div className={editorTab === "preview" ? "hidden md:block" : ""}>
                     <div className="flex items-center gap-0.5 bg-white/5 border border-white/10 border-b-0 rounded-t-xl px-2 py-1.5 flex-wrap">
                       {toolbar.map((btn) => (
                         <button
@@ -489,16 +517,19 @@ export default function AdminNewsPage() {
                       onChange={(e) => setField("content", e.target.value)}
                     />
                   </div>
-                ) : (
+
+                  {/* Preview panel */}
                   <div
-                    className="min-h-[13rem] bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-foreground overflow-auto"
+                    className={`min-h-[13rem] bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-foreground overflow-auto ${
+                      editorTab === "write" ? "hidden md:block" : ""
+                    }`}
                     dangerouslySetInnerHTML={{
                       __html: form.content
                         ? renderMarkdown(form.content)
                         : `<span style="color:rgba(255,255,255,.25)">${t.newsContentPlaceholder}</span>`,
                     }}
                   />
-                )}
+                </div>
               </div>
 
               {/* Image URL */}

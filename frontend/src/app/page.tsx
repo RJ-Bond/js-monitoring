@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus, RefreshCw, Zap, LogOut, User, Shield, Newspaper,
   CalendarDays, Menu, X, Download, ArrowUpRight, Clock, Pencil,
-  Eye, Search, Pin, Rss, GitCompare,
+  Eye, Search, Pin, Rss, GitCompare, Link2, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { useServers, useDeleteServer } from "@/hooks/useServers";
 import { useServerWebSocket } from "@/hooks/useWebSocket";
@@ -94,6 +94,8 @@ export default function Home() {
   const [sortMode, setSortMode] = useState<SortMode>("default");
   const [favOnly, setFavOnly] = useState(false);
   const [newsModal, setNewsModal] = useState<NewsItem | null>(null);
+  const [readProgress, setReadProgress] = useState(0);
+  const articleBodyRef = useRef<HTMLDivElement>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // News state
@@ -135,11 +137,16 @@ export default function Home() {
 
   const loadMoreNews = () => fetchNews(newsPage + 1, newsSearch, newsTag);
 
-  const openNewsModal = (item: NewsItem) => {
+  const openNewsModal = useCallback((item: NewsItem) => {
     setNewsModal(item);
+    setReadProgress(0);
     api.trackView(item.id);
-    // optimistically increment views
     setAllNews((prev) => prev.map((n) => n.id === item.id ? { ...n, views: (n.views ?? 0) + 1 } : n));
+  }, []);
+
+  const copyNewsLink = (id: number) => {
+    const url = `${window.location.origin}${window.location.pathname}?news=${id}`;
+    navigator.clipboard.writeText(url).then(() => toast(t.toastLinkCopied));
   };
 
   // Collect unique tags from all loaded news
@@ -152,16 +159,21 @@ export default function Home() {
   // Local pinned filter (backend already orders pinned first)
   const visibleNews = newsFilterPinned ? allNews.filter((n) => n.pinned) : allNews;
 
-  // Keyboard shortcuts: R = refresh, N = new server
+  // Keyboard shortcuts: R = refresh, N = new server; ←/→ navigate news modal
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (e.key === "r" || e.key === "R") { refetch(); toast(t.toastRefreshed); }
       if (e.key === "n" || e.key === "N") setModalServer("new");
+      if (newsModal && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+        const idx = visibleNews.findIndex((n) => n.id === newsModal.id);
+        if (e.key === "ArrowLeft" && idx > 0) openNewsModal(visibleNews[idx - 1]);
+        if (e.key === "ArrowRight" && idx < visibleNews.length - 1) openNewsModal(visibleNews[idx + 1]);
+      }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [refetch, t]);
+  }, [refetch, t, newsModal, visibleNews, openNewsModal]);
 
   // Pre-status filter (for showing counts on Online/Offline buttons)
   const preStatusFiltered = useMemo(() => (servers ?? []).filter((srv) => {
@@ -208,6 +220,7 @@ export default function Home() {
   }, [filtered, sortMode, favorites, favOnly]);
 
   const onlineCount = (servers ?? []).filter((s) => s.status?.online_status).length;
+  const newsModalIdx = newsModal ? visibleNews.findIndex((n) => n.id === newsModal.id) : -1;
 
   const handleUpdate = async (id: number, data: Partial<Server>) => {
     await api.updateServer(id, data);
@@ -546,6 +559,11 @@ export default function Home() {
                           <span className="flex items-center gap-1 text-xs text-muted-foreground/40">
                             <Clock className="w-2.5 h-2.5" />{readingTime(item.content, locale)}
                           </span>
+                          {item.views > 0 && (
+                            <span className="flex items-center gap-1 text-xs text-muted-foreground/40">
+                              <Eye className="w-2.5 h-2.5" />{item.views}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -792,15 +810,60 @@ export default function Home() {
                   )}
                 </div>
               </div>
-              <button onClick={() => setNewsModal(null)} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors flex-shrink-0">
-                <X className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <button
+                  onClick={() => copyNewsLink(newsModal.id)}
+                  title={t.toastLinkCopied}
+                  className="p-1.5 rounded-lg text-muted-foreground hover:text-neon-blue hover:bg-neon-blue/10 transition-colors"
+                >
+                  <Link2 className="w-4 h-4" />
+                </button>
+                <button onClick={() => setNewsModal(null)} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            {/* Reading progress bar */}
+            <div className="h-0.5 bg-white/5 flex-shrink-0">
+              <div
+                className="h-full bg-neon-blue transition-all duration-150"
+                style={{ width: `${readProgress}%` }}
+              />
             </div>
             {/* Article body */}
             <div
-              className="px-6 py-6 overflow-y-auto"
+              ref={articleBodyRef}
+              className="px-6 py-6 overflow-y-auto prose-sm"
+              onScroll={(e) => {
+                const el = e.currentTarget;
+                const max = el.scrollHeight - el.clientHeight;
+                setReadProgress(max > 0 ? Math.round(el.scrollTop / max * 100) : 100);
+              }}
               dangerouslySetInnerHTML={{ __html: renderMarkdown(newsModal.content) }}
             />
+            {/* Article navigation */}
+            {(newsModalIdx > 0 || newsModalIdx < visibleNews.length - 1) && (
+              <div className="flex items-center justify-between px-6 py-3 border-t border-white/5 flex-shrink-0 gap-4">
+                {newsModalIdx > 0 ? (
+                  <button
+                    onClick={() => openNewsModal(visibleNews[newsModalIdx - 1])}
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors group max-w-[45%]"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span className="truncate group-hover:text-neon-blue transition-colors">{visibleNews[newsModalIdx - 1].title}</span>
+                  </button>
+                ) : <div />}
+                {newsModalIdx < visibleNews.length - 1 ? (
+                  <button
+                    onClick={() => openNewsModal(visibleNews[newsModalIdx + 1])}
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors group ml-auto max-w-[45%]"
+                  >
+                    <span className="truncate group-hover:text-neon-blue transition-colors">{visibleNews[newsModalIdx + 1].title}</span>
+                    <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" />
+                  </button>
+                ) : <div />}
+              </div>
+            )}
           </div>
         </div>
       )}

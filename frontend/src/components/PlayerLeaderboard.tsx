@@ -1,11 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from "recharts";
 import { useLeaderboard } from "@/hooks/useServers";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 type Period = "7d" | "30d" | "all";
+
+const MEDAL_COLORS = [
+  "#f59e0b", // 🥇 gold
+  "#94a3b8", // 🥈 silver
+  "#c2713c", // 🥉 bronze
+];
+const DEFAULT_COLOR = "#00d4ff";
 
 function formatDuration(seconds: number, locale: string): string {
   if (seconds < 60) return locale === "ru" ? `${seconds}с` : `${seconds}s`;
@@ -26,8 +33,10 @@ export default function PlayerLeaderboard({ serverId }: PlayerLeaderboardProps) 
   const { data, isLoading } = useLeaderboard(serverId, period);
   const { t, locale } = useLanguage();
 
-  const chartData = (data ?? []).map((e) => ({
-    name: e.player_name,
+  const chartData = (data ?? []).map((e, i) => ({
+    name: `#${i + 1} ${e.player_name}`,
+    displayName: e.player_name,
+    rank: i + 1,
     hours: parseFloat((e.total_seconds / 3600).toFixed(2)),
     total_seconds: e.total_seconds,
     sessions: e.sessions,
@@ -75,12 +84,6 @@ export default function PlayerLeaderboard({ serverId }: PlayerLeaderboardProps) 
               data={chartData}
               margin={{ top: 0, right: 48, left: 0, bottom: 0 }}
             >
-              <defs>
-                <linearGradient id={`lb-${serverId}`} x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%"   stopColor="#00ff88" stopOpacity={0.8} />
-                  <stop offset="100%" stopColor="#00d4ff" stopOpacity={0.8} />
-                </linearGradient>
-              </defs>
               <XAxis
                 type="number"
                 tick={{ fill: "#64748b", fontSize: 10 }}
@@ -91,7 +94,7 @@ export default function PlayerLeaderboard({ serverId }: PlayerLeaderboardProps) 
               <YAxis
                 type="category"
                 dataKey="name"
-                width={76}
+                width={100}
                 tick={{ fill: "#94a3b8", fontSize: 10 }}
                 tickLine={false}
                 axisLine={false}
@@ -101,9 +104,12 @@ export default function PlayerLeaderboard({ serverId }: PlayerLeaderboardProps) 
                 content={({ active, payload }) => {
                   if (!active || !payload?.length) return null;
                   const d = payload[0].payload as typeof chartData[0];
+                  const medal = d.rank === 1 ? "🥇" : d.rank === 2 ? "🥈" : d.rank === 3 ? "🥉" : `#${d.rank}`;
                   return (
                     <div className="chart-tooltip rounded-lg px-3 py-2 text-sm">
-                      <p className="font-semibold text-foreground truncate max-w-[160px]">{d.name}</p>
+                      <p className="font-semibold text-foreground truncate max-w-[160px]">
+                        {medal} {d.displayName}
+                      </p>
                       <p className="text-neon-green font-mono">{formatDuration(d.total_seconds, locale)}</p>
                       <p className="text-muted-foreground text-xs">
                         {d.sessions} {t.leaderboardSessions}
@@ -114,7 +120,6 @@ export default function PlayerLeaderboard({ serverId }: PlayerLeaderboardProps) 
               />
               <Bar
                 dataKey="hours"
-                fill={`url(#lb-${serverId})`}
                 radius={[0, 4, 4, 0]}
                 maxBarSize={18}
                 label={{
@@ -123,7 +128,15 @@ export default function PlayerLeaderboard({ serverId }: PlayerLeaderboardProps) 
                   fill: "#64748b",
                   fontSize: 9,
                 }}
-              />
+              >
+                {chartData.map((_, i) => (
+                  <Cell
+                    key={`cell-${i}`}
+                    fill={i < 3 ? MEDAL_COLORS[i] : DEFAULT_COLOR}
+                    fillOpacity={i < 3 ? 0.85 : 0.7}
+                  />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         )}
