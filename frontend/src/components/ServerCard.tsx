@@ -12,6 +12,7 @@ import PlayerLeaderboard from "./PlayerLeaderboard";
 import RconConsole from "./RconConsole";
 import GameIcon from "./GameIcon";
 import type { Server } from "@/types/server";
+import { useUptime } from "@/hooks/useUptime";
 
 interface ServerCardProps {
   server: Server;
@@ -53,6 +54,7 @@ export default function ServerCard({ server, onDelete, onEdit, isFavorite, onTog
   const showPlayers = expanded && online && (status?.players_now ?? 0) > 0 && PLAYER_SUPPORTED.includes(server.game_type);
   const showLeaderboard = PLAYER_SUPPORTED.includes(server.game_type);
   const { data: players, isLoading: playersLoading } = useServerPlayers(server.id, showPlayers);
+  const { data: uptimeData } = useUptime(server.id);
 
   const serverNameDiffers = online && status?.server_name && status.server_name !== server.title;
 
@@ -162,6 +164,21 @@ export default function ServerCard({ server, onDelete, onEdit, isFavorite, onTog
             <span className="text-xs text-muted-foreground">{t.cardMap}</span>
           </div>
         </div>
+
+        {/* Uptime badge */}
+        {uptimeData !== undefined && uptimeData.total > 0 && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className={cn(
+              "inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-medium",
+              uptimeData.uptime_24h >= 95 ? "border-neon-green/30 text-neon-green bg-neon-green/10"
+                : uptimeData.uptime_24h >= 70 ? "border-yellow-400/30 text-yellow-400 bg-yellow-400/10"
+                : "border-red-400/30 text-red-400 bg-red-400/10",
+            )}>
+              ⬆ {uptimeData.uptime_24h.toFixed(1)}%
+            </span>
+            <span>{t.cardUptime}</span>
+          </div>
+        )}
 
         {/* Occupancy bar */}
         {online && status && status.players_max > 0 && (

@@ -86,6 +86,7 @@ type PlayerHistory struct {
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	ServerID  uint      `gorm:"index;not null"           json:"server_id"`
 	Count     int       `gorm:"not null"                 json:"count"`
+	IsOnline  bool      `gorm:"default:true"             json:"is_online"`
 	Timestamp time.Time `gorm:"index;not null"           json:"timestamp"`
 }
 
@@ -106,6 +107,38 @@ type SiteSettings struct {
 	LogoData    string `gorm:"type:mediumtext"                        json:"logo_data"`
 	SteamAPIKey string `gorm:"type:varchar(255)"                      json:"-"` // никогда не раскрывается через API
 	AppURL      string `gorm:"type:varchar(255)"                      json:"app_url"`
+}
+
+// PasswordReset — токен для сброса пароля (генерируется администратором)
+type PasswordReset struct {
+	ID        uint      `gorm:"primaryKey;autoIncrement"`
+	UserID    uint      `gorm:"index;not null"`
+	Token     string    `gorm:"type:varchar(64);uniqueIndex;not null"`
+	ExpiresAt time.Time `gorm:"not null"`
+	Used      bool      `gorm:"default:false"`
+	CreatedAt time.Time
+}
+
+// AuditLog — журнал действий администраторов и пользователей
+type AuditLog struct {
+	ID         uint      `gorm:"primaryKey;autoIncrement" json:"id"`
+	ActorID    uint      `gorm:"index"                   json:"actor_id"`
+	ActorName  string    `gorm:"type:varchar(100)"       json:"actor_name"`
+	Action     string    `gorm:"type:varchar(100);index" json:"action"`
+	EntityType string    `gorm:"type:varchar(50)"        json:"entity_type"`
+	EntityID   uint      `json:"entity_id"`
+	Details    string    `gorm:"type:text"               json:"details"`
+	CreatedAt  time.Time `gorm:"index"                   json:"created_at"`
+}
+
+// DiscordConfig — настройки Discord-виджета (webhook + persistent message)
+type DiscordConfig struct {
+	ID             uint   `gorm:"primaryKey;autoIncrement" json:"id"`
+	ServerID       uint   `gorm:"uniqueIndex;not null"     json:"server_id"`
+	Enabled        bool   `gorm:"default:false"            json:"enabled"`
+	WebhookURL     string `gorm:"type:varchar(500)"        json:"webhook_url"`
+	MessageID      string `gorm:"type:varchar(50)"         json:"message_id"`  // ID Discord-сообщения для редактирования
+	UpdateInterval int    `gorm:"default:5"                json:"update_interval"` // минуты, 1-60
 }
 
 // AlertsConfig — настройки Telegram-уведомлений

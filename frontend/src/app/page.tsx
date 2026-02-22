@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import {
   Plus, RefreshCw, Zap, LogOut, User, Shield, Newspaper,
   CalendarDays, Menu, X, Download, ArrowUpRight, Clock, Pencil,
-  Eye, Search, Pin,
+  Eye, Search, Pin, Rss,
 } from "lucide-react";
 import { useServers, useDeleteServer } from "@/hooks/useServers";
 import { useServerWebSocket } from "@/hooks/useWebSocket";
@@ -287,10 +287,12 @@ export default function Home() {
             <button onClick={() => refetch()} disabled={isRefetching} title="R" className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-white/5 transition-all disabled:opacity-50">
               <RefreshCw className={`w-4 h-4 ${isRefetching ? "animate-spin" : ""}`} />
             </button>
-            <button onClick={() => setModalServer("new")} title="N" className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold bg-neon-green text-black hover:bg-neon-green/90 transition-all">
-              <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">{t.addServer}</span>
-            </button>
+            {user && (
+              <button onClick={() => setModalServer("new")} title="N" className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold bg-neon-green text-black hover:bg-neon-green/90 transition-all">
+                <Plus className="w-4 h-4" />
+                <span className="hidden sm:inline">{t.addServer}</span>
+              </button>
+            )}
             {/* Mobile hamburger */}
             <button
               onClick={() => setMobileMenuOpen((v) => !v)}
@@ -345,6 +347,17 @@ export default function Home() {
               <Newspaper className="w-4 h-4 text-neon-blue flex-shrink-0" />
               <h2 className="text-sm font-semibold uppercase tracking-wide">{t.newsTitle}</h2>
               <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-neon-blue/10 text-neon-blue/80 border border-neon-blue/20">{newsTotal}</span>
+
+              <a
+                href="/api/v1/news.rss"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="RSS"
+                className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border border-orange-400/20 text-orange-400 hover:bg-orange-400/10 transition-all"
+              >
+                <Rss className="w-3 h-3" />
+                RSS
+              </a>
 
               {/* Pinned filter toggle */}
               <button

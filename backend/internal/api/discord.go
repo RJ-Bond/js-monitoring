@@ -1,0 +1,219 @@
+package api
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/labstack/echo/v4"
+
+	"github.com/RJ-Bond/js-monitoring/internal/database"
+	"github.com/RJ-Bond/js-monitoring/internal/models"
+)
+
+type discordField struct {
+	Name   string `json:"name"`
+	Value  string `json:"value"`
+	Inline bool   `json:"inline"`
+}
+
+type discordEmbed struct {
+	Title       string         `json:"title"`
+	Description string         `json:"description"`
+	Color       int            `json:"color"`
+	Fields      []discordField `json:"fields"`
+	Footer      struct {
+		Text string `json:"text"`
+	} `json:"footer"`
+	Timestamp string `json:"timestamp"`
+}
+
+type discordWebhookPayload struct {
+	Username string         `json:"username,omitempty"`
+	Embeds   []discordEmbed `json:"embeds"`
+}
+
+// BuildDiscordPayload строит JSON-тело для Discord webhook.
+func BuildDiscordPayload(siteName string, srv *models.Server, status *models.ServerStatus) []byte {
+	color := 10038562 // красный (офлайн)
+	statusVal := "🔴 Офлайн"
+	if status != nil && status.OnlineStatus {
+		color = 3066993 // зелёный (онлайн)
+		statusVal = "🟢 Онлайн"
+	}
+
+	title := srv.Title
+	if title == "" && status != nil && status.ServerName != "" {
+		title = status.ServerName
+	}
+	if title == "" {
+		title = fmt.Sprintf("%s:%d", srv.IP, srv.Port)
+	}
+
+	addr := fmt.Sprintf("%s:%d", srv.IP, srv.Port)
+	if srv.DisplayIP != "" {
+		addr = fmt.Sprintf("%s:%d", srv.DisplayIP, srv.Port)
+	}
+
+	fields := []discordField{{Name: "Статус", Value: statusVal, Inline: true}}
+	if status != nil && status.OnlineStatus {
+		fields = append(fields, discordField{
+			Name: "Игроки", Value: fmt.Sprintf("%d/%d", status.PlayersNow, status.PlayersMax), Inline: true,
+		})
+		if status.PingMS > 0 {
+			fields = append(fields, discordField{
+				Name: "Пинг", Value: fmt.Sprintf("%d ms", status.PingMS), Inline: true,
+			})
+		}
+		if status.CurrentMap != "" {
+			fields = append(fields, discordField{
+				Name: "Карта", Value: status.CurrentMap, Inline: true,
+			})
+		}
+	}
+
+	embed := discordEmbed{
+		Title:       title,
+		Description: fmt.Sprintf("`%s`", addr),
+		Color:       color,
+		Fields:      fields,
+		Timestamp:   time.Now().UTC().Format(time.RFC3339),
+	}
+	embed.Footer.Text = siteName
+
+	pl := discordWebhookPayload{Username: siteName, Embeds: []discordEmbed{embed}}
+	b, _ := json.Marshal(pl)
+	return b
+}
+
+// SendOrUpdateDiscordMessage отправляет новое или редактирует существующее сообщение через webhook.
+// Возвращает message_id, который нужно сохранить для следующих обновлений.
+func SendOrUpdateDiscordMessage(webhookURL, messageID string, payload []byte) (string, error) {
+	if messageID != "" {
+		patchURL := strings.TrimRight(webhookURL, "/") + "/messages/" + messageID
+		req, err := http.NewRequest(http.MethodPatch, patchURL, bytes.NewReader(payload))
+		if err == nil {
+			req.Header.Set("Content-Type", "application/json")
+			resp, err := http.DefaultClient.Do(req) //nolint:noctx
+			if err == nil {
+				_ = resp.Body.Close()
+				if resp.StatusCode == http.StatusOK {
+					return messageID, nil
+				}
+				// 404 или другая ошибка — создаём новое сообщение
+			}
+		}
+	}
+
+	postURL := strings.TrimRight(webhookURL, "/") + "?wait=true"
+	resp, err := http.Post(postURL, "application/json", bytes.NewReader(payload)) //nolint:noctx
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("discord webhook вернул статус %d", resp.StatusCode)
+	}
+	var msgResp struct {
+		ID string `json:"id"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&msgResp); err != nil {
+		return "", err
+	}
+	return msgResp.ID, nil
+}
+
+func discordSiteName() string {
+	var s models.SiteSettings
+	if err := database.DB.First(&s, 1).Error; err != nil || s.SiteName == "" {
+		return "JS Monitor"
+	}
+	return s.SiteName
+}
+
+// GetDiscordConfig GET /api/v1/admin/discord/:serverID
+func GetDiscordConfig(c echo.Context) error {
+	serverID := c.Param("serverID")
+	var cfg models.DiscordConfig
+	if err := database.DB.Where("server_id = ?", serverID).First(&cfg).Error; err != nil {
+		return c.JSON(http.StatusOK, models.DiscordConfig{Enabled: false, UpdateInterval: 5})
+	}
+	return c.JSON(http.StatusOK, cfg)
+}
+
+// UpdateDiscordConfig PUT /api/v1/admin/discord/:serverID
+func UpdateDiscordConfig(c echo.Context) error {
+	serverID := c.Param("serverID")
+
+	var req struct {
+		Enabled        bool   `json:"enabled"`
+		WebhookURL     string `json:"webhook_url"`
+		UpdateInterval int    `json:"update_interval"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()})
+	}
+	if req.UpdateInterval <= 0 {
+		req.UpdateInterval = 5
+	}
+	req.WebhookURL = strings.TrimSpace(req.WebhookURL)
+
+	var cfg models.DiscordConfig
+	database.DB.Where("server_id = ?", serverID).First(&cfg)
+
+	// Смена URL — сбрасываем message_id (новое сообщение в новом канале)
+	if cfg.WebhookURL != req.WebhookURL {
+		cfg.MessageID = ""
+	}
+
+	cfg.Enabled = req.Enabled
+	cfg.WebhookURL = req.WebhookURL
+	cfg.UpdateInterval = req.UpdateInterval
+
+	if cfg.ID == 0 {
+		var sid uint
+		fmt.Sscanf(serverID, "%d", &sid)
+		cfg.ServerID = sid
+		if err := database.DB.Create(&cfg).Error; err != nil {
+			return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
+		}
+	} else {
+		database.DB.Save(&cfg)
+	}
+
+	return c.JSON(http.StatusOK, cfg)
+}
+
+// SendDiscordTest POST /api/v1/admin/discord/:serverID/test
+// Немедленно отправляет тестовый embed в настроенный webhook.
+func SendDiscordTest(c echo.Context) error {
+	serverID := c.Param("serverID")
+
+	var cfg models.DiscordConfig
+	if err := database.DB.Where("server_id = ?", serverID).First(&cfg).Error; err != nil {
+		return c.JSON(http.StatusNotFound, echo.Map{"error": "discord config not found"})
+	}
+	if cfg.WebhookURL == "" {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "webhook URL not configured"})
+	}
+
+	var srv models.Server
+	if err := database.DB.Preload("Status").First(&srv, serverID).Error; err != nil {
+		return c.JSON(http.StatusNotFound, echo.Map{"error": "server not found"})
+	}
+
+	payload := BuildDiscordPayload(discordSiteName(), &srv, srv.Status)
+	msgID, err := SendOrUpdateDiscordMessage(cfg.WebhookURL, cfg.MessageID, payload)
+	if err != nil {
+		return c.JSON(http.StatusBadGateway, echo.Map{"error": err.Error()})
+	}
+	if msgID != cfg.MessageID {
+		database.DB.Model(&cfg).Update("message_id", msgID)
+		cfg.MessageID = msgID
+	}
+
+	return c.JSON(http.StatusOK, echo.Map{"ok": true, "message_id": msgID})
+}

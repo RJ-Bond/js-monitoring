@@ -84,6 +84,10 @@ func AdminUpdateUser(c echo.Context) error {
 	}
 
 	database.DB.First(&user, id)
+	{
+		aid, aname := actorFromCtx(c)
+		logAudit(aid, aname, "update_user", "user", user.ID, user.Username)
+	}
 	return c.JSON(http.StatusOK, user)
 }
 
@@ -105,6 +109,10 @@ func AdminDeleteUser(c echo.Context) error {
 	}
 
 	database.DB.Delete(&user)
+	{
+		aid, aname := actorFromCtx(c)
+		logAudit(aid, aname, "delete_user", "user", user.ID, user.Username)
+	}
 	return c.JSON(http.StatusOK, echo.Map{"message": "user deleted"})
 }
 

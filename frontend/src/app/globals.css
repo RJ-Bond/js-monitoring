@@ -254,6 +254,18 @@ html.light .terminal {
   border-color: rgba(0, 0, 0, 0.12);
 }
 
+/* Chart tooltip — solid background */
+.chart-tooltip {
+  background: hsl(220, 25%, 10%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+html.light .chart-tooltip {
+  background: hsl(220, 25%, 98%);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
 html.light ::selection {
   background: rgba(26, 122, 72, 0.2);
   color: #000;

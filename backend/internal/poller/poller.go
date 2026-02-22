@@ -1,7 +1,14 @@
 package poller
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"log"
+	"net/http"
+	"net/url"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -18,6 +25,7 @@ const (
 	schedulerTick      = 5 * time.Second
 	historyFlushTick   = 30 * time.Second
 	batchSize          = 100
+	discordWorkerTick  = 1 * time.Minute
 )
 
 type pollJob struct {
@@ -44,16 +52,26 @@ type Poller struct {
 	// Доступ только из горутины processResults — мьютекс не нужен.
 	playerState map[uint]map[string]time.Time
 
+	// prevOnline отслеживает прошлый онлайн-статус для детекции переходов.
+	// Доступ только из processResults — мьютекс не нужен.
+	prevOnline map[uint]bool
+
+	// discordLastSent хранит время последней отправки Discord-embed по serverID.
+	// Доступ только из discordWorker — мьютекс не нужен.
+	discordLastSent map[uint]time.Time
+
 	OnUpdate func(serverID uint, status *models.ServerStatus)
 }
 
 func New(onUpdate func(serverID uint, status *models.ServerStatus)) *Poller {
 	return &Poller{
-		jobs:        make(chan pollJob, 2000),
-		results:     make(chan pollResult, 2000),
-		done:        make(chan struct{}),
-		playerState: make(map[uint]map[string]time.Time),
-		OnUpdate:    onUpdate,
+		jobs:            make(chan pollJob, 2000),
+		results:         make(chan pollResult, 2000),
+		done:            make(chan struct{}),
+		playerState:     make(map[uint]map[string]time.Time),
+		prevOnline:      make(map[uint]bool),
+		discordLastSent: make(map[uint]time.Time),
+		OnUpdate:        onUpdate,
 	}
 }
 
@@ -67,6 +85,7 @@ func (p *Poller) Start() {
 	go p.processResults()
 	go p.batchHistoryWriter()
 	go p.scheduler()
+	go p.discordWorker()
 
 	log.Printf("[Poller] started with %d workers", workerCount)
 }
@@ -179,9 +198,18 @@ func (p *Poller) processResults() {
 			p.historyBuf = append(p.historyBuf, models.PlayerHistory{
 				ServerID:  res.serverID,
 				Count:     res.status.PlayersNow,
+				IsOnline:  res.status.OnlineStatus,
 				Timestamp: time.Now(),
 			})
 			p.historyMu.Unlock()
+
+			// Отслеживать Telegram-алерты при переходе online→offline
+			wasOnline, seen := p.prevOnline[res.serverID]
+			isOnline := res.status.OnlineStatus
+			if seen && wasOnline && !isOnline {
+				go p.sendOfflineAlert(res.serverID)
+			}
+			p.prevOnline[res.serverID] = isOnline
 
 			// Отслеживать сессии игроков
 			p.trackSessions(res.serverID, res.players, res.status.OnlineStatus)
@@ -296,6 +324,197 @@ func (p *Poller) flushHistoryBuffer() {
 	} else {
 		log.Printf("[Poller] flushed %d history records", len(batch))
 	}
+}
+
+// sendOfflineAlert отправляет Telegram-уведомление если для сервера включены алерты
+func (p *Poller) sendOfflineAlert(serverID uint) {
+	var cfg models.AlertsConfig
+	if err := database.DB.Where("server_id = ? AND enabled = ?", serverID, true).First(&cfg).Error; err != nil {
+		return
+	}
+	if cfg.TgChatID == "" {
+		return
+	}
+	token := os.Getenv("TELEGRAM_BOT_TOKEN")
+	if token == "" {
+		return
+	}
+	var srv models.Server
+	if err := database.DB.First(&srv, serverID).Error; err != nil {
+		return
+	}
+	text := fmt.Sprintf("🔴 <b>%s</b> — сервер недоступен", srv.Title)
+	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", token)
+	resp, err := http.PostForm(apiURL, url.Values{ //nolint:noctx
+		"chat_id":    {cfg.TgChatID},
+		"text":       {text},
+		"parse_mode": {"HTML"},
+	})
+	if err != nil {
+		log.Printf("[Poller] telegram alert error for server %d: %v", serverID, err)
+		return
+	}
+	defer resp.Body.Close()
+}
+
+// discordWorker периодически обновляет Discord-виджеты для всех серверов с включённой интеграцией
+func (p *Poller) discordWorker() {
+	ticker := time.NewTicker(discordWorkerTick)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			p.runDiscordUpdates()
+		case <-p.done:
+			return
+		}
+	}
+}
+
+func (p *Poller) runDiscordUpdates() {
+	var configs []models.DiscordConfig
+	if err := database.DB.Where("enabled = ? AND webhook_url != ''", true).Find(&configs).Error; err != nil {
+		return
+	}
+	now := time.Now()
+	for _, cfg := range configs {
+		interval := time.Duration(cfg.UpdateInterval) * time.Minute
+		if interval < time.Minute {
+			interval = time.Minute
+		}
+		if last, ok := p.discordLastSent[cfg.ServerID]; ok && now.Sub(last) < interval {
+			continue
+		}
+		p.discordLastSent[cfg.ServerID] = now
+		p.sendDiscordUpdate(cfg)
+	}
+}
+
+func (p *Poller) sendDiscordUpdate(cfg models.DiscordConfig) {
+	var srv models.Server
+	if err := database.DB.Preload("Status").First(&srv, cfg.ServerID).Error; err != nil {
+		return
+	}
+
+	siteName := p.discordSiteName()
+	payload := discordBuildPayload(siteName, &srv, srv.Status)
+
+	msgID, err := discordSendOrUpdate(cfg.WebhookURL, cfg.MessageID, payload)
+	if err != nil {
+		log.Printf("[Discord] ошибка обновления embed для сервера %d: %v", cfg.ServerID, err)
+		return
+	}
+	if msgID != cfg.MessageID {
+		database.DB.Model(&models.DiscordConfig{}).Where("id = ?", cfg.ID).Update("message_id", msgID)
+	}
+}
+
+func (p *Poller) discordSiteName() string {
+	var s models.SiteSettings
+	if err := database.DB.First(&s, 1).Error; err != nil || s.SiteName == "" {
+		return "JS Monitor"
+	}
+	return s.SiteName
+}
+
+func discordBuildPayload(siteName string, srv *models.Server, status *models.ServerStatus) []byte {
+	color := 10038562
+	statusVal := "🔴 Офлайн"
+	if status != nil && status.OnlineStatus {
+		color = 3066993
+		statusVal = "🟢 Онлайн"
+	}
+
+	title := srv.Title
+	if title == "" && status != nil && status.ServerName != "" {
+		title = status.ServerName
+	}
+	if title == "" {
+		title = fmt.Sprintf("%s:%d", srv.IP, srv.Port)
+	}
+
+	addr := fmt.Sprintf("%s:%d", srv.IP, srv.Port)
+	if srv.DisplayIP != "" {
+		addr = fmt.Sprintf("%s:%d", srv.DisplayIP, srv.Port)
+	}
+
+	type field struct {
+		Name   string `json:"name"`
+		Value  string `json:"value"`
+		Inline bool   `json:"inline"`
+	}
+	type footer struct {
+		Text string `json:"text"`
+	}
+	type embed struct {
+		Title       string  `json:"title"`
+		Description string  `json:"description"`
+		Color       int     `json:"color"`
+		Fields      []field `json:"fields"`
+		Footer      footer  `json:"footer"`
+		Timestamp   string  `json:"timestamp"`
+	}
+	type webhookPayload struct {
+		Username string  `json:"username,omitempty"`
+		Embeds   []embed `json:"embeds"`
+	}
+
+	fields := []field{{Name: "Статус", Value: statusVal, Inline: true}}
+	if status != nil && status.OnlineStatus {
+		fields = append(fields, field{Name: "Игроки", Value: fmt.Sprintf("%d/%d", status.PlayersNow, status.PlayersMax), Inline: true})
+		if status.PingMS > 0 {
+			fields = append(fields, field{Name: "Пинг", Value: fmt.Sprintf("%d ms", status.PingMS), Inline: true})
+		}
+		if status.CurrentMap != "" {
+			fields = append(fields, field{Name: "Карта", Value: status.CurrentMap, Inline: true})
+		}
+	}
+
+	pl := webhookPayload{
+		Username: siteName,
+		Embeds: []embed{{
+			Title:       title,
+			Description: fmt.Sprintf("`%s`", addr),
+			Color:       color,
+			Fields:      fields,
+			Footer:      footer{Text: siteName},
+			Timestamp:   time.Now().UTC().Format(time.RFC3339),
+		}},
+	}
+	b, _ := json.Marshal(pl)
+	return b
+}
+
+func discordSendOrUpdate(webhookURL, messageID string, payload []byte) (string, error) {
+	if messageID != "" {
+		patchURL := strings.TrimRight(webhookURL, "/") + "/messages/" + messageID
+		req, err := http.NewRequest(http.MethodPatch, patchURL, bytes.NewReader(payload))
+		if err == nil {
+			req.Header.Set("Content-Type", "application/json")
+			resp, err := http.DefaultClient.Do(req) //nolint:noctx
+			if err == nil {
+				_ = resp.Body.Close()
+				if resp.StatusCode == http.StatusOK {
+					return messageID, nil
+				}
+			}
+		}
+	}
+
+	postURL := strings.TrimRight(webhookURL, "/") + "?wait=true"
+	resp, err := http.Post(postURL, "application/json", bytes.NewReader(payload)) //nolint:noctx
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("discord вернул статус %d", resp.StatusCode)
+	}
+	var msgResp struct {
+		ID string `json:"id"`
+	}
+	_ = json.NewDecoder(resp.Body).Decode(&msgResp)
+	return msgResp.ID, nil
 }
 
 // scheduler — Smart Poller: адаптирует интервал опроса в зависимости от активности

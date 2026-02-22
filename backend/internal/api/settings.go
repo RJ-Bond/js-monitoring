@@ -115,6 +115,10 @@ func UpdateSettings(c echo.Context) error {
 	}
 
 	database.DB.Save(&s)
+	{
+		aid, aname := actorFromCtx(c)
+		logAudit(aid, aname, "update_settings", "settings", 1, s.SiteName)
+	}
 
 	effectiveKey := s.SteamAPIKey
 	if effectiveKey == "" {

@@ -124,3 +124,56 @@ export interface AuthResponse {
   token: string;
   user: User;
 }
+
+export interface UptimeData {
+  uptime_24h: number;
+  total: number;
+  online: number;
+}
+
+export interface GlobalLeaderboardEntry {
+  rank: number;
+  player_name: string;
+  total_seconds: number;
+  servers_count: number;
+  last_seen: string | null;
+}
+
+export interface PlayerProfileServer {
+  server_id: number;
+  server_name: string;
+  total_seconds: number;
+  last_seen: string | null;
+}
+
+export interface PlayerProfile {
+  player_name: string;
+  total_seconds: number;
+  last_seen: string | null;
+  servers: PlayerProfileServer[];
+}
+
+export interface AuditLogEntry {
+  id: number;
+  actor_id: number;
+  actor_name: string;
+  action: string;
+  entity_type: string;
+  entity_id: number;
+  details: string;
+  created_at: string;
+}
+
+export interface AuditPage {
+  items: AuditLogEntry[];
+  total: number;
+}
+
+export interface DiscordConfig {
+  id: number;
+  server_id: number;
+  enabled: boolean;
+  webhook_url: string;
+  message_id: string;
+  update_interval: number;
+}

@@ -2,8 +2,11 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -45,6 +48,8 @@ func CreateServer(c echo.Context) error {
 	if err := database.DB.Create(&server).Error; err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
 	}
+	actorID, actorName := actorFromCtx(c)
+	logAudit(actorID, actorName, "create_server", "server", server.ID, server.Title)
 	// Определяем страну по IP в фоне
 	go func(s models.Server) {
 		country, code := fetchGeoIP(s.IP)
@@ -97,6 +102,10 @@ func UpdateServer(c echo.Context) error {
 	if err := database.DB.Model(&server).Updates(updates).Error; err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
 	}
+	{
+		aid, aname := actorFromCtx(c)
+		logAudit(aid, aname, "update_server", "server", server.ID, server.Title)
+	}
 
 	// Обновляем страну если IP изменился
 	if payload.IP != "" && payload.IP != server.IP {
@@ -129,6 +138,10 @@ func DeleteServer(c echo.Context) error {
 	}
 
 	database.DB.Delete(&models.Server{}, id)
+	{
+		aid, aname := actorFromCtx(c)
+		logAudit(aid, aname, "delete_server", "server", server.ID, server.Title)
+	}
 	return c.JSON(http.StatusOK, echo.Map{"message": "server deleted"})
 }
 
@@ -389,6 +402,10 @@ func CreateNews(c echo.Context) error {
 	if err := database.DB.Create(&item).Error; err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
 	}
+	{
+		aid, aname := actorFromCtx(c)
+		logAudit(aid, aname, "create_news", "news", item.ID, item.Title)
+	}
 	return c.JSON(http.StatusCreated, item)
 }
 
@@ -435,6 +452,10 @@ func UpdateNews(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
 	}
 	database.DB.First(&item, id)
+	{
+		aid, aname := actorFromCtx(c)
+		logAudit(aid, aname, "update_news", "news", item.ID, item.Title)
+	}
 	return c.JSON(http.StatusOK, item)
 }
 
@@ -448,7 +469,13 @@ func TrackView(c echo.Context) error {
 // DeleteNews DELETE /api/v1/admin/news/:id — удалить новость (только админ)
 func DeleteNews(c echo.Context) error {
 	id := c.Param("id")
+	var item models.NewsItem
+	database.DB.First(&item, id)
 	database.DB.Delete(&models.NewsItem{}, id)
+	{
+		aid, aname := actorFromCtx(c)
+		logAudit(aid, aname, "delete_news", "news", item.ID, item.Title)
+	}
 	return c.JSON(http.StatusOK, echo.Map{"message": "news deleted"})
 }
 
@@ -481,4 +508,168 @@ func fetchGeoIP(ip string) (country, code string) {
 		return
 	}
 	return g.Country, g.CountryCode
+}
+
+// ─── Uptime ───────────────────────────────────────────────────────────────────
+
+// GetUptime GET /api/v1/servers/:id/uptime — процент аптайма за 24 часа
+func GetUptime(c echo.Context) error {
+	id := c.Param("id")
+	since := time.Now().Add(-24 * time.Hour)
+
+	var total, online int64
+	database.DB.Model(&models.PlayerHistory{}).
+		Where("server_id = ? AND timestamp > ?", id, since).
+		Count(&total)
+	database.DB.Model(&models.PlayerHistory{}).
+		Where("server_id = ? AND is_online = ? AND timestamp > ?", id, true, since).
+		Count(&online)
+
+	pct := 0.0
+	if total > 0 {
+		pct = float64(online) / float64(total) * 100
+	}
+	return c.JSON(http.StatusOK, echo.Map{
+		"uptime_24h": pct,
+		"total":      total,
+		"online":     online,
+	})
+}
+
+// ─── Global Leaderboard ───────────────────────────────────────────────────────
+
+// GetGlobalLeaderboard GET /api/v1/leaderboard — топ игроков по суммарному времени
+func GetGlobalLeaderboard(c echo.Context) error {
+	type entry struct {
+		Rank         int        `json:"rank"`
+		PlayerName   string     `json:"player_name"`
+		TotalSeconds int        `json:"total_seconds"`
+		ServersCount int        `json:"servers_count"`
+		LastSeen     *time.Time `json:"last_seen"`
+	}
+
+	var rows []entry
+	database.DB.Model(&models.PlayerSession{}).
+		Select(`player_name,
+			SUM(CASE WHEN ended_at IS NOT NULL THEN duration
+				ELSE GREATEST(0, TIMESTAMPDIFF(SECOND, started_at, NOW())) END) AS total_seconds,
+			COUNT(DISTINCT server_id) AS servers_count,
+			MAX(COALESCE(ended_at, NOW())) AS last_seen`).
+		Group("player_name").
+		Order("total_seconds DESC").
+		Limit(100).
+		Scan(&rows)
+
+	for i := range rows {
+		rows[i].Rank = i + 1
+	}
+	if rows == nil {
+		rows = []entry{}
+	}
+	return c.JSON(http.StatusOK, rows)
+}
+
+// ─── Player Profile ───────────────────────────────────────────────────────────
+
+// GetPlayerProfile GET /api/v1/players/:name — профиль игрока
+func GetPlayerProfile(c echo.Context) error {
+	name, err := url.PathUnescape(c.Param("name"))
+	if err != nil || name == "" {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid player name"})
+	}
+
+	type serverEntry struct {
+		ServerID     uint       `json:"server_id"`
+		ServerName   string     `json:"server_name"`
+		TotalSeconds int        `json:"total_seconds"`
+		LastSeen     *time.Time `json:"last_seen"`
+	}
+
+	var rows []serverEntry
+	database.DB.Model(&models.PlayerSession{}).
+		Select(`player_sessions.server_id,
+			COALESCE(servers.title, '') AS server_name,
+			SUM(CASE WHEN player_sessions.ended_at IS NOT NULL THEN player_sessions.duration
+				ELSE GREATEST(0, TIMESTAMPDIFF(SECOND, player_sessions.started_at, NOW())) END) AS total_seconds,
+			MAX(COALESCE(player_sessions.ended_at, NOW())) AS last_seen`).
+		Joins("LEFT JOIN servers ON servers.id = player_sessions.server_id").
+		Where("player_sessions.player_name = ?", name).
+		Group("player_sessions.server_id").
+		Order("total_seconds DESC").
+		Scan(&rows)
+
+	if rows == nil {
+		rows = []serverEntry{}
+	}
+
+	var totalSeconds int
+	var lastSeen *time.Time
+	for _, r := range rows {
+		totalSeconds += r.TotalSeconds
+		if lastSeen == nil || (r.LastSeen != nil && r.LastSeen.After(*lastSeen)) {
+			lastSeen = r.LastSeen
+		}
+	}
+
+	return c.JSON(http.StatusOK, echo.Map{
+		"player_name":   name,
+		"total_seconds": totalSeconds,
+		"last_seen":     lastSeen,
+		"servers":       rows,
+	})
+}
+
+// ─── RSS Feed ─────────────────────────────────────────────────────────────────
+
+// GetNewsRSS GET /api/v1/news.rss — RSS 2.0 лента новостей
+func GetNewsRSS(c echo.Context) error {
+	var items []models.NewsItem
+	database.DB.
+		Where("published = ? AND (publish_at IS NULL OR publish_at <= NOW())", true).
+		Order("pinned DESC, created_at DESC").
+		Limit(20).
+		Find(&items)
+
+	// Базовый URL из настроек сайта
+	var settings models.SiteSettings
+	database.DB.First(&settings, 1)
+	baseURL := strings.TrimRight(settings.AppURL, "/")
+	if baseURL == "" {
+		baseURL = "http://localhost:3000"
+	}
+	siteName := settings.SiteName
+	if siteName == "" {
+		siteName = "JSMonitor"
+	}
+
+	var sb strings.Builder
+	sb.WriteString(`<?xml version="1.0" encoding="UTF-8"?>`)
+	sb.WriteString(`<rss version="2.0"><channel>`)
+	sb.WriteString(fmt.Sprintf("<title>%s</title>", xmlEscape(siteName)))
+	sb.WriteString(fmt.Sprintf("<link>%s</link>", xmlEscape(baseURL)))
+	sb.WriteString("<description>Game server monitoring news</description>")
+	sb.WriteString(fmt.Sprintf("<lastBuildDate>%s</lastBuildDate>", time.Now().UTC().Format(time.RFC1123Z)))
+
+	for _, item := range items {
+		sb.WriteString("<item>")
+		sb.WriteString(fmt.Sprintf("<title>%s</title>", xmlEscape(item.Title)))
+		sb.WriteString(fmt.Sprintf("<link>%s</link>", xmlEscape(baseURL)))
+		sb.WriteString(fmt.Sprintf("<description><![CDATA[%s]]></description>", item.Content))
+		sb.WriteString(fmt.Sprintf("<pubDate>%s</pubDate>", item.CreatedAt.UTC().Format(time.RFC1123Z)))
+		sb.WriteString(fmt.Sprintf("<guid>%s/news/%d</guid>", baseURL, item.ID))
+		sb.WriteString("</item>")
+	}
+
+	sb.WriteString("</channel></rss>")
+
+	return c.Blob(http.StatusOK, "application/rss+xml; charset=utf-8", []byte(sb.String()))
+}
+
+func xmlEscape(s string) string {
+	s = strings.ReplaceAll(s, "&", "&amp;")
+	s = strings.ReplaceAll(s, "<", "&lt;")
+	s = strings.ReplaceAll(s, ">", "&gt;")
+	s = strings.ReplaceAll(s, "\"", "&quot;")
+	s = strings.ReplaceAll(s, "'", "&apos;")
+	return s
 }

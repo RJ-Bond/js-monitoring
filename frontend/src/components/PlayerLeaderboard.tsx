@@ -102,7 +102,7 @@ export default function PlayerLeaderboard({ serverId }: PlayerLeaderboardProps) 
                   if (!active || !payload?.length) return null;
                   const d = payload[0].payload as typeof chartData[0];
                   return (
-                    <div className="glass-card rounded-lg px-3 py-2 text-sm">
+                    <div className="chart-tooltip rounded-lg px-3 py-2 text-sm">
                       <p className="font-semibold text-foreground truncate max-w-[160px]">{d.name}</p>
                       <p className="text-neon-green font-mono">{formatDuration(d.total_seconds, locale)}</p>
                       <p className="text-muted-foreground text-xs">

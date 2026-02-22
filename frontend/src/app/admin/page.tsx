@@ -7,6 +7,7 @@ import {
   Newspaper, Server, BarChart2, Users,
   Search, ChevronUp, ChevronDown, ChevronsUpDown,
   Trash2, AlertTriangle, Settings, Eye, EyeOff, ExternalLink, Tag,
+  Bell, KeyRound, ClipboardList, Copy, X, MessageSquare,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -16,10 +17,12 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ThemeToggle from "@/components/ThemeToggle";
 import { APP_VERSION } from "@/lib/version";
 import SiteBrand from "@/components/SiteBrand";
-import type { User, AdminServer } from "@/types/server";
+import AlertConfigModal from "@/components/AlertConfigModal";
+import DiscordConfigModal from "@/components/DiscordConfigModal";
+import type { User, AdminServer, AuditLogEntry } from "@/types/server";
 import { GAME_META } from "@/lib/utils";
 
-type AdminTab = "users" | "servers" | "stats" | "settings";
+type AdminTab = "users" | "servers" | "stats" | "settings" | "audit";
 type SortKey = "username" | "role" | "created_at" | "server_count";
 type RoleFilter = "all" | "admin" | "user" | "banned";
 
@@ -40,6 +43,14 @@ function UserAvatar({ username, role }: { username: string; role: string }) {
       {username[0]?.toUpperCase() ?? "?"}
     </div>
   );
+}
+
+// Audit action badge color
+function getActionColor(action: string): string {
+  if (action.startsWith("create_")) return "bg-neon-green/10 text-neon-green";
+  if (action.startsWith("delete_")) return "bg-red-400/10 text-red-400";
+  if (action.startsWith("update_")) return "bg-neon-blue/10 text-neon-blue";
+  return "bg-white/5 text-muted-foreground";
 }
 
 // Sort indicator icon
@@ -354,6 +365,24 @@ export default function AdminPage() {
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSaved, setSettingsSaved] = useState(false);
 
+  // Audit log state
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
+  const [auditTotal, setAuditTotal] = useState(0);
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditLoading, setAuditLoading] = useState(false);
+
+  // Alert config modal
+  const [alertServerID, setAlertServerID] = useState<number | null>(null);
+  const [alertServerName, setAlertServerName] = useState("");
+
+  // Discord config modal
+  const [discordServerID, setDiscordServerID] = useState<number | null>(null);
+  const [discordServerName, setDiscordServerName] = useState("");
+
+  // Reset link modal
+  const [resetLink, setResetLink] = useState("");
+  const [resetLinkCopied, setResetLinkCopied] = useState(false);
+
   useEffect(() => {
     if (isLoading) return;
     if (!isAuthenticated || user?.role !== "admin") {
@@ -373,6 +402,9 @@ export default function AdminPage() {
   useEffect(() => {
     if (tab === "servers" && servers.length === 0 && !loadingServers) {
       fetchServers();
+    }
+    if (tab === "audit" && auditLogs.length === 0 && !auditLoading) {
+      fetchAuditLog(1);
     }
     if (tab === "settings") {
       api.getAdminSettings().then((s: AdminSiteSettings) => {
@@ -429,6 +461,34 @@ export default function AdminPage() {
       setUsers((prev) => prev.filter((x) => x.id !== u.id));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Delete failed");
+    }
+  };
+
+  const fetchAuditLog = async (page: number) => {
+    setAuditLoading(true);
+    try {
+      const data = await api.getAuditLog({ page });
+      if (page === 1) {
+        setAuditLogs(data.items);
+      } else {
+        setAuditLogs((prev: AuditLogEntry[]) => [...prev, ...data.items]);
+      }
+      setAuditTotal(data.total);
+      setAuditPage(page);
+    } catch {
+      // ignore
+    } finally {
+      setAuditLoading(false);
+    }
+  };
+
+  const handleGenerateResetToken = async (userId: number) => {
+    try {
+      const data = await api.generateResetToken(userId);
+      setResetLink(data.link);
+      setResetLinkCopied(false);
+    } catch {
+      setError("Failed to generate reset link");
     }
   };
 
@@ -492,6 +552,7 @@ export default function AdminPage() {
     { key: "servers",  label: t.adminTabServers,  icon: <Server className="w-4 h-4" /> },
     { key: "stats",    label: t.adminTabStats,    icon: <BarChart2 className="w-4 h-4" /> },
     { key: "settings", label: t.adminTabSettings, icon: <Settings className="w-4 h-4" /> },
+    { key: "audit",    label: t.auditLog,         icon: <ClipboardList className="w-4 h-4" /> },
   ];
 
   return (
@@ -685,6 +746,13 @@ export default function AdminPage() {
                             {u.id !== user?.id && (
                               <div className="flex items-center justify-end gap-1">
                                 <button
+                                  onClick={() => handleGenerateResetToken(u.id)}
+                                  title={t.resetPasswordBtn}
+                                  className="p-1.5 rounded-lg text-muted-foreground hover:text-neon-blue hover:bg-neon-blue/10 transition-colors"
+                                >
+                                  <KeyRound className="w-4 h-4" />
+                                </button>
+                                <button
                                   onClick={() =>
                                     showConfirm(
                                       t.adminConfirmTitle,
@@ -791,7 +859,21 @@ export default function AdminPage() {
                             </span>
                           </td>
                           <td className="px-5 py-3">
-                            <div className="flex justify-end">
+                            <div className="flex justify-end gap-1">
+                              <button
+                                onClick={() => { setDiscordServerID(s.id); setDiscordServerName(s.title || s.ip); }}
+                                title={t.discordTitle}
+                                className="p-1.5 rounded-lg text-muted-foreground hover:text-[#5865F2] hover:bg-[#5865F2]/10 transition-colors"
+                              >
+                                <MessageSquare className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => { setAlertServerID(s.id); setAlertServerName(s.title || s.ip); }}
+                                title={t.alertsTitle}
+                                className="p-1.5 rounded-lg text-muted-foreground hover:text-neon-blue hover:bg-neon-blue/10 transition-colors"
+                              >
+                                <Bell className="w-4 h-4" />
+                              </button>
                               <button
                                 onClick={() =>
                                   showConfirm(
@@ -871,6 +953,70 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* ── AUDIT TAB ── */}
+        {tab === "audit" && (
+          <div className="flex flex-col gap-4">
+            {auditLoading && auditLogs.length === 0 ? (
+              <div className="glass-card rounded-2xl p-8 flex items-center justify-center gap-2 text-muted-foreground">
+                <RefreshCw className="w-5 h-5 animate-spin" />
+              </div>
+            ) : auditLogs.length === 0 ? (
+              <div className="glass-card rounded-2xl p-8 text-center text-muted-foreground">{t.auditEmpty}</div>
+            ) : (
+              <div className="glass-card rounded-2xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-white/5 text-xs text-muted-foreground uppercase tracking-wide">
+                        <th className="text-left px-5 py-3">{t.auditAction}</th>
+                        <th className="text-left px-5 py-3 hidden sm:table-cell">{t.auditActor}</th>
+                        <th className="text-left px-5 py-3 hidden md:table-cell">{t.auditEntity}</th>
+                        <th className="text-left px-5 py-3 hidden lg:table-cell">{t.auditDetails}</th>
+                        <th className="text-right px-5 py-3">{t.adminCreated}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {auditLogs.map((log) => (
+                        <tr key={log.id} className="border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors">
+                          <td className="px-5 py-3">
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded-md ${getActionColor(log.action)}`}>
+                              {log.action}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3 hidden sm:table-cell text-xs text-muted-foreground">
+                            {log.actor_name || `#${log.actor_id}`}
+                          </td>
+                          <td className="px-5 py-3 hidden md:table-cell text-xs text-muted-foreground">
+                            {log.entity_type} #{log.entity_id}
+                          </td>
+                          <td className="px-5 py-3 hidden lg:table-cell text-xs text-muted-foreground max-w-[200px] truncate">
+                            {log.details}
+                          </td>
+                          <td className="px-5 py-3 text-right text-xs text-muted-foreground whitespace-nowrap">
+                            {new Date(log.created_at).toLocaleString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="px-5 py-3 border-t border-white/5 flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{auditLogs.length} / {auditTotal}</span>
+                  {auditLogs.length < auditTotal && (
+                    <button
+                      onClick={() => fetchAuditLog(auditPage + 1)}
+                      disabled={auditLoading}
+                      className="px-3 py-1.5 rounded-lg border border-white/10 hover:border-white/20 hover:text-foreground transition-all disabled:opacity-50"
+                    >
+                      {auditLoading ? "…" : t.auditLoadMore}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ── SETTINGS TAB ── */}
         {tab === "settings" && (
           <SettingsTab
@@ -925,6 +1071,65 @@ export default function AdminPage() {
 
       {confirmState && (
         <ConfirmModal state={confirmState} onClose={() => setConfirmState(null)} />
+      )}
+
+      {alertServerID !== null && (
+        <AlertConfigModal
+          serverID={alertServerID}
+          serverName={alertServerName}
+          onClose={() => { setAlertServerID(null); setAlertServerName(""); }}
+        />
+      )}
+
+      {discordServerID !== null && (
+        <DiscordConfigModal
+          serverID={discordServerID}
+          serverName={discordServerName}
+          onClose={() => { setDiscordServerID(null); setDiscordServerName(""); }}
+        />
+      )}
+
+      {resetLink && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setResetLink(""); }}
+        >
+          <div className="w-full max-w-md glass-card rounded-2xl overflow-hidden shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+              <div className="flex items-center gap-2">
+                <KeyRound className="w-4 h-4 text-neon-blue" />
+                <h2 className="font-bold text-sm">{t.resetPasswordBtn}</h2>
+              </div>
+              <button
+                onClick={() => setResetLink("")}
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="px-5 py-4 flex flex-col gap-3">
+              <p className="text-xs text-muted-foreground">{t.resetPasswordBtn}</p>
+              <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2.5">
+                <span className="flex-1 text-xs font-mono text-foreground break-all">{resetLink}</span>
+              </div>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(resetLink);
+                  setResetLinkCopied(true);
+                  setTimeout(() => setResetLinkCopied(false), 2000);
+                }}
+                className={`flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-semibold transition-all border ${
+                  resetLinkCopied
+                    ? "bg-neon-green/20 text-neon-green border-neon-green/30"
+                    : "bg-neon-blue/20 text-neon-blue border-neon-blue/30 hover:bg-neon-blue/30"
+                }`}
+              >
+                <Copy className="w-4 h-4" />
+                {resetLinkCopied ? t.resetPasswordSuccess : t.resetPasswordBtn}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -59,5 +59,8 @@ func AutoMigrate() error {
 		&models.NewsItem{},
 		&models.SiteSettings{},
 		&models.PlayerSession{},
+		&models.PasswordReset{},
+		&models.AuditLog{},
+		&models.DiscordConfig{},
 	)
 }

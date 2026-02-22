@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"net/http"
 	"os"
 	"time"
 
@@ -56,6 +57,21 @@ func main() {
 	e.HideBanner = true
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
+	e.Use(middleware.RateLimiterWithConfig(middleware.RateLimiterConfig{
+		Skipper: middleware.DefaultSkipper,
+		Store: middleware.NewRateLimiterMemoryStoreWithConfig(
+			middleware.RateLimiterMemoryStoreConfig{Rate: 20, Burst: 50, ExpiresIn: 1 * time.Minute},
+		),
+		IdentifierExtractor: func(c echo.Context) (string, error) {
+			return c.RealIP(), nil
+		},
+		ErrorHandler: func(c echo.Context, err error) error {
+			return c.JSON(http.StatusTooManyRequests, map[string]string{"error": "too many requests"})
+		},
+		DenyHandler: func(c echo.Context, id string, err error) error {
+			return c.JSON(http.StatusTooManyRequests, map[string]string{"error": "too many requests"})
+		},
+	}))
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{"*"},
 		AllowHeaders: []string{
@@ -83,10 +99,14 @@ func main() {
 	v1.GET("/servers/:id/history", api.GetServerHistory)
 	v1.GET("/servers/:id/players", api.GetServerPlayers)
 	v1.GET("/servers/:id/leaderboard", api.GetLeaderboard)
+	v1.GET("/servers/:id/uptime", api.GetUptime)
 	v1.GET("/news", api.GetNews)
+	v1.GET("/news.rss", api.GetNewsRSS)
 	v1.POST("/news/:id/view", api.TrackView)
 	v1.GET("/settings", api.GetSettings)
 	v1.GET("/users/:username", api.GetPublicProfile)
+	v1.GET("/leaderboard", api.GetGlobalLeaderboard)
+	v1.GET("/players/:name", api.GetPlayerProfile)
 
 	// ── Auth ─────────────────────────────────────────────────────────────────
 	authG := v1.Group("/auth")
@@ -94,6 +114,7 @@ func main() {
 	authG.POST("/login", api.Login)
 	authG.GET("/steam", api.SteamInit)
 	authG.GET("/steam/callback", api.SteamCallback)
+	authG.POST("/reset-password", api.ResetPassword)
 
 	// ── JWT-protected write routes ────────────────────────────────────────────
 	protected := v1.Group("", api.JWTMiddleware)
@@ -119,6 +140,13 @@ func main() {
 	admin.DELETE("/news/:id", api.DeleteNews)
 	admin.GET("/settings", api.GetAdminSettings)
 	admin.PUT("/settings", api.UpdateSettings)
+	admin.GET("/alerts/:serverID", api.GetAlertConfig)
+	admin.PUT("/alerts/:serverID", api.UpdateAlertConfig)
+	admin.POST("/users/:id/reset-token", api.GenerateResetToken)
+	admin.GET("/audit", api.GetAuditLog)
+	admin.GET("/discord/:serverID", api.GetDiscordConfig)
+	admin.PUT("/discord/:serverID", api.UpdateDiscordConfig)
+	admin.POST("/discord/:serverID/test", api.SendDiscordTest)
 
 	port := env("PORT", "8080")
 	log.Printf("Starting server on :%s", port)

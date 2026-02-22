@@ -1,4 +1,4 @@
-import type { Server, ServerPlayer, PlayerHistory, LeaderboardEntry, Stats, AuthResponse, User, NewsItem, AdminServer } from "@/types/server";
+import type { Server, ServerPlayer, PlayerHistory, LeaderboardEntry, Stats, AuthResponse, User, NewsItem, AdminServer, UptimeData, GlobalLeaderboardEntry, PlayerProfile, AuditPage, AlertConfig, DiscordConfig } from "@/types/server";
 
 export interface NewsPage {
   items: NewsItem[];
@@ -149,4 +149,45 @@ export const api = {
     fetchJSON<void>(`/api/v1/admin/news/${id}`, { method: "DELETE" }),
   trackView: (id: number): Promise<void> =>
     fetchJSON<void>(`/api/v1/news/${id}/view`, { method: "POST" }),
+
+  // Uptime
+  getUptime: (serverID: number) =>
+    fetchJSON<UptimeData>(`/api/v1/servers/${serverID}/uptime`),
+
+  // Global leaderboard
+  getGlobalLeaderboard: () =>
+    fetchJSON<GlobalLeaderboardEntry[]>("/api/v1/leaderboard"),
+
+  // Player profile
+  getPlayerProfile: (name: string) =>
+    fetchJSON<PlayerProfile>(`/api/v1/players/${encodeURIComponent(name)}`),
+
+  // Alerts config (admin)
+  getAlertConfig: (serverID: number) =>
+    fetchJSON<AlertConfig>(`/api/v1/admin/alerts/${serverID}`),
+  updateAlertConfig: (serverID: number, data: { enabled: boolean; tg_chat_id: string; offline_timeout: number }) =>
+    fetchJSON<AlertConfig>(`/api/v1/admin/alerts/${serverID}`, { method: "PUT", body: JSON.stringify(data) }),
+
+  // Password reset (admin)
+  generateResetToken: (userID: number) =>
+    fetchJSON<{ link: string; expires_at: string }>(`/api/v1/admin/users/${userID}/reset-token`, { method: "POST" }),
+  resetPassword: (token: string, password: string): Promise<void> =>
+    fetchJSON<void>("/api/v1/auth/reset-password", { method: "POST", body: JSON.stringify({ token, password }) }),
+
+  // Audit log (admin)
+  getAuditLog: (params?: { page?: number; entity_type?: string }) => {
+    const p = new URLSearchParams();
+    if (params?.page && params.page > 1) p.set("page", String(params.page));
+    if (params?.entity_type) p.set("entity_type", params.entity_type);
+    const qs = p.toString() ? `?${p.toString()}` : "";
+    return fetchJSON<AuditPage>(`/api/v1/admin/audit${qs}`);
+  },
+
+  // Discord integration (admin)
+  getDiscordConfig: (serverID: number) =>
+    fetchJSON<DiscordConfig>(`/api/v1/admin/discord/${serverID}`),
+  updateDiscordConfig: (serverID: number, data: { enabled: boolean; webhook_url: string; update_interval: number }) =>
+    fetchJSON<DiscordConfig>(`/api/v1/admin/discord/${serverID}`, { method: "PUT", body: JSON.stringify(data) }),
+  testDiscordConfig: (serverID: number): Promise<{ ok: boolean; message_id: string }> =>
+    fetchJSON(`/api/v1/admin/discord/${serverID}/test`, { method: "POST" }),
 };
