@@ -17,6 +17,8 @@ export interface AlertConfig {
   offline_timeout: number;
   tg_chat_id: string;
   enabled: boolean;
+  notify_online: boolean;
+  email_to: string;
 }
 
 export type GameType =
@@ -79,7 +81,19 @@ export interface PlayerHistory {
   id: number;
   server_id: number;
   count: number;
+  ping_ms?: number;
   timestamp: string;
+}
+
+export interface UserSession {
+  id: number;
+  user_id: number;
+  jti: string;
+  user_agent: string;
+  ip: string;
+  created_at: string;
+  last_used_at: string;
+  expires_at: string;
 }
 
 export interface LeaderboardEntry {

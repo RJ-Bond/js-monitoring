@@ -26,6 +26,7 @@ export function SiteSettingsProvider({ children }: { children: React.ReactNode }
     logo_data: "",
     steam_enabled: false,
     app_url: "",
+    registration_enabled: true,
   });
 
   const load = useCallback(async () => {

@@ -14,6 +14,7 @@ import (
 
 	"github.com/RJ-Bond/js-monitoring/internal/database"
 	"github.com/RJ-Bond/js-monitoring/internal/models"
+	"github.com/RJ-Bond/js-monitoring/internal/notify"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -199,15 +200,20 @@ func (p *Poller) processResults() {
 				ServerID:  res.serverID,
 				Count:     res.status.PlayersNow,
 				IsOnline:  res.status.OnlineStatus,
+				PingMS:    res.status.PingMS,
 				Timestamp: time.Now(),
 			})
 			p.historyMu.Unlock()
 
-			// Отслеживать Telegram-алерты при переходе online→offline
+			// Отслеживать алерты при переходах online↔offline
 			wasOnline, seen := p.prevOnline[res.serverID]
 			isOnline := res.status.OnlineStatus
-			if seen && wasOnline && !isOnline {
-				go p.sendOfflineAlert(res.serverID)
+			if seen {
+				if wasOnline && !isOnline {
+					go p.sendOfflineAlert(res.serverID)
+				} else if !wasOnline && isOnline {
+					go p.sendOnlineAlert(res.serverID)
+				}
 			}
 			p.prevOnline[res.serverID] = isOnline
 
@@ -326,17 +332,10 @@ func (p *Poller) flushHistoryBuffer() {
 	}
 }
 
-// sendOfflineAlert отправляет Telegram-уведомление если для сервера включены алерты
+// sendOfflineAlert отправляет уведомление о переходе offline
 func (p *Poller) sendOfflineAlert(serverID uint) {
 	var cfg models.AlertsConfig
 	if err := database.DB.Where("server_id = ? AND enabled = ?", serverID, true).First(&cfg).Error; err != nil {
-		return
-	}
-	if cfg.TgChatID == "" {
-		return
-	}
-	token := os.Getenv("TELEGRAM_BOT_TOKEN")
-	if token == "" {
 		return
 	}
 	var srv models.Server
@@ -344,17 +343,65 @@ func (p *Poller) sendOfflineAlert(serverID uint) {
 		return
 	}
 	text := fmt.Sprintf("🔴 <b>%s</b> — сервер недоступен", srv.Title)
-	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", token)
-	resp, err := http.PostForm(apiURL, url.Values{ //nolint:noctx
-		"chat_id":    {cfg.TgChatID},
-		"text":       {text},
-		"parse_mode": {"HTML"},
-	})
-	if err != nil {
-		log.Printf("[Poller] telegram alert error for server %d: %v", serverID, err)
+	p.sendAlert(&cfg, "🔴 Сервер офлайн — "+srv.Title, text)
+}
+
+// sendOnlineAlert отправляет уведомление о восстановлении сервера
+func (p *Poller) sendOnlineAlert(serverID uint) {
+	var cfg models.AlertsConfig
+	if err := database.DB.Where("server_id = ? AND enabled = ? AND notify_online = ?", serverID, true, true).First(&cfg).Error; err != nil {
 		return
 	}
-	defer resp.Body.Close()
+	var srv models.Server
+	if err := database.DB.First(&srv, serverID).Error; err != nil {
+		return
+	}
+	text := fmt.Sprintf("🟢 <b>%s</b> — сервер снова доступен", srv.Title)
+	p.sendAlert(&cfg, "🟢 Сервер онлайн — "+srv.Title, text)
+}
+
+// sendAlert отправляет Telegram и/или email уведомление
+func (p *Poller) sendAlert(cfg *models.AlertsConfig, emailSubject, tgText string) {
+	// Telegram
+	if cfg.TgChatID != "" {
+		token := os.Getenv("TELEGRAM_BOT_TOKEN")
+		if token != "" {
+			apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", token)
+			resp, err := http.PostForm(apiURL, url.Values{ //nolint:noctx
+				"chat_id":    {cfg.TgChatID},
+				"text":       {tgText},
+				"parse_mode": {"HTML"},
+			})
+			if err != nil {
+				log.Printf("[Poller] telegram alert error: %v", err)
+			} else {
+				resp.Body.Close()
+			}
+		}
+	}
+	// Email
+	if cfg.EmailTo != "" {
+		if err := notify.SendEmail(cfg.EmailTo, emailSubject, stripHTML(tgText)); err != nil {
+			log.Printf("[Poller] email alert error: %v", err)
+		}
+	}
+}
+
+// stripHTML удаляет HTML-теги из строки для email-уведомлений
+func stripHTML(s string) string {
+	var result strings.Builder
+	inTag := false
+	for _, r := range s {
+		switch {
+		case r == '<':
+			inTag = true
+		case r == '>':
+			inTag = false
+		case !inTag:
+			result.WriteRune(r)
+		}
+	}
+	return result.String()
 }
 
 // discordWorker периодически обновляет Discord-виджеты для всех серверов с включённой интеграцией

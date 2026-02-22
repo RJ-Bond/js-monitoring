@@ -7,7 +7,7 @@ import {
   Newspaper, Server, BarChart2, Users,
   Search, ChevronUp, ChevronDown, ChevronsUpDown,
   Trash2, AlertTriangle, Settings, Eye, EyeOff, ExternalLink, Tag,
-  Bell, KeyRound, ClipboardList, Copy, X, MessageSquare,
+  Bell, KeyRound, ClipboardList, Copy, X, MessageSquare, Download, CheckSquare, Square,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -19,6 +19,7 @@ import { APP_VERSION } from "@/lib/version";
 import SiteBrand from "@/components/SiteBrand";
 import AlertConfigModal from "@/components/AlertConfigModal";
 import DiscordConfigModal from "@/components/DiscordConfigModal";
+import BulkActionBar from "@/components/BulkActionBar";
 import type { User, AdminServer, AuditLogEntry } from "@/types/server";
 import { GAME_META } from "@/lib/utils";
 
@@ -109,11 +110,13 @@ interface SettingsTabProps {
   steamClear: boolean;
   saving: boolean;
   saved: boolean;
+  registrationEnabled: boolean;
   onNameChange: (v: string) => void;
   onLogoChange: (v: string) => void;
   onAppUrlChange: (v: string) => void;
   onSteamNewKeyChange: (v: string) => void;
   onSteamClear: () => void;
+  onRegistrationEnabledChange: (v: boolean) => void;
   onSave: () => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   t: any;
@@ -140,7 +143,8 @@ function resizeLogo(file: File, maxSize = 64): Promise<string> {
 
 function SettingsTab({
   name, logo, appUrl, steamKeySet, steamKeyHint, steamKeySource, steamNewKey, steamClear,
-  saving, saved, onNameChange, onLogoChange, onAppUrlChange, onSteamNewKeyChange, onSteamClear, onSave, t,
+  saving, saved, registrationEnabled, onNameChange, onLogoChange, onAppUrlChange,
+  onSteamNewKeyChange, onSteamClear, onRegistrationEnabledChange, onSave, t,
 }: SettingsTabProps) {
   const [showKey, setShowKey] = useState(false);
   const inputCls = "bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-neon-green/50 transition-all placeholder:text-muted-foreground w-full";
@@ -319,6 +323,19 @@ function SettingsTab({
         </div>
       </div>
 
+      {/* Registration control */}
+      <div className="glass-card rounded-2xl p-5 space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t.adminSettingsRegistration}</h2>
+        <button
+          type="button"
+          onClick={() => onRegistrationEnabledChange(!registrationEnabled)}
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${registrationEnabled ? "bg-neon-green" : "bg-white/20"}`}
+        >
+          <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${registrationEnabled ? "translate-x-6" : "translate-x-1"}`} />
+        </button>
+        <p className="text-xs text-muted-foreground">{t.adminSettingsRegistrationHint}</p>
+      </div>
+
       {/* Save */}
       <button
         onClick={onSave}
@@ -362,8 +379,13 @@ export default function AdminPage() {
   const [steamKeySource, setSteamKeySource] = useState("db");
   const [steamNewKey, setSteamNewKey] = useState("");
   const [steamClear, setSteamClear] = useState(false);
+  const [settingsRegistrationEnabled, setSettingsRegistrationEnabled] = useState(true);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSaved, setSettingsSaved] = useState(false);
+
+  // Bulk selections
+  const [selectedUserIDs, setSelectedUserIDs] = useState<Set<number>>(new Set());
+  const [selectedServerIDs, setSelectedServerIDs] = useState<Set<number>>(new Set());
 
   // Audit log state
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
@@ -412,6 +434,7 @@ export default function AdminPage() {
         setSteamKeyHint(s.steam_key_hint);
         setSteamKeySource(s.steam_key_source);
         setSettingsAppUrl(s.app_url ?? "");
+        setSettingsRegistrationEnabled(s.registration_enabled ?? true);
         setSteamNewKey("");
         setSteamClear(false);
       }).catch(() => {});
@@ -480,6 +503,26 @@ export default function AdminPage() {
     } finally {
       setAuditLoading(false);
     }
+  };
+
+  const handleBulkUsers = async (action: string) => {
+    const ids = Array.from(selectedUserIDs);
+    if (action === "delete" && !confirm(t.bulkConfirmDelete(ids.length))) return;
+    try {
+      await api.bulkUsers(action, ids);
+      setSelectedUserIDs(new Set());
+      await fetchUsers();
+    } catch { setError("Bulk action failed"); }
+  };
+
+  const handleBulkServers = async (action: string) => {
+    const ids = Array.from(selectedServerIDs);
+    if (!confirm(t.bulkConfirmDelete(ids.length))) return;
+    try {
+      await api.bulkServers(action, ids);
+      setSelectedServerIDs(new Set());
+      await fetchServers();
+    } catch { setError("Bulk action failed"); }
   };
 
   const handleGenerateResetToken = async (userId: number) => {
@@ -663,6 +706,22 @@ export default function AdminPage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-white/5 text-xs text-muted-foreground uppercase tracking-wide">
+                        <th className="px-3 py-3 w-8">
+                          <button
+                            onClick={() => {
+                              if (selectedUserIDs.size === filteredUsers.filter(u => u.id !== user?.id).length) {
+                                setSelectedUserIDs(new Set());
+                              } else {
+                                setSelectedUserIDs(new Set(filteredUsers.filter(u => u.id !== user?.id).map(u => u.id)));
+                              }
+                            }}
+                            className="text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            {selectedUserIDs.size > 0
+                              ? <CheckSquare className="w-4 h-4 text-neon-blue" />
+                              : <Square className="w-4 h-4" />}
+                          </button>
+                        </th>
                         <th className="text-left px-5 py-3">
                           <button
                             onClick={() => toggleSort("username")}
@@ -708,8 +767,24 @@ export default function AdminPage() {
                       {filteredUsers.map((u) => (
                         <tr
                           key={u.id}
-                          className={`border-b border-white/5 last:border-0 transition-colors ${u.banned ? "bg-red-400/5" : "hover:bg-white/[0.02]"}`}
+                          className={`border-b border-white/5 last:border-0 transition-colors ${u.banned ? "bg-red-400/5" : "hover:bg-white/[0.02]"} ${selectedUserIDs.has(u.id) ? "bg-neon-blue/5" : ""}`}
                         >
+                          <td className="px-3 py-3">
+                            {u.id !== user?.id && (
+                              <button
+                                onClick={() => setSelectedUserIDs(prev => {
+                                  const next = new Set(prev);
+                                  if (next.has(u.id)) next.delete(u.id); else next.add(u.id);
+                                  return next;
+                                })}
+                                className="text-muted-foreground hover:text-neon-blue transition-colors"
+                              >
+                                {selectedUserIDs.has(u.id)
+                                  ? <CheckSquare className="w-4 h-4 text-neon-blue" />
+                                  : <Square className="w-4 h-4" />}
+                              </button>
+                            )}
+                          </td>
                           <td className="px-5 py-3">
                             <div className="flex items-center gap-2">
                               <UserAvatar username={u.username} role={u.role} />
@@ -806,12 +881,42 @@ export default function AdminPage() {
                 </div>
               </div>
             )}
+            <BulkActionBar
+              selectedCount={selectedUserIDs.size}
+              actions={[
+                { label: t.bulkBan,   value: "ban",    danger: true },
+                { label: t.bulkUnban, value: "unban" },
+                { label: t.bulkDelete, value: "delete", danger: true },
+              ]}
+              onAction={handleBulkUsers}
+              onClear={() => setSelectedUserIDs(new Set())}
+            />
           </>
         )}
 
         {/* ── SERVERS TAB ── */}
         {tab === "servers" && (
           <>
+            {/* Export buttons */}
+            <div className="flex items-center gap-2 mb-4 justify-end">
+              <a
+                href={api.exportServersUrl()}
+                download
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border border-white/10 hover:border-white/20 text-muted-foreground hover:text-foreground transition-all"
+              >
+                <Download className="w-3.5 h-3.5" />
+                {t.exportServers}
+              </a>
+              <a
+                href={api.exportPlayersUrl()}
+                download
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border border-white/10 hover:border-white/20 text-muted-foreground hover:text-foreground transition-all"
+              >
+                <Download className="w-3.5 h-3.5" />
+                {t.exportPlayers}
+              </a>
+            </div>
+
             {loadingServers ? (
               <div className="glass-card rounded-2xl p-8 flex items-center justify-center gap-2 text-muted-foreground">
                 <RefreshCw className="w-5 h-5 animate-spin" />
@@ -824,6 +929,22 @@ export default function AdminPage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-white/5 text-xs text-muted-foreground uppercase tracking-wide">
+                        <th className="px-3 py-3 w-8">
+                          <button
+                            onClick={() => {
+                              if (selectedServerIDs.size === servers.length) {
+                                setSelectedServerIDs(new Set());
+                              } else {
+                                setSelectedServerIDs(new Set(servers.map(s => s.id)));
+                              }
+                            }}
+                            className="text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            {selectedServerIDs.size > 0
+                              ? <CheckSquare className="w-4 h-4 text-neon-blue" />
+                              : <Square className="w-4 h-4" />}
+                          </button>
+                        </th>
                         <th className="text-left px-5 py-3">{t.adminUsername}</th>
                         <th className="text-left px-5 py-3 hidden sm:table-cell">{t.adminServerGame}</th>
                         <th className="text-left px-5 py-3">{t.adminServerIP}</th>
@@ -834,7 +955,21 @@ export default function AdminPage() {
                     </thead>
                     <tbody>
                       {servers.map((s) => (
-                        <tr key={s.id} className="border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors">
+                        <tr key={s.id} className={`border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors ${selectedServerIDs.has(s.id) ? "bg-neon-blue/5" : ""}`}>
+                          <td className="px-3 py-3">
+                            <button
+                              onClick={() => setSelectedServerIDs(prev => {
+                                const next = new Set(prev);
+                                if (next.has(s.id)) next.delete(s.id); else next.add(s.id);
+                                return next;
+                              })}
+                              className="text-muted-foreground hover:text-neon-blue transition-colors"
+                            >
+                              {selectedServerIDs.has(s.id)
+                                ? <CheckSquare className="w-4 h-4 text-neon-blue" />
+                                : <Square className="w-4 h-4" />}
+                            </button>
+                          </td>
                           <td className="px-5 py-3">
                             <span className="font-medium truncate max-w-[160px] block">
                               {s.title || s.status?.server_name || s.ip}
@@ -899,6 +1034,12 @@ export default function AdminPage() {
                 </div>
               </div>
             )}
+            <BulkActionBar
+              selectedCount={selectedServerIDs.size}
+              actions={[{ label: t.bulkDelete, value: "delete", danger: true }]}
+              onAction={handleBulkServers}
+              onClear={() => setSelectedServerIDs(new Set())}
+            />
           </>
         )}
 
@@ -1030,11 +1171,13 @@ export default function AdminPage() {
             steamClear={steamClear}
             saving={settingsSaving}
             saved={settingsSaved}
+            registrationEnabled={settingsRegistrationEnabled}
             onNameChange={setSettingsName}
             onLogoChange={setSettingsLogo}
             onAppUrlChange={setSettingsAppUrl}
             onSteamNewKeyChange={(v) => { setSteamNewKey(v); if (v) setSteamClear(false); }}
             onSteamClear={() => { setSteamClear((prev) => { if (prev) setSteamNewKey(""); return !prev; }); }}
+            onRegistrationEnabledChange={setSettingsRegistrationEnabled}
             onSave={async () => {
               setSettingsSaving(true);
               setSettingsSaved(false);
@@ -1042,11 +1185,12 @@ export default function AdminPage() {
                 let steamApiKey = "";
                 if (steamClear) steamApiKey = "__CLEAR__";
                 else if (steamNewKey) steamApiKey = steamNewKey;
-                await api.updateSettings({
+                await api.updateSettingsFull({
                   site_name: settingsName,
                   logo_data: settingsLogo,
                   app_url: settingsAppUrl,
                   steam_api_key: steamApiKey,
+                  registration_enabled: settingsRegistrationEnabled,
                 });
                 await refreshSettings();
                 // Refresh Steam key info

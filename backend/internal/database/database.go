@@ -62,5 +62,6 @@ func AutoMigrate() error {
 		&models.PasswordReset{},
 		&models.AuditLog{},
 		&models.DiscordConfig{},
+		&models.UserSession{},
 	)
 }

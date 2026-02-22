@@ -9,17 +9,20 @@ import (
 
 // User — пользователь панели управления
 type User struct {
-	ID           uint      `gorm:"primaryKey;autoIncrement"              json:"id"`
-	Username     string    `gorm:"type:varchar(50);uniqueIndex;not null" json:"username"`
-	Email        string    `gorm:"type:varchar(255);uniqueIndex"         json:"email,omitempty"`
-	PasswordHash string    `gorm:"type:varchar(255)"                     json:"-"`
-	SteamID      string    `gorm:"type:varchar(30);uniqueIndex"          json:"steam_id,omitempty"`
-	Avatar       string    `gorm:"type:mediumtext"                       json:"avatar,omitempty"`
-	APIToken     string    `gorm:"type:varchar(64);uniqueIndex"          json:"api_token,omitempty"`
-	Role         string    `gorm:"type:varchar(20);default:'user'"       json:"role"`
-	Banned       bool      `gorm:"default:false"                         json:"banned"`
-	CreatedAt    time.Time `                                             json:"created_at"`
-	UpdatedAt    time.Time `                                             json:"updated_at"`
+	ID                uint       `gorm:"primaryKey;autoIncrement"              json:"id"`
+	Username          string     `gorm:"type:varchar(50);uniqueIndex;not null" json:"username"`
+	Email             string     `gorm:"type:varchar(255);uniqueIndex"         json:"email,omitempty"`
+	PasswordHash      string     `gorm:"type:varchar(255)"                     json:"-"`
+	SteamID           string     `gorm:"type:varchar(30);uniqueIndex"          json:"steam_id,omitempty"`
+	Avatar            string     `gorm:"type:mediumtext"                       json:"avatar,omitempty"`
+	APIToken          string     `gorm:"type:varchar(64);uniqueIndex"          json:"api_token,omitempty"`
+	Role              string     `gorm:"type:varchar(20);default:'user'"       json:"role"`
+	Banned            bool       `gorm:"default:false"                         json:"banned"`
+	TOTPSecret        string     `gorm:"type:varchar(100)"                     json:"-"`
+	TOTPEnabled       bool       `gorm:"default:false"                         json:"totp_enabled"`
+	SessionsClearedAt *time.Time `                                             json:"-"`
+	CreatedAt         time.Time  `                                             json:"created_at"`
+	UpdatedAt         time.Time  `                                             json:"updated_at"`
 }
 
 // Server — основная запись игрового сервера
@@ -87,6 +90,7 @@ type PlayerHistory struct {
 	ServerID  uint      `gorm:"index;not null"           json:"server_id"`
 	Count     int       `gorm:"not null"                 json:"count"`
 	IsOnline  bool      `gorm:"default:true"             json:"is_online"`
+	PingMS    int       `gorm:"default:0"                json:"ping_ms"`
 	Timestamp time.Time `gorm:"index;not null"           json:"timestamp"`
 }
 
@@ -102,11 +106,12 @@ type PlayerSession struct {
 
 // SiteSettings — настройки сайта (одна строка, ID=1)
 type SiteSettings struct {
-	ID          uint   `gorm:"primaryKey"                             json:"id"`
-	SiteName    string `gorm:"type:varchar(100);not null;default:'JSMonitor'" json:"site_name"`
-	LogoData    string `gorm:"type:mediumtext"                        json:"logo_data"`
-	SteamAPIKey string `gorm:"type:varchar(255)"                      json:"-"` // никогда не раскрывается через API
-	AppURL      string `gorm:"type:varchar(255)"                      json:"app_url"`
+	ID                  uint   `gorm:"primaryKey"                             json:"id"`
+	SiteName            string `gorm:"type:varchar(100);not null;default:'JSMonitor'" json:"site_name"`
+	LogoData            string `gorm:"type:mediumtext"                        json:"logo_data"`
+	SteamAPIKey         string `gorm:"type:varchar(255)"                      json:"-"` // никогда не раскрывается через API
+	AppURL              string `gorm:"type:varchar(255)"                      json:"app_url"`
+	RegistrationEnabled bool   `gorm:"default:true"                           json:"registration_enabled"`
 }
 
 // PasswordReset — токен для сброса пароля (генерируется администратором)
@@ -141,7 +146,7 @@ type DiscordConfig struct {
 	UpdateInterval int    `gorm:"default:5"                json:"update_interval"` // минуты, 1-60
 }
 
-// AlertsConfig — настройки Telegram-уведомлений
+// AlertsConfig — настройки уведомлений (Telegram + Email)
 type AlertsConfig struct {
 	ID             uint   `gorm:"primaryKey;autoIncrement" json:"id"`
 	ServerID       uint   `gorm:"uniqueIndex;not null"     json:"server_id"`
@@ -149,4 +154,18 @@ type AlertsConfig struct {
 	OfflineTimeout int    `gorm:"default:5"                json:"offline_timeout"` // минуты
 	TgChatID       string `gorm:"type:varchar(50)"         json:"tg_chat_id"`
 	Enabled        bool   `gorm:"default:true"             json:"enabled"`
+	NotifyOnline   bool   `gorm:"default:false"            json:"notify_online"`
+	EmailTo        string `gorm:"type:varchar(200)"        json:"email_to"`
+}
+
+// UserSession — активная сессия пользователя (токен)
+type UserSession struct {
+	ID         uint      `gorm:"primaryKey;autoIncrement" json:"id"`
+	UserID     uint      `gorm:"index;not null"           json:"user_id"`
+	JTI        string    `gorm:"type:varchar(36);uniqueIndex" json:"jti"`
+	UserAgent  string    `gorm:"type:varchar(500)"        json:"user_agent"`
+	IP         string    `gorm:"type:varchar(45)"         json:"ip"`
+	CreatedAt  time.Time `                                json:"created_at"`
+	LastUsedAt time.Time `                                json:"last_used_at"`
+	ExpiresAt  time.Time `                                json:"expires_at"`
 }

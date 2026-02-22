@@ -1,4 +1,4 @@
-import type { Server, ServerPlayer, PlayerHistory, LeaderboardEntry, Stats, AuthResponse, User, NewsItem, AdminServer, UptimeData, GlobalLeaderboardEntry, PlayerProfile, AuditPage, AlertConfig, DiscordConfig } from "@/types/server";
+import type { Server, ServerPlayer, PlayerHistory, LeaderboardEntry, Stats, AuthResponse, User, NewsItem, AdminServer, UptimeData, GlobalLeaderboardEntry, PlayerProfile, AuditPage, AlertConfig, DiscordConfig, UserSession } from "@/types/server";
 
 export interface NewsPage {
   items: NewsItem[];
@@ -43,6 +43,7 @@ export interface SiteSettings {
   logo_data: string;
   steam_enabled: boolean;
   app_url: string;
+  registration_enabled: boolean;
 }
 
 export interface AdminSiteSettings {
@@ -53,6 +54,7 @@ export interface AdminSiteSettings {
   steam_key_set: boolean;
   steam_key_hint: string;
   steam_key_source: "db" | "env";
+  registration_enabled: boolean;
 }
 
 export interface PublicProfile {
@@ -165,7 +167,7 @@ export const api = {
   // Alerts config (admin)
   getAlertConfig: (serverID: number) =>
     fetchJSON<AlertConfig>(`/api/v1/admin/alerts/${serverID}`),
-  updateAlertConfig: (serverID: number, data: { enabled: boolean; tg_chat_id: string; offline_timeout: number }) =>
+  updateAlertConfig: (serverID: number, data: { enabled: boolean; tg_chat_id: string; offline_timeout: number; notify_online?: boolean; email_to?: string }) =>
     fetchJSON<AlertConfig>(`/api/v1/admin/alerts/${serverID}`, { method: "PUT", body: JSON.stringify(data) }),
 
   // Password reset (admin)
@@ -190,4 +192,35 @@ export const api = {
     fetchJSON<DiscordConfig>(`/api/v1/admin/discord/${serverID}`, { method: "PUT", body: JSON.stringify(data) }),
   testDiscordConfig: (serverID: number): Promise<{ ok: boolean; message_id: string }> =>
     fetchJSON(`/api/v1/admin/discord/${serverID}/test`, { method: "POST" }),
+
+  // Sessions
+  getSessions: () => fetchJSON<UserSession[]>("/api/v1/profile/sessions"),
+  deleteSession: (id: number): Promise<void> =>
+    fetchJSON<void>(`/api/v1/profile/sessions/${id}`, { method: "DELETE" }),
+  deleteAllSessions: (): Promise<{ token: string }> =>
+    fetchJSON<{ token: string }>("/api/v1/profile/sessions", { method: "DELETE" }),
+
+  // 2FA / TOTP
+  generateTOTP: (): Promise<{ secret: string; qr_url: string; otp_url: string }> =>
+    fetchJSON("/api/v1/profile/totp"),
+  enableTOTP: (code: string): Promise<{ ok: boolean }> =>
+    fetchJSON("/api/v1/profile/totp/enable", { method: "POST", body: JSON.stringify({ code }) }),
+  disableTOTP: (code: string): Promise<{ ok: boolean }> =>
+    fetchJSON("/api/v1/profile/totp", { method: "DELETE", body: JSON.stringify({ code }) }),
+  verify2FA: (temp_token: string, code: string): Promise<{ token: string; user: User }> =>
+    fetchJSON("/api/v1/auth/2fa", { method: "POST", body: JSON.stringify({ temp_token, code }) }),
+
+  // CSV export (admin)
+  exportServersUrl: () => `${BASE}/api/v1/admin/export/servers.csv`,
+  exportPlayersUrl: () => `${BASE}/api/v1/admin/export/players.csv`,
+
+  // Bulk operations (admin)
+  bulkUsers: (action: string, ids: number[]): Promise<{ ok: boolean; count: number }> =>
+    fetchJSON("/api/v1/admin/users/bulk", { method: "POST", body: JSON.stringify({ action, ids }) }),
+  bulkServers: (action: string, ids: number[]): Promise<{ ok: boolean; count: number }> =>
+    fetchJSON("/api/v1/admin/servers/bulk", { method: "POST", body: JSON.stringify({ action, ids }) }),
+
+  // Update settings with registration_enabled
+  updateSettingsFull: (data: { site_name?: string; logo_data?: string; app_url?: string; steam_api_key?: string; registration_enabled?: boolean }) =>
+    fetchJSON<SiteSettings>("/api/v1/admin/settings", { method: "PUT", body: JSON.stringify(data) }),
 };

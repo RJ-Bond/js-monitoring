@@ -19,6 +19,8 @@ export default function AlertConfigModal({ serverID, serverName, onClose }: Aler
   const [enabled, setEnabled] = useState(false);
   const [chatID, setChatID] = useState("");
   const [timeout, setTimeout_] = useState(5);
+  const [notifyOnline, setNotifyOnline] = useState(false);
+  const [emailTo, setEmailTo] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -27,6 +29,8 @@ export default function AlertConfigModal({ serverID, serverName, onClose }: Aler
       setEnabled(data.enabled);
       setChatID(data.tg_chat_id ?? "");
       setTimeout_(data.offline_timeout ?? 5);
+      setNotifyOnline(data.notify_online ?? false);
+      setEmailTo(data.email_to ?? "");
     });
   }, [serverID]);
 
@@ -37,6 +41,8 @@ export default function AlertConfigModal({ serverID, serverName, onClose }: Aler
         enabled,
         tg_chat_id: chatID,
         offline_timeout: timeout,
+        notify_online: notifyOnline,
+        email_to: emailTo,
       });
       setCfg(updated);
       toast(t.alertsSaved);
@@ -101,6 +107,28 @@ export default function AlertConfigModal({ serverID, serverName, onClose }: Aler
                 onChange={(e) => setTimeout_(Number(e.target.value))}
                 className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-neon-blue/50 transition-colors w-24"
               />
+            </div>
+
+            <label className="flex items-center gap-3 cursor-pointer">
+              <div
+                onClick={() => setNotifyOnline((v) => !v)}
+                className={`w-10 h-5 rounded-full transition-colors cursor-pointer flex-shrink-0 ${notifyOnline ? "bg-neon-green" : "bg-white/20"}`}
+              >
+                <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${notifyOnline ? "translate-x-5" : "translate-x-0"}`} />
+              </div>
+              <span className="text-sm text-foreground">{t.alertsNotifyOnline}</span>
+            </label>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground">{t.alertsEmailTo}</label>
+              <input
+                type="email"
+                value={emailTo}
+                onChange={(e) => setEmailTo(e.target.value)}
+                placeholder="alerts@example.com"
+                className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-neon-blue/50 transition-colors"
+              />
+              <span className="text-xs text-muted-foreground">{t.alertsEmailToHint}</span>
             </div>
 
             <div className="flex gap-2 pt-1">

@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   Plus, RefreshCw, Zap, LogOut, User, Shield, Newspaper,
   CalendarDays, Menu, X, Download, ArrowUpRight, Clock, Pencil,
-  Eye, Search, Pin, Rss,
+  Eye, Search, Pin, Rss, GitCompare,
 } from "lucide-react";
 import { useServers, useDeleteServer } from "@/hooks/useServers";
 import { useServerWebSocket } from "@/hooks/useWebSocket";
@@ -75,6 +76,7 @@ function wasEdited(item: { created_at: string; updated_at: string }): boolean {
 
 export default function Home() {
   useServerWebSocket();
+  const router = useRouter();
   const { t, locale } = useLanguage();
   const { user, logout, isAuthenticated } = useAuth();
   const { siteName } = useSiteSettings();
@@ -85,6 +87,7 @@ export default function Home() {
 
   const [modalServer, setModalServer] = useState<Server | null | "new">(null);
   const [deleteTarget, setDeleteTarget] = useState<Server | null>(null);
+  const [compareIDs, setCompareIDs] = useState<Set<number>>(new Set());
   const [gameFilter, setGameFilter] = useState<GameType | "all">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "online" | "offline">("all");
   const [search, setSearch] = useState("");
@@ -651,21 +654,62 @@ export default function Home() {
             )}
           </div>
         ) : (
-          <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 transition-opacity duration-300 ${isRefetching ? "opacity-60" : "opacity-100"}`}>
-            {sorted.map((srv) => {
-              const canManage = user?.role === "admin" || user?.id === srv.owner_id;
-              return (
-                <ServerCard
-                  key={srv.id}
-                  server={srv}
-                  isFavorite={favorites.includes(srv.id)}
-                  onToggleFavorite={() => toggleFavorite(srv.id)}
-                  onEdit={canManage ? (s) => setModalServer(s) : undefined}
-                  onDelete={canManage ? () => setDeleteTarget(srv) : undefined}
-                />
-              );
-            })}
-          </div>
+          <>
+            <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 transition-opacity duration-300 ${isRefetching ? "opacity-60" : "opacity-100"}`}>
+              {sorted.map((srv) => {
+                const canManage = user?.role === "admin" || user?.id === srv.owner_id;
+                const inCompare = compareIDs.has(srv.id);
+                return (
+                  <div key={srv.id} className={`relative group ${inCompare ? "ring-2 ring-neon-blue/50 rounded-2xl" : ""}`}>
+                    <ServerCard
+                      server={srv}
+                      isFavorite={favorites.includes(srv.id)}
+                      onToggleFavorite={() => toggleFavorite(srv.id)}
+                      onEdit={canManage ? (s) => setModalServer(s) : undefined}
+                      onDelete={canManage ? () => setDeleteTarget(srv) : undefined}
+                    />
+                    <button
+                      onClick={() => setCompareIDs((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(srv.id)) next.delete(srv.id);
+                        else if (next.size < 4) next.add(srv.id);
+                        return next;
+                      })}
+                      title={t.compareAdd}
+                      className={`absolute top-3 right-3 p-1.5 rounded-lg border transition-all z-10 ${
+                        inCompare
+                          ? "bg-neon-blue/20 border-neon-blue/40 text-neon-blue"
+                          : "bg-black/40 border-white/10 text-muted-foreground hover:text-neon-blue hover:border-neon-blue/30 opacity-0 group-hover:opacity-100"
+                      }`}
+                    >
+                      <GitCompare className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            {compareIDs.size >= 2 && (
+              <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
+                <div className="glass-card rounded-2xl px-4 py-3 flex items-center gap-3 border border-neon-blue/20 shadow-lg shadow-black/40">
+                  <GitCompare className="w-4 h-4 text-neon-blue" />
+                  <span className="text-sm font-semibold text-neon-blue">{compareIDs.size} {t.compareSelectHint}</span>
+                  <button
+                    onClick={() => router.push(`/compare?ids=${Array.from(compareIDs).join(",")}`)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-neon-blue/20 text-neon-blue border border-neon-blue/30 hover:bg-neon-blue/30 transition-colors"
+                  >
+                    {t.compareOpenBtn}
+                  </button>
+                  <button
+                    onClick={() => setCompareIDs(new Set())}
+                    className="px-3 py-1.5 rounded-lg text-xs text-muted-foreground bg-white/5 hover:bg-white/10 transition-colors"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </main>
 

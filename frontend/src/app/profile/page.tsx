@@ -6,6 +6,7 @@ import {
   ArrowLeft, Camera, Shield, User2, Mail, CalendarDays, Key,
   Loader2, Check, Code2, Copy, RefreshCw, Trash2,
   Activity, Users, Server, Eye, EyeOff, ExternalLink, ChevronDown, ChevronUp,
+  Smartphone, Monitor, LogOut,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -17,6 +18,7 @@ import StatusIndicator from "@/components/StatusIndicator";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import SiteBrand from "@/components/SiteBrand";
 import type { Server as ServerType } from "@/types/server";
+import TOTPSetupModal from "@/components/TOTPSetupModal";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -104,12 +106,25 @@ export default function ProfilePage() {
   const [deleting, setDeleting]         = useState(false);
   const [deleteError, setDeleteError]   = useState("");
 
+  // 2FA
+  const [showTotpSetup, setShowTotpSetup]   = useState(false);
+  const [totpEnabled, setTotpEnabled]       = useState(false);
+  const [disableTotpCode, setDisableTotpCode] = useState("");
+  const [disablingTotp, setDisablingTotp]   = useState(false);
+  const [disableTotpMode, setDisableTotpMode] = useState(false);
+
+  // Sessions
+  const [sessions, setSessions]             = useState<import("@/types/server").UserSession[]>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [sessionsExpanded, setSessionsExpanded] = useState(false);
+
   useEffect(() => {
     if (!isLoading && !isAuthenticated) router.replace("/login");
     if (user) {
       setAvatarSrc(user.avatar ?? "");
       setUsername(user.username ?? "");
       setEmail(user.email ?? "");
+      setTotpEnabled((user as { totp_enabled?: boolean }).totp_enabled ?? false);
     }
   }, [user, isLoading, isAuthenticated, router]);
 
@@ -261,6 +276,45 @@ export default function ProfilePage() {
     } finally {
       setDeleting(false);
     }
+  };
+
+  // ── 2FA handlers ─────────────────────────────────────────────────────────
+
+  const handleDisableTotp = async () => {
+    setDisablingTotp(true);
+    try {
+      await api.disableTOTP(disableTotpCode);
+      setTotpEnabled(false);
+      setDisableTotpMode(false);
+      setDisableTotpCode("");
+      toast(t.twoFaDisabled2);
+    } catch {
+      toast(t.twoFaInvalidCode);
+    } finally { setDisablingTotp(false); }
+  };
+
+  // ── Sessions handlers ─────────────────────────────────────────────────────
+
+  const loadSessions = async () => {
+    setSessionsLoading(true);
+    try { setSessions(await api.getSessions()); } catch { /* ignore */ }
+    finally { setSessionsLoading(false); }
+  };
+
+  const handleLogoutSession = async (id: number) => {
+    await api.deleteSession(id);
+    setSessions((s) => s.filter((x) => x.id !== id));
+  };
+
+  const handleLogoutAll = async () => {
+    if (!confirm(t.sessionsLogoutAllConfirm)) return;
+    try {
+      const { token } = await api.deleteAllSessions();
+      localStorage.setItem("jsmon-token", token);
+      sessionStorage.setItem("jsmon-token", token);
+      setSessions([]);
+      toast(t.sessionsLogoutAll);
+    } catch { toast("Error"); }
   };
 
   // ── Stats ────────────────────────────────────────────────────────────────
@@ -583,6 +637,135 @@ export default function ProfilePage() {
               {tokenGenerating && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               {tokenGenerating ? "…" : t.profileApiTokenGenerate}
             </button>
+          )}
+        </div>
+
+        {/* ── Two-Factor Authentication ──────────────────────────────────── */}
+        <div className="glass-card rounded-2xl p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Smartphone className="w-4 h-4 text-neon-green" />
+            <h2 className="text-sm font-semibold uppercase tracking-wider">{t.twoFaTitle}</h2>
+            {totpEnabled && (
+              <span className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-neon-green/15 text-neon-green border border-neon-green/25">
+                <Check className="w-3 h-3" />{t.twoFaEnabled}
+              </span>
+            )}
+          </div>
+
+          {totpEnabled ? (
+            <div className="space-y-3">
+              {!disableTotpMode ? (
+                <button
+                  onClick={() => setDisableTotpMode(true)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold bg-red-500/15 text-red-400 border border-red-500/25 hover:bg-red-500/25 transition-all"
+                >
+                  {t.twoFaDisable}
+                </button>
+              ) : (
+                <div className="flex flex-col gap-3 max-w-sm">
+                  <p className="text-xs text-muted-foreground">{t.twoFaDisableConfirm}</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={disableTotpCode}
+                      onChange={(e) => setDisableTotpCode(e.target.value.replace(/\D/g, ""))}
+                      placeholder="000000"
+                      className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm font-mono tracking-[0.2em] text-center focus:outline-none focus:border-red-400/40 transition-colors"
+                    />
+                    <button
+                      onClick={handleDisableTotp}
+                      disabled={disablingTotp || disableTotpCode.length !== 6}
+                      className="px-4 py-2 rounded-xl text-sm font-semibold bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-all disabled:opacity-40 disabled:cursor-default"
+                    >
+                      {disablingTotp ? <Loader2 className="w-4 h-4 animate-spin" /> : t.twoFaConfirm}
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => { setDisableTotpMode(false); setDisableTotpCode(""); }}
+                    className="text-xs text-muted-foreground hover:text-foreground self-start transition-colors"
+                  >
+                    {t.twoFaCancel}
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowTotpSetup(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-neon-green/15 text-neon-green border border-neon-green/25 hover:bg-neon-green/25 transition-all"
+            >
+              <Smartphone className="w-4 h-4" />
+              {t.twoFaSetup}
+            </button>
+          )}
+        </div>
+
+        {showTotpSetup && (
+          <TOTPSetupModal
+            onClose={() => setShowTotpSetup(false)}
+            onEnabled={() => { setTotpEnabled(true); setShowTotpSetup(false); }}
+          />
+        )}
+
+        {/* ── Active Sessions ──────────────────────────────────────────────── */}
+        <div className="glass-card rounded-2xl overflow-hidden">
+          <button
+            onClick={() => {
+              const next = !sessionsExpanded;
+              setSessionsExpanded(next);
+              if (next && sessions.length === 0) loadSessions();
+            }}
+            className="w-full flex items-center justify-between px-5 py-4 hover:bg-white/3 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <Monitor className="w-4 h-4 text-neon-blue" />
+              <span className="text-sm font-semibold uppercase tracking-wider">{t.sessionsTitle}</span>
+            </div>
+            {sessionsExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+          </button>
+
+          {sessionsExpanded && (
+            <div className="border-t border-white/5">
+              {sessionsLoading ? (
+                <div className="flex justify-center py-6">
+                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : sessions.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-6 text-center px-5">{t.sessionsEmpty}</p>
+              ) : (
+                <div className="flex flex-col divide-y divide-white/5">
+                  {sessions.map((sess) => (
+                    <div key={sess.id} className="flex items-center gap-3 px-5 py-3">
+                      <Monitor className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium truncate text-foreground">{sess.user_agent || t.sessionsDevice}</p>
+                        <p className="text-[10px] text-muted-foreground tabular-nums">
+                          {sess.ip} · {new Date(sess.last_used_at).toLocaleString()}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleLogoutSession(sess.id)}
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-red-400 hover:bg-red-400/10 transition-colors flex-shrink-0"
+                        title={t.sessionsLogout}
+                      >
+                        <LogOut className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                  <div className="px-5 py-3">
+                    <button
+                      onClick={handleLogoutAll}
+                      className="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 transition-colors"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      {t.sessionsLogoutAll}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
 

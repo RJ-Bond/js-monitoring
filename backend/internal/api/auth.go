@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"golang.org/x/crypto/bcrypt"
 
@@ -43,15 +44,37 @@ func jwtSecret() []byte {
 }
 
 func makeToken(user *models.User) (string, error) {
+	return makeTokenWithExpiry(user, 7*24*time.Hour)
+}
+
+func makeTokenWithExpiry(user *models.User, duration time.Duration) (string, error) {
+	jti := uuid.New().String()
 	claims := jwt.MapClaims{
 		"sub":      user.ID,
 		"username": user.Username,
 		"role":     user.Role,
-		"exp":      time.Now().Add(7 * 24 * time.Hour).Unix(),
+		"jti":      jti,
+		"exp":      time.Now().Add(duration).Unix(),
 		"iat":      time.Now().Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(jwtSecret())
+	tokenStr, err := token.SignedString(jwtSecret())
+	if err != nil {
+		return "", err
+	}
+	return tokenStr, nil
+}
+
+// createSession сохраняет UserSession в БД (fire-and-forget goroutine).
+func createSession(userID uint, jti, userAgent, ip string, expiry time.Time) {
+	go database.DB.Create(&models.UserSession{
+		UserID:     userID,
+		JTI:        jti,
+		UserAgent:  userAgent,
+		IP:         ip,
+		LastUsedAt: time.Now(),
+		ExpiresAt:  expiry,
+	})
 }
 
 // SetupStatus GET /api/v1/setup/status — публичный, возвращает нужна ли начальная настройка
@@ -104,13 +127,22 @@ func Register(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "username and password are required"})
 	}
 
+	var count int64
+	database.DB.Model(&models.User{}).Count(&count)
+
+	// Первый пользователь всегда может зарегистрироваться (создаёт admin)
+	if count > 0 {
+		var settings models.SiteSettings
+		if database.DB.First(&settings, 1).Error == nil && !settings.RegistrationEnabled {
+			return c.JSON(http.StatusForbidden, echo.Map{"error": "registration is disabled"})
+		}
+	}
+
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "failed to hash password"})
 	}
 
-	var count int64
-	database.DB.Model(&models.User{}).Count(&count)
 	role := "user"
 	if count == 0 {
 		role = "admin"
@@ -126,9 +158,20 @@ func Register(c echo.Context) error {
 		return c.JSON(http.StatusConflict, echo.Map{"error": "username or email already exists"})
 	}
 
-	token, err := makeToken(&user)
+	expiry := time.Now().Add(7 * 24 * time.Hour)
+	token, err := makeTokenWithExpiry(&user, 7*24*time.Hour)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "token generation failed"})
+	}
+	// Извлекаем JTI из только что созданного токена для сессии
+	if parsed, _ := jwt.Parse(token, func(t *jwt.Token) (interface{}, error) {
+		return jwtSecret(), nil
+	}); parsed != nil {
+		if claims, ok := parsed.Claims.(jwt.MapClaims); ok {
+			if jti, _ := claims["jti"].(string); jti != "" {
+				createSession(user.ID, jti, c.Request().UserAgent(), c.RealIP(), expiry)
+			}
+		}
 	}
 	return c.JSON(http.StatusCreated, authResponse{Token: token, User: user})
 }
@@ -151,9 +194,32 @@ func Login(c echo.Context) error {
 		return c.JSON(http.StatusUnauthorized, echo.Map{"error": "invalid credentials"})
 	}
 
-	token, err := makeToken(&user)
+	// 2FA: если включена — вернуть temp_token с role=pending_2fa
+	if user.TOTPEnabled {
+		tempUser := models.User{ID: user.ID, Username: user.Username, Role: "pending_2fa"}
+		tempToken, err := makeTokenWithExpiry(&tempUser, 15*time.Minute)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, echo.Map{"error": "token generation failed"})
+		}
+		return c.JSON(http.StatusOK, echo.Map{
+			"requires_2fa": true,
+			"temp_token":   tempToken,
+		})
+	}
+
+	expiry := time.Now().Add(7 * 24 * time.Hour)
+	token, err := makeTokenWithExpiry(&user, 7*24*time.Hour)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "token generation failed"})
+	}
+	if parsed, _ := jwt.Parse(token, func(t *jwt.Token) (interface{}, error) {
+		return jwtSecret(), nil
+	}); parsed != nil {
+		if claims, ok := parsed.Claims.(jwt.MapClaims); ok {
+			if jti, _ := claims["jti"].(string); jti != "" {
+				createSession(user.ID, jti, c.Request().UserAgent(), c.RealIP(), expiry)
+			}
+		}
 	}
 	return c.JSON(http.StatusOK, authResponse{Token: token, User: user})
 }

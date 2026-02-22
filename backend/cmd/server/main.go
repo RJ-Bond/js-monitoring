@@ -115,6 +115,7 @@ func main() {
 	authG.GET("/steam", api.SteamInit)
 	authG.GET("/steam/callback", api.SteamCallback)
 	authG.POST("/reset-password", api.ResetPassword)
+	authG.POST("/2fa", api.Verify2FA)
 
 	// ── JWT-protected write routes ────────────────────────────────────────────
 	protected := v1.Group("", api.JWTMiddleware)
@@ -127,6 +128,12 @@ func main() {
 	protected.POST("/profile/token", api.GenerateAPIToken)
 	protected.DELETE("/profile", api.DeleteProfile)
 	protected.GET("/profile/servers", api.GetProfileServers)
+	protected.GET("/profile/sessions", api.GetSessions)
+	protected.DELETE("/profile/sessions/:id", api.DeleteSession)
+	protected.DELETE("/profile/sessions", api.DeleteAllSessions)
+	protected.GET("/profile/totp", api.GenerateTOTP)
+	protected.POST("/profile/totp/enable", api.EnableTOTP)
+	protected.DELETE("/profile/totp", api.DisableTOTP)
 
 	// ── Admin routes (JWT + admin role) ───────────────────────────────────────
 	admin := v1.Group("/admin", api.JWTMiddleware, api.AdminMiddleware)
@@ -147,6 +154,10 @@ func main() {
 	admin.GET("/discord/:serverID", api.GetDiscordConfig)
 	admin.PUT("/discord/:serverID", api.UpdateDiscordConfig)
 	admin.POST("/discord/:serverID/test", api.SendDiscordTest)
+	admin.GET("/export/servers.csv", api.ExportServers)
+	admin.GET("/export/players.csv", api.ExportPlayers)
+	admin.POST("/users/bulk", api.AdminBulkUsers)
+	admin.POST("/servers/bulk", api.AdminBulkServers)
 
 	port := env("PORT", "8080")
 	log.Printf("Starting server on :%s", port)

@@ -58,6 +58,8 @@ func UpdateAlertConfig(c echo.Context) error {
 		Enabled        bool   `json:"enabled"`
 		TgChatID       string `json:"tg_chat_id"`
 		OfflineTimeout int    `json:"offline_timeout"`
+		NotifyOnline   bool   `json:"notify_online"`
+		EmailTo        string `json:"email_to"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()})
@@ -66,12 +68,15 @@ func UpdateAlertConfig(c echo.Context) error {
 		req.OfflineTimeout = 5
 	}
 	req.TgChatID = strings.TrimSpace(req.TgChatID)
+	req.EmailTo = strings.TrimSpace(req.EmailTo)
 
 	var cfg models.AlertsConfig
 	database.DB.Where("server_id = ?", serverID).First(&cfg)
 	cfg.Enabled = req.Enabled
 	cfg.TgChatID = req.TgChatID
 	cfg.OfflineTimeout = req.OfflineTimeout
+	cfg.NotifyOnline = req.NotifyOnline
+	cfg.EmailTo = req.EmailTo
 
 	if cfg.ID == 0 {
 		// Парсим serverID

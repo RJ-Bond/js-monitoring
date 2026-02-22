@@ -26,11 +26,12 @@ func GetSettings(c echo.Context) error {
 	if err := database.DB.First(&s, 1).Error; err != nil {
 		envKey := os.Getenv("STEAM_API_KEY")
 		return c.JSON(http.StatusOK, echo.Map{
-			"id":            1,
-			"site_name":     "JSMonitor",
-			"logo_data":     "",
-			"steam_enabled": envKey != "",
-			"app_url":       "",
+			"id":                   1,
+			"site_name":            "JSMonitor",
+			"logo_data":            "",
+			"steam_enabled":        envKey != "",
+			"app_url":              "",
+			"registration_enabled": true,
 		})
 	}
 	effectiveKey := s.SteamAPIKey
@@ -38,11 +39,12 @@ func GetSettings(c echo.Context) error {
 		effectiveKey = os.Getenv("STEAM_API_KEY")
 	}
 	return c.JSON(http.StatusOK, echo.Map{
-		"id":            s.ID,
-		"site_name":     s.SiteName,
-		"logo_data":     s.LogoData,
-		"steam_enabled": effectiveKey != "",
-		"app_url":       s.AppURL,
+		"id":                   s.ID,
+		"site_name":            s.SiteName,
+		"logo_data":            s.LogoData,
+		"steam_enabled":        effectiveKey != "",
+		"app_url":              s.AppURL,
+		"registration_enabled": s.RegistrationEnabled,
 	})
 }
 
@@ -69,23 +71,25 @@ func GetAdminSettings(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, echo.Map{
-		"id":               s.ID,
-		"site_name":        s.SiteName,
-		"logo_data":        s.LogoData,
-		"app_url":          s.AppURL,
-		"steam_key_set":    effectiveKey != "",
-		"steam_key_hint":   hint,
-		"steam_key_source": keySource,
+		"id":                   s.ID,
+		"site_name":            s.SiteName,
+		"logo_data":            s.LogoData,
+		"app_url":              s.AppURL,
+		"steam_key_set":        effectiveKey != "",
+		"steam_key_hint":       hint,
+		"steam_key_source":     keySource,
+		"registration_enabled": s.RegistrationEnabled,
 	})
 }
 
 // UpdateSettings PUT /api/v1/admin/settings — admin only
 func UpdateSettings(c echo.Context) error {
 	var payload struct {
-		SiteName    string `json:"site_name"`
-		LogoData    string `json:"logo_data"`
-		AppURL      string `json:"app_url"`
-		SteamAPIKey string `json:"steam_api_key"` // "" = no change, "__CLEAR__" = delete, otherwise = save
+		SiteName            string `json:"site_name"`
+		LogoData            string `json:"logo_data"`
+		AppURL              string `json:"app_url"`
+		SteamAPIKey         string `json:"steam_api_key"` // "" = no change, "__CLEAR__" = delete, otherwise = save
+		RegistrationEnabled *bool  `json:"registration_enabled"`
 	}
 	if err := c.Bind(&payload); err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid payload"})
@@ -104,6 +108,9 @@ func UpdateSettings(c echo.Context) error {
 	s.SiteName = payload.SiteName
 	s.LogoData = payload.LogoData
 	s.AppURL = payload.AppURL
+	if payload.RegistrationEnabled != nil {
+		s.RegistrationEnabled = *payload.RegistrationEnabled
+	}
 
 	switch payload.SteamAPIKey {
 	case "":
@@ -125,10 +132,11 @@ func UpdateSettings(c echo.Context) error {
 		effectiveKey = os.Getenv("STEAM_API_KEY")
 	}
 	return c.JSON(http.StatusOK, echo.Map{
-		"id":            s.ID,
-		"site_name":     s.SiteName,
-		"logo_data":     s.LogoData,
-		"steam_enabled": effectiveKey != "",
-		"app_url":       s.AppURL,
+		"id":                   s.ID,
+		"site_name":            s.SiteName,
+		"logo_data":            s.LogoData,
+		"steam_enabled":        effectiveKey != "",
+		"app_url":              s.AppURL,
+		"registration_enabled": s.RegistrationEnabled,
 	})
 }

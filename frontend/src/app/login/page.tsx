@@ -8,6 +8,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useSiteSettings } from "@/contexts/SiteSettingsContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import SiteBrand from "@/components/SiteBrand";
+import { api } from "@/lib/api";
 import type { AuthResponse } from "@/types/server";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
@@ -31,6 +32,9 @@ function LoginInner() {
   const [remember, setRemember] = useState(true);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [twoFaMode, setTwoFaMode] = useState(false);
+  const [tempToken, setTempToken] = useState("");
+  const [totpCode, setTotpCode] = useState("");
 
   useEffect(() => {
     const errParam = searchParams.get("error");
@@ -48,11 +52,28 @@ function LoginInner() {
         body: JSON.stringify(form),
       });
       if (!res.ok) { const d = await res.json() as { error: string }; throw new Error(d.error); }
-      const data = await res.json() as AuthResponse;
+      const data = await res.json() as AuthResponse & { requires_2fa?: boolean; temp_token?: string };
+      if (data.requires_2fa && data.temp_token) {
+        setTempToken(data.temp_token);
+        setTwoFaMode(true);
+        return;
+      }
       login(data.token, data.user, remember);
       router.push("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
+    } finally { setLoading(false); }
+  };
+
+  const handleVerify2FA = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(""); setLoading(true);
+    try {
+      const data = await api.verify2FA(tempToken, totpCode);
+      login(data.token, data.user, remember);
+      router.push("/");
+    } catch {
+      setError(t.twoFaInvalidCode);
     } finally { setLoading(false); }
   };
 
@@ -66,6 +87,34 @@ function LoginInner() {
         </div>
 
         <div className="glass-card rounded-2xl p-6 flex flex-col gap-4">
+          {twoFaMode ? (
+            <form onSubmit={handleVerify2FA} className="flex flex-col gap-4">
+              <div className="text-center">
+                <div className="text-2xl mb-2">🔐</div>
+                <h2 className="font-bold text-foreground">{t.twoFaLoginTitle}</h2>
+                <p className="text-xs text-muted-foreground mt-1">{t.twoFaLoginHint}</p>
+              </div>
+              <input
+                className={field}
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                placeholder={t.twoFaCodePlaceholder}
+                value={totpCode}
+                onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ""))}
+                autoFocus
+              />
+              {error && <p className="text-red-400 text-xs bg-red-400/10 rounded-lg px-3 py-2">{error}</p>}
+              <button type="submit" disabled={loading || totpCode.length !== 6} className="flex items-center justify-center gap-2 w-full py-3 rounded-xl font-semibold text-sm bg-neon-green text-black hover:bg-neon-green/90 transition-all disabled:opacity-50">
+                {loading ? t.twoFaLoginVerifying : t.twoFaLoginVerify}
+              </button>
+              <button type="button" onClick={() => { setTwoFaMode(false); setTotpCode(""); setError(""); }} className="text-xs text-muted-foreground hover:text-foreground text-center transition-colors">
+                {t.twoFaLoginBack}
+              </button>
+            </form>
+          ) : (
+          <>
           {steamEnabled && (
             <>
               <a
@@ -112,6 +161,8 @@ function LoginInner() {
           <div className="text-center">
             <a href="/register" className="text-xs text-muted-foreground hover:text-neon-green transition-colors">{t.authNoAccount}</a>
           </div>
+          </>
+          )}
         </div>
 
         <div className="flex justify-center mt-4">

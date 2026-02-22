@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -114,6 +115,68 @@ func AdminDeleteUser(c echo.Context) error {
 		logAudit(aid, aname, "delete_user", "user", user.ID, user.Username)
 	}
 	return c.JSON(http.StatusOK, echo.Map{"message": "user deleted"})
+}
+
+// AdminBulkUsers POST /api/v1/admin/users/bulk — bulk ban/unban/delete users
+func AdminBulkUsers(c echo.Context) error {
+	var req struct {
+		Action string `json:"action"` // "ban", "unban", "delete"
+		IDs    []uint `json:"ids"`
+	}
+	if err := c.Bind(&req); err != nil || len(req.IDs) == 0 {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "action and ids required"})
+	}
+
+	callerID := uint(0)
+	if v, ok := c.Get("user_id").(float64); ok {
+		callerID = uint(v)
+	}
+
+	// Remove caller from IDs to prevent self-action
+	safeIDs := make([]uint, 0, len(req.IDs))
+	for _, id := range req.IDs {
+		if id != callerID {
+			safeIDs = append(safeIDs, id)
+		}
+	}
+	if len(safeIDs) == 0 {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "no valid ids"})
+	}
+
+	switch req.Action {
+	case "ban":
+		database.DB.Model(&models.User{}).Where("id IN ?", safeIDs).Update("banned", true)
+	case "unban":
+		database.DB.Model(&models.User{}).Where("id IN ?", safeIDs).Update("banned", false)
+	case "delete":
+		database.DB.Where("id IN ?", safeIDs).Delete(&models.User{})
+	default:
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "unknown action"})
+	}
+
+	aid, aname := actorFromCtx(c)
+	logAudit(aid, aname, "bulk_"+req.Action+"_users", "user", 0, fmt.Sprintf("%v", safeIDs))
+	return c.JSON(http.StatusOK, echo.Map{"ok": true, "count": len(safeIDs)})
+}
+
+// AdminBulkServers POST /api/v1/admin/servers/bulk — bulk delete servers
+func AdminBulkServers(c echo.Context) error {
+	var req struct {
+		Action string `json:"action"` // "delete"
+		IDs    []uint `json:"ids"`
+	}
+	if err := c.Bind(&req); err != nil || len(req.IDs) == 0 {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "action and ids required"})
+	}
+	if req.Action != "delete" {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "unknown action"})
+	}
+
+	database.DB.Where("id IN ?", req.IDs).Delete(&models.Server{})
+
+	aid, aname := actorFromCtx(c)
+	logAudit(aid, aname, "bulk_delete_servers", "server", 0, fmt.Sprintf("%v", req.IDs))
+	return c.JSON(http.StatusOK, echo.Map{"ok": true, "count": len(req.IDs)})
 }
 
 // AdminGetServers GET /api/v1/admin/servers — list all servers with owner name

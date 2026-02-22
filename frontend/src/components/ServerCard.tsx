@@ -58,6 +58,12 @@ export default function ServerCard({ server, onDelete, onEdit, isFavorite, onTog
 
   const serverNameDiffers = online && status?.server_name && status.server_name !== server.title;
 
+  // MOTD для Minecraft: очищаем §-коды цветов
+  const isMinecraft = server.game_type === "minecraft" || server.game_type === "minecraft_bedrock";
+  const motd = isMinecraft && status?.server_name
+    ? status.server_name.replace(/§./g, "").trim()
+    : null;
+
   // Occupancy ring when server is getting full
   const fillRatio = online && status?.players_max ? status.players_now / status.players_max : 0;
   const fillRing =
@@ -120,8 +126,11 @@ export default function ServerCard({ server, onDelete, onEdit, isFavorite, onTog
                 </span>
               )}
             </div>
-            {serverNameDiffers && (
+            {!isMinecraft && serverNameDiffers && (
               <p className="text-xs text-muted-foreground/70 italic truncate mt-0.5">{status!.server_name}</p>
+            )}
+            {motd && motd !== server.title && (
+              <p className="text-xs text-muted-foreground/70 italic truncate mt-0.5" title={motd}>{motd}</p>
             )}
             <p className="text-xs text-muted-foreground mt-0.5">{gameTypeLabel(server.game_type)}</p>
           </div>
