@@ -13,6 +13,7 @@ export interface NewsFormData {
   pinned?: boolean;
   published?: boolean;
   publish_at?: string | null;
+  send_to_discord?: boolean;
 }
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
@@ -56,6 +57,7 @@ export interface AdminSiteSettings {
   steam_key_source: "db" | "env";
   registration_enabled: boolean;
   news_webhook_url: string;
+  news_role_id: string;
 }
 
 export interface PublicProfile {
@@ -223,6 +225,8 @@ export const api = {
     fetchJSON("/api/v1/admin/servers/bulk", { method: "POST", body: JSON.stringify({ action, ids }) }),
 
   // Update settings with registration_enabled and news webhook
-  updateSettingsFull: (data: { site_name?: string; logo_data?: string; app_url?: string; steam_api_key?: string; registration_enabled?: boolean; news_webhook_url?: string }) =>
+  updateSettingsFull: (data: { site_name?: string; logo_data?: string; app_url?: string; steam_api_key?: string; registration_enabled?: boolean; news_webhook_url?: string; news_role_id?: string }) =>
     fetchJSON<SiteSettings>("/api/v1/admin/settings", { method: "PUT", body: JSON.stringify(data) }),
+
+  testNewsWebhook: () => fetchJSON<{ ok: boolean }>("/api/v1/admin/news/webhook/test", { method: "POST" }),
 };

@@ -18,6 +18,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useSiteSettings } from "@/contexts/SiteSettingsContext";
 import { api, type AdminSiteSettings } from "@/lib/api";
+import { toast } from "@/lib/toast";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ThemeToggle from "@/components/ThemeToggle";
 import { APP_VERSION } from "@/lib/version";
@@ -117,6 +118,7 @@ interface SettingsTabProps {
   saved: boolean;
   registrationEnabled: boolean;
   newsWebhook: string;
+  newsRoleId: string;
   onNameChange: (v: string) => void;
   onLogoChange: (v: string) => void;
   onAppUrlChange: (v: string) => void;
@@ -124,6 +126,8 @@ interface SettingsTabProps {
   onSteamClear: () => void;
   onRegistrationEnabledChange: (v: boolean) => void;
   onNewsWebhookChange: (v: string) => void;
+  onNewsRoleIdChange: (v: string) => void;
+  onTestNewsWebhook: () => void;
   onSave: () => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   t: any;
@@ -150,8 +154,8 @@ function resizeLogo(file: File, maxSize = 64): Promise<string> {
 
 function SettingsTab({
   name, logo, appUrl, steamKeySet, steamKeyHint, steamKeySource, steamNewKey, steamClear,
-  saving, saved, registrationEnabled, newsWebhook, onNameChange, onLogoChange, onAppUrlChange,
-  onSteamNewKeyChange, onSteamClear, onRegistrationEnabledChange, onNewsWebhookChange, onSave, t,
+  saving, saved, registrationEnabled, newsWebhook, newsRoleId, onNameChange, onLogoChange, onAppUrlChange,
+  onSteamNewKeyChange, onSteamClear, onRegistrationEnabledChange, onNewsWebhookChange, onNewsRoleIdChange, onTestNewsWebhook, onSave, t,
 }: SettingsTabProps) {
   const [showKey, setShowKey] = useState(false);
   const inputCls = "bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-neon-green/50 transition-all placeholder:text-muted-foreground w-full";
@@ -346,13 +350,31 @@ function SettingsTab({
       {/* News Discord Webhook */}
       <div className="glass-card rounded-2xl p-5 space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t.adminSettingsNewsWebhook}</h2>
+        <div className="flex gap-2">
+          <input
+            className={inputCls}
+            value={newsWebhook}
+            onChange={(e) => onNewsWebhookChange(e.target.value)}
+            placeholder={t.adminSettingsNewsWebhookPlaceholder}
+          />
+          {newsWebhook && (
+            <button
+              type="button"
+              onClick={onTestNewsWebhook}
+              className="px-3 py-2 rounded-xl text-xs font-medium bg-neon-blue/10 text-neon-blue border border-neon-blue/30 hover:bg-neon-blue/20 transition-all whitespace-nowrap"
+            >
+              {t.adminSettingsTestWebhook}
+            </button>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground">{t.adminSettingsNewsWebhookHint}</p>
         <input
           className={inputCls}
-          value={newsWebhook}
-          onChange={(e) => onNewsWebhookChange(e.target.value)}
-          placeholder={t.adminSettingsNewsWebhookPlaceholder}
+          value={newsRoleId}
+          onChange={(e) => onNewsRoleIdChange(e.target.value)}
+          placeholder={t.adminSettingsNewsRoleIdPlaceholder}
         />
-        <p className="text-xs text-muted-foreground">{t.adminSettingsNewsWebhookHint}</p>
+        <p className="text-xs text-muted-foreground">{t.adminSettingsNewsRoleIdHint}</p>
       </div>
 
       {/* Save */}
@@ -400,6 +422,7 @@ export default function AdminPage() {
   const [steamClear, setSteamClear] = useState(false);
   const [settingsRegistrationEnabled, setSettingsRegistrationEnabled] = useState(true);
   const [settingsNewsWebhook, setSettingsNewsWebhook] = useState("");
+  const [settingsNewsRoleId, setSettingsNewsRoleId] = useState("");
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSaved, setSettingsSaved] = useState(false);
 
@@ -479,6 +502,7 @@ export default function AdminPage() {
         setSettingsAppUrl(s.app_url ?? "");
         setSettingsRegistrationEnabled(s.registration_enabled ?? true);
         setSettingsNewsWebhook(s.news_webhook_url ?? "");
+        setSettingsNewsRoleId(s.news_role_id ?? "");
         setSteamNewKey("");
         setSteamClear(false);
       }).catch(() => {});
@@ -1428,6 +1452,7 @@ export default function AdminPage() {
             saved={settingsSaved}
             registrationEnabled={settingsRegistrationEnabled}
             newsWebhook={settingsNewsWebhook}
+            newsRoleId={settingsNewsRoleId}
             onNameChange={setSettingsName}
             onLogoChange={setSettingsLogo}
             onAppUrlChange={setSettingsAppUrl}
@@ -1435,6 +1460,15 @@ export default function AdminPage() {
             onSteamClear={() => { setSteamClear((prev) => { if (prev) setSteamNewKey(""); return !prev; }); }}
             onRegistrationEnabledChange={setSettingsRegistrationEnabled}
             onNewsWebhookChange={setSettingsNewsWebhook}
+            onNewsRoleIdChange={setSettingsNewsRoleId}
+            onTestNewsWebhook={async () => {
+              try {
+                await api.testNewsWebhook();
+                toast(t.adminSettingsTestWebhookOk, "success");
+              } catch {
+                toast(t.adminSettingsTestWebhookFail, "error");
+              }
+            }}
             onSave={async () => {
               setSettingsSaving(true);
               setSettingsSaved(false);
@@ -1449,6 +1483,7 @@ export default function AdminPage() {
                   steam_api_key: steamApiKey,
                   registration_enabled: settingsRegistrationEnabled,
                   news_webhook_url: settingsNewsWebhook,
+                  news_role_id: settingsNewsRoleId,
                 });
                 await refreshSettings();
                 // Refresh Steam key info

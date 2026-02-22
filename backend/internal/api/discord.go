@@ -20,11 +20,16 @@ type discordField struct {
 	Inline bool   `json:"inline"`
 }
 
+type discordThumbnail struct {
+	URL string `json:"url"`
+}
+
 type discordEmbed struct {
-	Title       string         `json:"title"`
-	Description string         `json:"description"`
-	Color       int            `json:"color"`
-	Fields      []discordField `json:"fields"`
+	Title       string            `json:"title"`
+	Description string            `json:"description"`
+	Color       int               `json:"color"`
+	Fields      []discordField    `json:"fields,omitempty"`
+	Thumbnail   *discordThumbnail `json:"thumbnail,omitempty"`
 	Footer      struct {
 		Text string `json:"text"`
 	} `json:"footer"`
@@ -33,11 +38,27 @@ type discordEmbed struct {
 
 type discordWebhookPayload struct {
 	Username string         `json:"username,omitempty"`
+	Content  string         `json:"content,omitempty"` // для @mention роли
 	Embeds   []discordEmbed `json:"embeds"`
 }
 
-// BuildDiscordPayload строит JSON-тело для Discord webhook.
-func BuildDiscordPayload(siteName string, srv *models.Server, status *models.ServerStatus) []byte {
+// gameThumbnailURL возвращает URL иконки игры из Steam CDN.
+var gameThumbnailURL = map[string]string{
+	"gmod":     "https://cdn.cloudflare.steamstatic.com/steam/apps/4000/capsule_sm_120.jpg",
+	"valheim":  "https://cdn.cloudflare.steamstatic.com/steam/apps/892970/capsule_sm_120.jpg",
+	"squad":    "https://cdn.cloudflare.steamstatic.com/steam/apps/393380/capsule_sm_120.jpg",
+	"dayz":     "https://cdn.cloudflare.steamstatic.com/steam/apps/221100/capsule_sm_120.jpg",
+	"vrising":  "https://cdn.cloudflare.steamstatic.com/steam/apps/1604030/capsule_sm_120.jpg",
+	"icarus":   "https://cdn.cloudflare.steamstatic.com/steam/apps/1149460/capsule_sm_120.jpg",
+	"fivem":    "https://cdn.cloudflare.steamstatic.com/steam/apps/271590/capsule_sm_120.jpg",
+	"samp":     "https://cdn.cloudflare.steamstatic.com/steam/apps/12120/capsule_sm_120.jpg",
+	"terraria": "https://cdn.cloudflare.steamstatic.com/steam/apps/105600/capsule_sm_120.jpg",
+	"rust":     "https://cdn.cloudflare.steamstatic.com/steam/apps/252490/capsule_sm_120.jpg",
+	"arma3":    "https://cdn.cloudflare.steamstatic.com/steam/apps/107410/capsule_sm_120.jpg",
+}
+
+// BuildDiscordPayload строит JSON-тело embed-сообщения для Discord webhook (статус сервера).
+func BuildDiscordPayload(siteName, appURL string, srv *models.Server, status *models.ServerStatus) []byte {
 	color := 10038562 // красный (офлайн)
 	statusVal := "🔴 Офлайн"
 	if status != nil && status.OnlineStatus {
@@ -56,6 +77,11 @@ func BuildDiscordPayload(siteName string, srv *models.Server, status *models.Ser
 	addr := fmt.Sprintf("%s:%d", srv.IP, srv.Port)
 	if srv.DisplayIP != "" {
 		addr = fmt.Sprintf("%s:%d", srv.DisplayIP, srv.Port)
+	}
+
+	desc := fmt.Sprintf("`%s`", addr)
+	if appURL != "" {
+		desc += fmt.Sprintf("\n[🌐 Открыть на сайте](%s)", strings.TrimRight(appURL, "/"))
 	}
 
 	fields := []discordField{{Name: "Статус", Value: statusVal, Inline: true}}
@@ -77,12 +103,15 @@ func BuildDiscordPayload(siteName string, srv *models.Server, status *models.Ser
 
 	embed := discordEmbed{
 		Title:       title,
-		Description: fmt.Sprintf("`%s`", addr),
+		Description: desc,
 		Color:       color,
 		Fields:      fields,
 		Timestamp:   time.Now().UTC().Format(time.RFC3339),
 	}
 	embed.Footer.Text = siteName
+	if thumbURL, ok := gameThumbnailURL[srv.GameType]; ok {
+		embed.Thumbnail = &discordThumbnail{URL: thumbURL}
+	}
 
 	pl := discordWebhookPayload{Username: siteName, Embeds: []discordEmbed{embed}}
 	b, _ := json.Marshal(pl)
@@ -127,8 +156,8 @@ func SendOrUpdateDiscordMessage(webhookURL, messageID string, payload []byte) (s
 }
 
 // SendNewsToDiscord отправляет новость в Discord webhook (асинхронно).
-// Отправляется только при наличии webhookURL. appURL используется для формирования ссылки.
-func SendNewsToDiscord(item *models.NewsItem, appURL, webhookURL, siteName string) {
+// roleID — Discord Role ID для @mention (пустая строка = без упоминания).
+func SendNewsToDiscord(item *models.NewsItem, appURL, webhookURL, siteName, roleID string) {
 	if webhookURL == "" {
 		return
 	}
@@ -158,7 +187,35 @@ func SendNewsToDiscord(item *models.NewsItem, appURL, webhookURL, siteName strin
 	}
 	embed.Footer.Text = siteName
 
+	// Thumbnail из ImageURL новости
+	if item.ImageURL != "" {
+		embed.Thumbnail = &discordThumbnail{URL: item.ImageURL}
+	}
+
+	// Теги как поля embed
+	if item.Tags != "" {
+		tags := strings.Split(item.Tags, ",")
+		cleaned := make([]string, 0, len(tags))
+		for _, t := range tags {
+			if t = strings.TrimSpace(t); t != "" {
+				cleaned = append(cleaned, t)
+			}
+		}
+		if len(cleaned) > 0 {
+			embed.Fields = []discordField{{
+				Name:   "Теги",
+				Value:  strings.Join(cleaned, " · "),
+				Inline: false,
+			}}
+		}
+	}
+
 	pl := discordWebhookPayload{Username: siteName, Embeds: []discordEmbed{embed}}
+	// @mention роли, если указан roleID
+	if roleID != "" {
+		pl.Content = fmt.Sprintf("<@&%s>", roleID)
+	}
+
 	b, _ := json.Marshal(pl)
 
 	go func() {
@@ -248,7 +305,10 @@ func SendDiscordTest(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, echo.Map{"error": "server not found"})
 	}
 
-	payload := BuildDiscordPayload(discordSiteName(), &srv, srv.Status)
+	var s models.SiteSettings
+	database.DB.First(&s, 1)
+
+	payload := BuildDiscordPayload(discordSiteName(), s.AppURL, &srv, srv.Status)
 	msgID, err := SendOrUpdateDiscordMessage(cfg.WebhookURL, cfg.MessageID, payload)
 	if err != nil {
 		return c.JSON(http.StatusBadGateway, echo.Map{"error": err.Error()})
@@ -259,4 +319,23 @@ func SendDiscordTest(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, echo.Map{"ok": true, "message_id": msgID})
+}
+
+// TestNewsWebhook POST /api/v1/admin/news/webhook/test
+// Отправляет тестовое сообщение в настроенный News Discord Webhook.
+func TestNewsWebhook(c echo.Context) error {
+	var s models.SiteSettings
+	if err := database.DB.First(&s, 1).Error; err != nil || s.NewsWebhookURL == "" {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "news webhook not configured"})
+	}
+	now := time.Now()
+	testItem := &models.NewsItem{
+		Title:     "📰 Тест — " + s.SiteName,
+		Content:   "Это тестовое сообщение. Discord-вебхук для новостей работает корректно! ✅",
+		Tags:      "Тест,Проверка",
+		Published: true,
+		CreatedAt: now,
+	}
+	SendNewsToDiscord(testItem, s.AppURL, s.NewsWebhookURL, discordSiteName(), s.NewsRoleID)
+	return c.JSON(http.StatusOK, echo.Map{"ok": true})
 }

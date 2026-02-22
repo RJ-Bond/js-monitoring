@@ -35,7 +35,7 @@ function makeTooltip(locale: string) {
     active, payload, label,
   }: {
     active?: boolean;
-    payload?: { name: string; value: number; color: string }[];
+    payload?: { name?: string; value?: number; color?: string }[];
     label?: string;
   }) {
     if (!active || !payload?.length) return null;
@@ -53,7 +53,7 @@ function makeTooltip(locale: string) {
             <span className="font-bold text-neon-green tabular-nums">{players.value}</span>
           </div>
         )}
-        {ping && ping.value > 0 && (
+        {ping && (ping.value ?? 0) > 0 && (
           <div className="flex items-center justify-between gap-3 mt-1">
             <span className="flex items-center gap-1.5 text-muted-foreground">
               <span className="w-1.5 h-1.5 rounded-full bg-neon-blue flex-shrink-0" />

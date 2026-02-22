@@ -64,6 +64,7 @@ const EMPTY_FORM: NewsFormData = {
   pinned: false,
   published: true,
   publish_at: null,
+  send_to_discord: true,
 };
 
 export default function AdminNewsPage() {
@@ -129,6 +130,7 @@ export default function AdminNewsPage() {
       publish_at: item.publish_at
         ? new Date(item.publish_at).toISOString().slice(0, 16)
         : null,
+      send_to_discord: false,
     });
     setFormError("");
     setEditorTab("write");
@@ -594,6 +596,19 @@ export default function AdminNewsPage() {
                   />
                   <span className="text-sm text-foreground">{t.newsPublished}</span>
                 </label>
+
+                {/* Send to Discord */}
+                {form.published && (
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={form.send_to_discord ?? true}
+                      onChange={(e) => setField("send_to_discord", e.target.checked)}
+                      className="w-4 h-4 rounded accent-blue-400"
+                    />
+                    <span className="text-sm text-foreground">💬 {t.newsDiscordSend}</span>
+                  </label>
+                )}
               </div>
 
               {/* Publish At (only when not published) */}

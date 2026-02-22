@@ -366,13 +366,14 @@ func GetAdminNews(c echo.Context) error {
 // CreateNews POST /api/v1/admin/news — создать новость (только админ)
 func CreateNews(c echo.Context) error {
 	var req struct {
-		Title     string  `json:"title"`
-		Content   string  `json:"content"`
-		ImageURL  string  `json:"image_url"`
-		Tags      string  `json:"tags"`
-		Pinned    bool    `json:"pinned"`
-		Published *bool   `json:"published"`
-		PublishAt *string `json:"publish_at"`
+		Title         string  `json:"title"`
+		Content       string  `json:"content"`
+		ImageURL      string  `json:"image_url"`
+		Tags          string  `json:"tags"`
+		Pinned        bool    `json:"pinned"`
+		Published     *bool   `json:"published"`
+		PublishAt     *string `json:"publish_at"`
+		SendToDiscord *bool   `json:"send_to_discord"`
 	}
 	if err := c.Bind(&req); err != nil || req.Title == "" || req.Content == "" {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "title and content required"})
@@ -406,10 +407,11 @@ func CreateNews(c echo.Context) error {
 		aid, aname := actorFromCtx(c)
 		logAudit(aid, aname, "create_news", "news", item.ID, item.Title)
 	}
-	if item.Published {
+	sendToDiscord := req.SendToDiscord == nil || *req.SendToDiscord
+	if item.Published && sendToDiscord {
 		var s models.SiteSettings
 		database.DB.First(&s, 1)
-		SendNewsToDiscord(&item, s.AppURL, s.NewsWebhookURL, discordSiteName())
+		SendNewsToDiscord(&item, s.AppURL, s.NewsWebhookURL, discordSiteName(), s.NewsRoleID)
 	}
 	return c.JSON(http.StatusCreated, item)
 }
@@ -468,7 +470,7 @@ func UpdateNews(c echo.Context) error {
 	if (req.SendToDiscord || justPublished) && item.Published {
 		var s models.SiteSettings
 		database.DB.First(&s, 1)
-		SendNewsToDiscord(&item, s.AppURL, s.NewsWebhookURL, discordSiteName())
+		SendNewsToDiscord(&item, s.AppURL, s.NewsWebhookURL, discordSiteName(), s.NewsRoleID)
 	}
 	return c.JSON(http.StatusOK, item)
 }

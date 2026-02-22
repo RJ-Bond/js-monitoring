@@ -159,6 +159,7 @@ func main() {
 	admin.GET("/export/audit.csv", api.ExportAudit)
 	admin.POST("/users/bulk", api.AdminBulkUsers)
 	admin.POST("/servers/bulk", api.AdminBulkServers)
+	admin.POST("/news/webhook/test", api.TestNewsWebhook)
 
 	port := env("PORT", "8080")
 	log.Printf("Starting server on :%s", port)

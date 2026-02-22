@@ -113,6 +113,7 @@ type SiteSettings struct {
 	AppURL              string `gorm:"type:varchar(255)"                      json:"app_url"`
 	RegistrationEnabled bool   `gorm:"default:true"                           json:"registration_enabled"`
 	NewsWebhookURL      string `gorm:"type:varchar(500)"                      json:"news_webhook_url"`
+	NewsRoleID          string `gorm:"type:varchar(50)"                       json:"news_role_id"`
 }
 
 // PasswordReset — токен для сброса пароля (генерируется администратором)

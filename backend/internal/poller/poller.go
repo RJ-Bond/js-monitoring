@@ -57,6 +57,10 @@ type Poller struct {
 	// Доступ только из processResults — мьютекс не нужен.
 	prevOnline map[uint]bool
 
+	// offlineSince хранит момент перехода в офлайн для расчёта длительности простоя.
+	// Доступ только из processResults — мьютекс не нужен.
+	offlineSince map[uint]time.Time
+
 	// discordLastSent хранит время последней отправки Discord-embed по serverID.
 	// Доступ только из discordWorker — мьютекс не нужен.
 	discordLastSent map[uint]time.Time
@@ -71,6 +75,7 @@ func New(onUpdate func(serverID uint, status *models.ServerStatus)) *Poller {
 		done:            make(chan struct{}),
 		playerState:     make(map[uint]map[string]time.Time),
 		prevOnline:      make(map[uint]bool),
+		offlineSince:    make(map[uint]time.Time),
 		discordLastSent: make(map[uint]time.Time),
 		OnUpdate:        onUpdate,
 	}
@@ -210,9 +215,12 @@ func (p *Poller) processResults() {
 			isOnline := res.status.OnlineStatus
 			if seen {
 				if wasOnline && !isOnline {
+					p.offlineSince[res.serverID] = time.Now()
 					go p.sendOfflineAlert(res.serverID)
 				} else if !wasOnline && isOnline {
-					go p.sendOnlineAlert(res.serverID)
+					since := p.offlineSince[res.serverID]
+					delete(p.offlineSince, res.serverID)
+					go p.sendOnlineAlert(res.serverID, since)
 				}
 			}
 			p.prevOnline[res.serverID] = isOnline
@@ -347,7 +355,7 @@ func (p *Poller) sendOfflineAlert(serverID uint) {
 }
 
 // sendOnlineAlert отправляет уведомление о восстановлении сервера
-func (p *Poller) sendOnlineAlert(serverID uint) {
+func (p *Poller) sendOnlineAlert(serverID uint, offlineSince time.Time) {
 	var cfg models.AlertsConfig
 	if err := database.DB.Where("server_id = ? AND enabled = ? AND notify_online = ?", serverID, true, true).First(&cfg).Error; err != nil {
 		return
@@ -357,6 +365,12 @@ func (p *Poller) sendOnlineAlert(serverID uint) {
 		return
 	}
 	text := fmt.Sprintf("🟢 <b>%s</b> — сервер снова доступен", srv.Title)
+	if !offlineSince.IsZero() {
+		mins := int(time.Since(offlineSince).Minutes())
+		if mins > 0 {
+			text += fmt.Sprintf(" (недоступен %d мин.)", mins)
+		}
+	}
 	p.sendAlert(&cfg, "🟢 Сервер онлайн — "+srv.Title, text)
 }
 
@@ -444,7 +458,12 @@ func (p *Poller) sendDiscordUpdate(cfg models.DiscordConfig) {
 	}
 
 	siteName := p.discordSiteName()
-	payload := discordBuildPayload(siteName, &srv, srv.Status)
+	var appURL string
+	var s models.SiteSettings
+	if database.DB.First(&s, 1).Error == nil {
+		appURL = s.AppURL
+	}
+	payload := discordBuildPayload(siteName, appURL, &srv, srv.Status)
 
 	msgID, err := discordSendOrUpdate(cfg.WebhookURL, cfg.MessageID, payload)
 	if err != nil {
@@ -464,7 +483,21 @@ func (p *Poller) discordSiteName() string {
 	return s.SiteName
 }
 
-func discordBuildPayload(siteName string, srv *models.Server, status *models.ServerStatus) []byte {
+var discordGameThumbnail = map[string]string{
+	"gmod":     "https://cdn.cloudflare.steamstatic.com/steam/apps/4000/capsule_sm_120.jpg",
+	"valheim":  "https://cdn.cloudflare.steamstatic.com/steam/apps/892970/capsule_sm_120.jpg",
+	"squad":    "https://cdn.cloudflare.steamstatic.com/steam/apps/393380/capsule_sm_120.jpg",
+	"dayz":     "https://cdn.cloudflare.steamstatic.com/steam/apps/221100/capsule_sm_120.jpg",
+	"vrising":  "https://cdn.cloudflare.steamstatic.com/steam/apps/1604030/capsule_sm_120.jpg",
+	"icarus":   "https://cdn.cloudflare.steamstatic.com/steam/apps/1149460/capsule_sm_120.jpg",
+	"fivem":    "https://cdn.cloudflare.steamstatic.com/steam/apps/271590/capsule_sm_120.jpg",
+	"samp":     "https://cdn.cloudflare.steamstatic.com/steam/apps/12120/capsule_sm_120.jpg",
+	"terraria": "https://cdn.cloudflare.steamstatic.com/steam/apps/105600/capsule_sm_120.jpg",
+	"rust":     "https://cdn.cloudflare.steamstatic.com/steam/apps/252490/capsule_sm_120.jpg",
+	"arma3":    "https://cdn.cloudflare.steamstatic.com/steam/apps/107410/capsule_sm_120.jpg",
+}
+
+func discordBuildPayload(siteName, appURL string, srv *models.Server, status *models.ServerStatus) []byte {
 	color := 10038562
 	statusVal := "🔴 Офлайн"
 	if status != nil && status.OnlineStatus {
@@ -485,6 +518,14 @@ func discordBuildPayload(siteName string, srv *models.Server, status *models.Ser
 		addr = fmt.Sprintf("%s:%d", srv.DisplayIP, srv.Port)
 	}
 
+	desc := fmt.Sprintf("`%s`", addr)
+	if appURL != "" {
+		desc += fmt.Sprintf("\n[🌐 Открыть на сайте](%s)", strings.TrimRight(appURL, "/"))
+	}
+
+	type thumbnail struct {
+		URL string `json:"url"`
+	}
 	type field struct {
 		Name   string `json:"name"`
 		Value  string `json:"value"`
@@ -494,12 +535,13 @@ func discordBuildPayload(siteName string, srv *models.Server, status *models.Ser
 		Text string `json:"text"`
 	}
 	type embed struct {
-		Title       string  `json:"title"`
-		Description string  `json:"description"`
-		Color       int     `json:"color"`
-		Fields      []field `json:"fields"`
-		Footer      footer  `json:"footer"`
-		Timestamp   string  `json:"timestamp"`
+		Title       string     `json:"title"`
+		Description string     `json:"description"`
+		Color       int        `json:"color"`
+		Fields      []field    `json:"fields,omitempty"`
+		Thumbnail   *thumbnail `json:"thumbnail,omitempty"`
+		Footer      footer     `json:"footer"`
+		Timestamp   string     `json:"timestamp"`
 	}
 	type webhookPayload struct {
 		Username string  `json:"username,omitempty"`
@@ -517,17 +559,19 @@ func discordBuildPayload(siteName string, srv *models.Server, status *models.Ser
 		}
 	}
 
-	pl := webhookPayload{
-		Username: siteName,
-		Embeds: []embed{{
-			Title:       title,
-			Description: fmt.Sprintf("`%s`", addr),
-			Color:       color,
-			Fields:      fields,
-			Footer:      footer{Text: siteName},
-			Timestamp:   time.Now().UTC().Format(time.RFC3339),
-		}},
+	e := embed{
+		Title:       title,
+		Description: desc,
+		Color:       color,
+		Fields:      fields,
+		Footer:      footer{Text: siteName},
+		Timestamp:   time.Now().UTC().Format(time.RFC3339),
 	}
+	if thumbURL, ok := discordGameThumbnail[srv.GameType]; ok {
+		e.Thumbnail = &thumbnail{URL: thumbURL}
+	}
+
+	pl := webhookPayload{Username: siteName, Embeds: []embed{e}}
 	b, _ := json.Marshal(pl)
 	return b
 }
