@@ -116,12 +116,14 @@ interface SettingsTabProps {
   saving: boolean;
   saved: boolean;
   registrationEnabled: boolean;
+  newsWebhook: string;
   onNameChange: (v: string) => void;
   onLogoChange: (v: string) => void;
   onAppUrlChange: (v: string) => void;
   onSteamNewKeyChange: (v: string) => void;
   onSteamClear: () => void;
   onRegistrationEnabledChange: (v: boolean) => void;
+  onNewsWebhookChange: (v: string) => void;
   onSave: () => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   t: any;
@@ -148,8 +150,8 @@ function resizeLogo(file: File, maxSize = 64): Promise<string> {
 
 function SettingsTab({
   name, logo, appUrl, steamKeySet, steamKeyHint, steamKeySource, steamNewKey, steamClear,
-  saving, saved, registrationEnabled, onNameChange, onLogoChange, onAppUrlChange,
-  onSteamNewKeyChange, onSteamClear, onRegistrationEnabledChange, onSave, t,
+  saving, saved, registrationEnabled, newsWebhook, onNameChange, onLogoChange, onAppUrlChange,
+  onSteamNewKeyChange, onSteamClear, onRegistrationEnabledChange, onNewsWebhookChange, onSave, t,
 }: SettingsTabProps) {
   const [showKey, setShowKey] = useState(false);
   const inputCls = "bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-neon-green/50 transition-all placeholder:text-muted-foreground w-full";
@@ -341,6 +343,18 @@ function SettingsTab({
         <p className="text-xs text-muted-foreground">{t.adminSettingsRegistrationHint}</p>
       </div>
 
+      {/* News Discord Webhook */}
+      <div className="glass-card rounded-2xl p-5 space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t.adminSettingsNewsWebhook}</h2>
+        <input
+          className={inputCls}
+          value={newsWebhook}
+          onChange={(e) => onNewsWebhookChange(e.target.value)}
+          placeholder={t.adminSettingsNewsWebhookPlaceholder}
+        />
+        <p className="text-xs text-muted-foreground">{t.adminSettingsNewsWebhookHint}</p>
+      </div>
+
       {/* Save */}
       <button
         onClick={onSave}
@@ -385,6 +399,7 @@ export default function AdminPage() {
   const [steamNewKey, setSteamNewKey] = useState("");
   const [steamClear, setSteamClear] = useState(false);
   const [settingsRegistrationEnabled, setSettingsRegistrationEnabled] = useState(true);
+  const [settingsNewsWebhook, setSettingsNewsWebhook] = useState("");
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSaved, setSettingsSaved] = useState(false);
 
@@ -463,6 +478,7 @@ export default function AdminPage() {
         setSteamKeySource(s.steam_key_source);
         setSettingsAppUrl(s.app_url ?? "");
         setSettingsRegistrationEnabled(s.registration_enabled ?? true);
+        setSettingsNewsWebhook(s.news_webhook_url ?? "");
         setSteamNewKey("");
         setSteamClear(false);
       }).catch(() => {});
@@ -1411,12 +1427,14 @@ export default function AdminPage() {
             saving={settingsSaving}
             saved={settingsSaved}
             registrationEnabled={settingsRegistrationEnabled}
+            newsWebhook={settingsNewsWebhook}
             onNameChange={setSettingsName}
             onLogoChange={setSettingsLogo}
             onAppUrlChange={setSettingsAppUrl}
             onSteamNewKeyChange={(v) => { setSteamNewKey(v); if (v) setSteamClear(false); }}
             onSteamClear={() => { setSteamClear((prev) => { if (prev) setSteamNewKey(""); return !prev; }); }}
             onRegistrationEnabledChange={setSettingsRegistrationEnabled}
+            onNewsWebhookChange={setSettingsNewsWebhook}
             onSave={async () => {
               setSettingsSaving(true);
               setSettingsSaved(false);
@@ -1430,6 +1448,7 @@ export default function AdminPage() {
                   app_url: settingsAppUrl,
                   steam_api_key: steamApiKey,
                   registration_enabled: settingsRegistrationEnabled,
+                  news_webhook_url: settingsNewsWebhook,
                 });
                 await refreshSettings();
                 // Refresh Steam key info

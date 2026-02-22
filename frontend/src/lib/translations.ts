@@ -341,6 +341,10 @@ export const translations = {
     // Registration control
     adminSettingsRegistration: "Allow registration",
     adminSettingsRegistrationHint: "When disabled, new users cannot register. Existing accounts and Steam auth are unaffected.",
+    // News Discord webhook
+    adminSettingsNewsWebhook: "News Discord Webhook",
+    adminSettingsNewsWebhookHint: "When set, published news will be sent to this Discord webhook as an embed with a link to the site.",
+    adminSettingsNewsWebhookPlaceholder: "https://discord.com/api/webhooks/…",
     // Alert extras (online restore + email)
     alertsNotifyOnline: "Notify when server comes back online",
     alertsEmailTo: "Email for alerts",
@@ -747,6 +751,10 @@ export const translations = {
     // Registration control
     adminSettingsRegistration: "Разрешить регистрацию",
     adminSettingsRegistrationHint: "При отключении новые пользователи не смогут зарегистрироваться. Существующие аккаунты и Steam-авторизация продолжат работать.",
+    // News Discord webhook
+    adminSettingsNewsWebhook: "Discord-вебхук для новостей",
+    adminSettingsNewsWebhookHint: "При наличии опубликованные новости будут отправляться в этот Discord-вебхук в виде embed-сообщения со ссылкой на сайт.",
+    adminSettingsNewsWebhookPlaceholder: "https://discord.com/api/webhooks/…",
     // Alert extras (online restore + email)
     alertsNotifyOnline: "Уведомлять о восстановлении сервера",
     alertsEmailTo: "Email для уведомлений",

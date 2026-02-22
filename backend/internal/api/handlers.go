@@ -205,7 +205,7 @@ func GetServerPlayers(c echo.Context) error {
 	var err error
 
 	switch server.GameType {
-	case "source", "fivem", "gmod", "valheim", "dayz", "squad", "vrising", "icarus", "terraria":
+	case "source", "fivem", "gmod", "valheim", "dayz", "squad", "vrising", "terraria":
 		players, err = poller.QuerySourcePlayers(server.IP, server.Port)
 	case "samp":
 		players, err = poller.QuerySAMPPlayers(server.IP, server.Port)
@@ -406,6 +406,11 @@ func CreateNews(c echo.Context) error {
 		aid, aname := actorFromCtx(c)
 		logAudit(aid, aname, "create_news", "news", item.ID, item.Title)
 	}
+	if item.Published {
+		var s models.SiteSettings
+		database.DB.First(&s, 1)
+		SendNewsToDiscord(&item, s.AppURL, s.NewsWebhookURL, discordSiteName())
+	}
 	return c.JSON(http.StatusCreated, item)
 }
 
@@ -416,14 +421,16 @@ func UpdateNews(c echo.Context) error {
 	if err := database.DB.First(&item, id).Error; err != nil {
 		return c.JSON(http.StatusNotFound, echo.Map{"error": "news not found"})
 	}
+	wasPublished := item.Published
 	var req struct {
-		Title     string  `json:"title"`
-		Content   string  `json:"content"`
-		ImageURL  string  `json:"image_url"`
-		Tags      string  `json:"tags"`
-		Pinned    *bool   `json:"pinned"`
-		Published *bool   `json:"published"`
-		PublishAt *string `json:"publish_at"`
+		Title          string  `json:"title"`
+		Content        string  `json:"content"`
+		ImageURL       string  `json:"image_url"`
+		Tags           string  `json:"tags"`
+		Pinned         *bool   `json:"pinned"`
+		Published      *bool   `json:"published"`
+		PublishAt      *string `json:"publish_at"`
+		SendToDiscord  bool    `json:"send_to_discord"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()})
@@ -455,6 +462,13 @@ func UpdateNews(c echo.Context) error {
 	{
 		aid, aname := actorFromCtx(c)
 		logAudit(aid, aname, "update_news", "news", item.ID, item.Title)
+	}
+	// Отправляем в Discord если: явно запрошено ИЛИ новость только что опубликована (была черновиком)
+	justPublished := !wasPublished && item.Published
+	if (req.SendToDiscord || justPublished) && item.Published {
+		var s models.SiteSettings
+		database.DB.First(&s, 1)
+		SendNewsToDiscord(&item, s.AppURL, s.NewsWebhookURL, discordSiteName())
 	}
 	return c.JSON(http.StatusOK, item)
 }

@@ -55,6 +55,7 @@ export interface AdminSiteSettings {
   steam_key_hint: string;
   steam_key_source: "db" | "env";
   registration_enabled: boolean;
+  news_webhook_url: string;
 }
 
 export interface PublicProfile {
@@ -221,7 +222,7 @@ export const api = {
   bulkServers: (action: string, ids: number[]): Promise<{ ok: boolean; count: number }> =>
     fetchJSON("/api/v1/admin/servers/bulk", { method: "POST", body: JSON.stringify({ action, ids }) }),
 
-  // Update settings with registration_enabled
-  updateSettingsFull: (data: { site_name?: string; logo_data?: string; app_url?: string; steam_api_key?: string; registration_enabled?: boolean }) =>
+  // Update settings with registration_enabled and news webhook
+  updateSettingsFull: (data: { site_name?: string; logo_data?: string; app_url?: string; steam_api_key?: string; registration_enabled?: boolean; news_webhook_url?: string }) =>
     fetchJSON<SiteSettings>("/api/v1/admin/settings", { method: "PUT", body: JSON.stringify(data) }),
 };

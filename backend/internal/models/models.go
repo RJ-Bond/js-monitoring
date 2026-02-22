@@ -112,6 +112,7 @@ type SiteSettings struct {
 	SteamAPIKey         string `gorm:"type:varchar(255)"                      json:"-"` // никогда не раскрывается через API
 	AppURL              string `gorm:"type:varchar(255)"                      json:"app_url"`
 	RegistrationEnabled bool   `gorm:"default:true"                           json:"registration_enabled"`
+	NewsWebhookURL      string `gorm:"type:varchar(500)"                      json:"news_webhook_url"`
 }
 
 // PasswordReset — токен для сброса пароля (генерируется администратором)

@@ -126,6 +126,49 @@ func SendOrUpdateDiscordMessage(webhookURL, messageID string, payload []byte) (s
 	return msgResp.ID, nil
 }
 
+// SendNewsToDiscord отправляет новость в Discord webhook (асинхронно).
+// Отправляется только при наличии webhookURL. appURL используется для формирования ссылки.
+func SendNewsToDiscord(item *models.NewsItem, appURL, webhookURL, siteName string) {
+	if webhookURL == "" {
+		return
+	}
+
+	content := item.Content
+	if len([]rune(content)) > 300 {
+		runes := []rune(content)
+		content = string(runes[:300]) + "…"
+	}
+
+	description := content
+	if appURL != "" {
+		link := strings.TrimRight(appURL, "/") + fmt.Sprintf("/?news=%d", item.ID)
+		description += fmt.Sprintf("\n\n[Читать полностью →](%s)", link)
+	}
+
+	color := 3447003 // синий
+	if item.Pinned {
+		color = 16766720 // золотой
+	}
+
+	embed := discordEmbed{
+		Title:       item.Title,
+		Description: description,
+		Color:       color,
+		Timestamp:   item.CreatedAt.UTC().Format(time.RFC3339),
+	}
+	embed.Footer.Text = siteName
+
+	pl := discordWebhookPayload{Username: siteName, Embeds: []discordEmbed{embed}}
+	b, _ := json.Marshal(pl)
+
+	go func() {
+		resp, err := http.Post(strings.TrimRight(webhookURL, "/"), "application/json", bytes.NewReader(b)) //nolint:noctx
+		if err == nil {
+			_ = resp.Body.Close()
+		}
+	}()
+}
+
 func discordSiteName() string {
 	var s models.SiteSettings
 	if err := database.DB.First(&s, 1).Error; err != nil || s.SiteName == "" {

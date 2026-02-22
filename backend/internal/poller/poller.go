@@ -153,7 +153,7 @@ func (p *Poller) queryPlayers(srv *models.Server) []string {
 	var err error
 
 	switch srv.GameType {
-	case "source", "fivem", "gmod", "valheim", "dayz", "squad", "vrising", "icarus", "terraria":
+	case "source", "fivem", "gmod", "valheim", "dayz", "squad", "vrising", "terraria":
 		serverPlayers, err = QuerySourcePlayers(srv.IP, srv.Port)
 	case "samp":
 		serverPlayers, err = QuerySAMPPlayers(srv.IP, srv.Port)

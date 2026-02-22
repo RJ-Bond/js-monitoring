@@ -79,6 +79,7 @@ func GetAdminSettings(c echo.Context) error {
 		"steam_key_hint":       hint,
 		"steam_key_source":     keySource,
 		"registration_enabled": s.RegistrationEnabled,
+		"news_webhook_url":     s.NewsWebhookURL,
 	})
 }
 
@@ -90,6 +91,7 @@ func UpdateSettings(c echo.Context) error {
 		AppURL              string `json:"app_url"`
 		SteamAPIKey         string `json:"steam_api_key"` // "" = no change, "__CLEAR__" = delete, otherwise = save
 		RegistrationEnabled *bool  `json:"registration_enabled"`
+		NewsWebhookURL      string `json:"news_webhook_url"`
 	}
 	if err := c.Bind(&payload); err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid payload"})
@@ -108,6 +110,7 @@ func UpdateSettings(c echo.Context) error {
 	s.SiteName = payload.SiteName
 	s.LogoData = payload.LogoData
 	s.AppURL = payload.AppURL
+	s.NewsWebhookURL = payload.NewsWebhookURL
 	if payload.RegistrationEnabled != nil {
 		s.RegistrationEnabled = *payload.RegistrationEnabled
 	}
@@ -138,5 +141,6 @@ func UpdateSettings(c echo.Context) error {
 		"steam_enabled":        effectiveKey != "",
 		"app_url":              s.AppURL,
 		"registration_enabled": s.RegistrationEnabled,
+		"news_webhook_url":     s.NewsWebhookURL,
 	})
 }

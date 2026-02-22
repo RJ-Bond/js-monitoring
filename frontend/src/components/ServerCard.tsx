@@ -39,7 +39,7 @@ function timeSince(dateStr: string, locale: string): string {
 }
 
 const PLAYER_SUPPORTED: Server["game_type"][] = [
-  "source", "fivem", "gmod", "valheim", "dayz", "squad", "vrising", "icarus", "terraria",
+  "source", "fivem", "gmod", "valheim", "dayz", "squad", "vrising", "terraria",
   "samp", "minecraft", "minecraft_bedrock",
 ];
 
