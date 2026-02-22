@@ -189,7 +189,7 @@ export default function CommandPalette({ servers, onSelectServer, onClose }: Com
                       onMouseEnter={() => setActiveIdx(globalIdx)}
                       onClick={() => { onSelectServer?.(srv); onClose(); }}
                     >
-                      <GameIcon gameType={srv.game_type} size={16} />
+                      <GameIcon gameType={srv.game_type} imgClassName="h-4 w-auto max-w-[2rem] object-contain rounded-sm" emojiClassName="text-sm leading-none" />
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-foreground truncate">{name}</p>
                         <p className="text-xs text-muted-foreground font-mono">
