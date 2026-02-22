@@ -383,6 +383,14 @@ export default function AdminPage() {
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSaved, setSettingsSaved] = useState(false);
 
+  // Servers tab filters
+  const [serverSearch, setServerSearch] = useState("");
+  const [serverGameFilter, setServerGameFilter] = useState("all");
+  const [serverStatusFilter, setServerStatusFilter] = useState<"all" | "online" | "offline">("all");
+
+  // Audit log filter
+  const [auditActionFilter, setAuditActionFilter] = useState<"all" | "create" | "update" | "delete">("all");
+
   // Bulk selections
   const [selectedUserIDs, setSelectedUserIDs] = useState<Set<number>>(new Set());
   const [selectedServerIDs, setSelectedServerIDs] = useState<Set<number>>(new Set());
@@ -413,6 +421,21 @@ export default function AdminPage() {
     }
     fetchUsers();
   }, [isAuthenticated, isLoading, user, router]);
+
+  // Read tab from URL on mount
+  useEffect(() => {
+    const param = new URLSearchParams(window.location.search).get("tab") as AdminTab;
+    if (param && ["users", "servers", "stats", "settings", "audit"].includes(param)) {
+      setTab(param);
+    }
+  }, []);
+
+  // Write tab to URL on change
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", tab);
+    window.history.replaceState(null, "", url.toString());
+  }, [tab]);
 
   // Sync settings state when context updates
   useEffect(() => {
@@ -579,6 +602,28 @@ export default function AdminPage() {
     else { setSortKey(key); setSortDir("asc"); }
   };
 
+  const filteredServers = useMemo(() => {
+    return servers.filter((s) => {
+      if (serverSearch) {
+        const q = serverSearch.toLowerCase();
+        if (
+          !(s.title || "").toLowerCase().includes(q) &&
+          !s.ip.toLowerCase().includes(q) &&
+          !(s.owner_name || "").toLowerCase().includes(q)
+        ) return false;
+      }
+      if (serverGameFilter !== "all" && s.game_type !== serverGameFilter) return false;
+      if (serverStatusFilter === "online" && !s.status?.online_status) return false;
+      if (serverStatusFilter === "offline" && s.status?.online_status !== false) return false;
+      return true;
+    });
+  }, [servers, serverSearch, serverGameFilter, serverStatusFilter]);
+
+  const filteredAudit = useMemo(() => {
+    if (auditActionFilter === "all") return auditLogs;
+    return auditLogs.filter((log) => log.action.startsWith(`${auditActionFilter}_`));
+  }, [auditLogs, auditActionFilter]);
+
   // Stats (computed from loaded data)
   const stats = useMemo(() => ({
     totalUsers: users.length,
@@ -590,12 +635,12 @@ export default function AdminPage() {
 
   const inputCls = "bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-neon-green/50 transition-all placeholder:text-muted-foreground";
 
-  const tabs: { key: AdminTab; label: string; icon: React.ReactNode }[] = [
-    { key: "users",    label: t.adminTabUsers,    icon: <Users className="w-4 h-4" /> },
-    { key: "servers",  label: t.adminTabServers,  icon: <Server className="w-4 h-4" /> },
+  const tabs: { key: AdminTab; label: string; icon: React.ReactNode; badge?: number }[] = [
+    { key: "users",    label: t.adminTabUsers,    icon: <Users className="w-4 h-4" />,        badge: users.length || undefined },
+    { key: "servers",  label: t.adminTabServers,  icon: <Server className="w-4 h-4" />,       badge: servers.length || undefined },
     { key: "stats",    label: t.adminTabStats,    icon: <BarChart2 className="w-4 h-4" /> },
     { key: "settings", label: t.adminTabSettings, icon: <Settings className="w-4 h-4" /> },
-    { key: "audit",    label: t.auditLog,         icon: <ClipboardList className="w-4 h-4" /> },
+    { key: "audit",    label: t.auditLog,         icon: <ClipboardList className="w-4 h-4" />, badge: auditTotal || undefined },
   ];
 
   return (
@@ -648,7 +693,12 @@ export default function AdminPage() {
                 }`}
               >
                 {tb.icon}
-                {tb.label}
+                <span className="hidden sm:inline">{tb.label}</span>
+                {tb.badge !== undefined && (
+                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-white/10 text-muted-foreground leading-none">
+                    {tb.badge}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -897,6 +947,65 @@ export default function AdminPage() {
         {/* ── SERVERS TAB ── */}
         {tab === "servers" && (
           <>
+            {/* Search + status filter */}
+            <div className="flex flex-col sm:flex-row gap-2 mb-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                <input
+                  className={`${inputCls} pl-9 w-full`}
+                  placeholder={t.adminSearchPlaceholder}
+                  value={serverSearch}
+                  onChange={(e) => setServerSearch(e.target.value)}
+                />
+              </div>
+              <div className="flex gap-1 bg-white/5 rounded-xl p-1 flex-shrink-0">
+                {(["all", "online", "offline"] as const).map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setServerStatusFilter(f)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      serverStatusFilter === f ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {f === "all" ? t.adminFilterAll : f === "online" ? t.statusOnline : t.statusOffline}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Game type filter pills */}
+            {servers.length > 0 && (() => {
+              const gameTypes = Array.from(new Set(servers.map((s) => s.game_type)));
+              if (gameTypes.length <= 1) return null;
+              return (
+                <div className="flex gap-1.5 flex-wrap mb-3">
+                  <button
+                    onClick={() => setServerGameFilter("all")}
+                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium border transition-all ${
+                      serverGameFilter === "all"
+                        ? "bg-neon-blue/15 border-neon-blue/40 text-neon-blue"
+                        : "border-white/10 text-muted-foreground hover:text-foreground hover:border-white/20"
+                    }`}
+                  >
+                    {t.adminFilterAll}
+                  </button>
+                  {gameTypes.map((g) => (
+                    <button
+                      key={g}
+                      onClick={() => setServerGameFilter(serverGameFilter === g ? "all" : g)}
+                      className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium border transition-all ${
+                        serverGameFilter === g
+                          ? "bg-neon-blue/15 border-neon-blue/40 text-neon-blue"
+                          : "border-white/10 text-muted-foreground hover:text-foreground hover:border-white/20"
+                      }`}
+                    >
+                      {GAME_META[g as keyof typeof GAME_META]?.label ?? g}
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
+
             {/* Export buttons */}
             <div className="flex items-center gap-2 mb-4 justify-end">
               <a
@@ -932,15 +1041,17 @@ export default function AdminPage() {
                         <th className="px-3 py-3 w-8">
                           <button
                             onClick={() => {
-                              if (selectedServerIDs.size === servers.length) {
-                                setSelectedServerIDs(new Set());
-                              } else {
-                                setSelectedServerIDs(new Set(servers.map(s => s.id)));
-                              }
+                              const allSelected = filteredServers.every((s) => selectedServerIDs.has(s.id));
+                              setSelectedServerIDs((prev) => {
+                                const next = new Set(prev);
+                                if (allSelected) filteredServers.forEach((s) => next.delete(s.id));
+                                else filteredServers.forEach((s) => next.add(s.id));
+                                return next;
+                              });
                             }}
                             className="text-muted-foreground hover:text-foreground transition-colors"
                           >
-                            {selectedServerIDs.size > 0
+                            {filteredServers.length > 0 && filteredServers.every((s) => selectedServerIDs.has(s.id))
                               ? <CheckSquare className="w-4 h-4 text-neon-blue" />
                               : <Square className="w-4 h-4" />}
                           </button>
@@ -949,12 +1060,13 @@ export default function AdminPage() {
                         <th className="text-left px-5 py-3 hidden sm:table-cell">{t.adminServerGame}</th>
                         <th className="text-left px-5 py-3">{t.adminServerIP}</th>
                         <th className="text-left px-5 py-3 hidden md:table-cell">{t.adminServerOwner}</th>
+                        <th className="text-center px-3 py-3 hidden sm:table-cell">{t.cardPlayers}</th>
                         <th className="text-left px-5 py-3">{t.adminStatus}</th>
                         <th className="text-right px-5 py-3">{t.adminActions}</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {servers.map((s) => (
+                      {filteredServers.map((s) => (
                         <tr key={s.id} className={`border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors ${selectedServerIDs.has(s.id) ? "bg-neon-blue/5" : ""}`}>
                           <td className="px-3 py-3">
                             <button
@@ -984,6 +1096,15 @@ export default function AdminPage() {
                           <td className="px-5 py-3 hidden md:table-cell">
                             {s.owner_name ? (
                               <span className="text-xs text-muted-foreground">{s.owner_name}</span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground/40">—</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-3 text-center hidden sm:table-cell">
+                            {s.status?.online_status ? (
+                              <span className="text-xs font-mono text-foreground">
+                                {s.status.players_now}<span className="text-muted-foreground/50">/{s.status.players_max}</span>
+                              </span>
                             ) : (
                               <span className="text-xs text-muted-foreground/40">—</span>
                             )}
@@ -1030,7 +1151,7 @@ export default function AdminPage() {
                   </table>
                 </div>
                 <div className="px-5 py-2 border-t border-white/5 text-xs text-muted-foreground">
-                  {servers.length}
+                  {filteredServers.length} / {servers.length}
                 </div>
               </div>
             )}
@@ -1097,6 +1218,21 @@ export default function AdminPage() {
         {/* ── AUDIT TAB ── */}
         {tab === "audit" && (
           <div className="flex flex-col gap-4">
+            {/* Action filter pills */}
+            <div className="flex gap-1 bg-white/5 rounded-xl p-1 w-fit">
+              {(["all", "create", "update", "delete"] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setAuditActionFilter(f)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    auditActionFilter === f ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {f === "all" ? t.adminFilterAll : f}
+                </button>
+              ))}
+            </div>
+
             {auditLoading && auditLogs.length === 0 ? (
               <div className="glass-card rounded-2xl p-8 flex items-center justify-center gap-2 text-muted-foreground">
                 <RefreshCw className="w-5 h-5 animate-spin" />
@@ -1117,7 +1253,7 @@ export default function AdminPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {auditLogs.map((log) => (
+                      {filteredAudit.map((log) => (
                         <tr key={log.id} className="border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors">
                           <td className="px-5 py-3">
                             <span className={`text-xs font-medium px-2 py-0.5 rounded-md ${getActionColor(log.action)}`}>
@@ -1142,7 +1278,7 @@ export default function AdminPage() {
                   </table>
                 </div>
                 <div className="px-5 py-3 border-t border-white/5 flex items-center justify-between text-xs text-muted-foreground">
-                  <span>{auditLogs.length} / {auditTotal}</span>
+                  <span>{filteredAudit.length}{auditActionFilter !== "all" ? ` / ${auditLogs.length}` : ""} / {auditTotal}</span>
                   {auditLogs.length < auditTotal && (
                     <button
                       onClick={() => fetchAuditLog(auditPage + 1)}
