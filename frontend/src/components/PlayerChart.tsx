@@ -5,6 +5,7 @@ import {
   ResponsiveContainer, ComposedChart, Area, Line,
   XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine,
 } from "recharts";
+import type { TooltipProps } from "recharts";
 import { useHistory } from "@/hooks/useServers";
 import { useLanguage } from "@/contexts/LanguageContext";
 import type { PlayerHistory } from "@/types/server";
@@ -31,13 +32,7 @@ function downsample(data: PlayerHistory[], maxPoints: number): PlayerHistory[] {
 
 function makeTooltip(locale: string) {
   const isRu = locale === "ru";
-  return function CustomTooltip({
-    active, payload, label,
-  }: {
-    active?: boolean;
-    payload?: { name?: string; value?: number; color?: string }[];
-    label?: string;
-  }) {
+  return function CustomTooltip({ active, payload, label }: TooltipProps<number, string>) {
     if (!active || !payload?.length) return null;
     const players = payload.find((p) => p.name === "players");
     const ping = payload.find((p) => p.name === "ping");
@@ -50,7 +45,7 @@ function makeTooltip(locale: string) {
               <span className="w-1.5 h-1.5 rounded-full bg-neon-green flex-shrink-0" />
               {isRu ? "Игрок" : "Players"}
             </span>
-            <span className="font-bold text-neon-green tabular-nums">{players.value}</span>
+            <span className="font-bold text-neon-green tabular-nums">{players.value ?? 0}</span>
           </div>
         )}
         {ping && (ping.value ?? 0) > 0 && (
@@ -59,7 +54,7 @@ function makeTooltip(locale: string) {
               <span className="w-1.5 h-1.5 rounded-full bg-neon-blue flex-shrink-0" />
               {isRu ? "Пинг" : "Ping"}
             </span>
-            <span className="font-bold text-neon-blue tabular-nums">{ping.value} ms</span>
+            <span className="font-bold text-neon-blue tabular-nums">{ping.value ?? 0} ms</span>
           </div>
         )}
       </div>
