@@ -29,32 +29,43 @@ function downsample(data: PlayerHistory[], maxPoints: number): PlayerHistory[] {
   return data.filter((_, i) => i % step === 0);
 }
 
-const CustomTooltip = ({
-  active, payload, label,
-}: {
-  active?: boolean;
-  payload?: { name: string; value: number; color: string }[];
-  label?: string;
-}) => {
-  if (!active || !payload?.length) return null;
-  const players = payload.find((p) => p.name === "players");
-  const ping = payload.find((p) => p.name === "ping");
-  return (
-    <div className="glass-card rounded-lg px-3 py-2 text-xs space-y-1 shadow-lg">
-      <p className="text-muted-foreground mb-1">{label}</p>
-      {players && (
-        <p className="font-semibold" style={{ color: "#00ff88" }}>
-          {players.value} <span className="font-normal text-muted-foreground">players</span>
-        </p>
-      )}
-      {ping && ping.value > 0 && (
-        <p className="font-semibold" style={{ color: "#00d4ff" }}>
-          {ping.value} ms <span className="font-normal text-muted-foreground">ping</span>
-        </p>
-      )}
-    </div>
-  );
-};
+function makeTooltip(locale: string) {
+  const isRu = locale === "ru";
+  return function CustomTooltip({
+    active, payload, label,
+  }: {
+    active?: boolean;
+    payload?: { name: string; value: number; color: string }[];
+    label?: string;
+  }) {
+    if (!active || !payload?.length) return null;
+    const players = payload.find((p) => p.name === "players");
+    const ping = payload.find((p) => p.name === "ping");
+    return (
+      <div className="chart-tooltip rounded-xl px-3 py-2.5 text-xs shadow-2xl min-w-[110px]">
+        <p className="text-muted-foreground/70 font-mono text-[10px] mb-2 border-b border-white/10 pb-1.5">{label}</p>
+        {players && (
+          <div className="flex items-center justify-between gap-3">
+            <span className="flex items-center gap-1.5 text-muted-foreground">
+              <span className="w-1.5 h-1.5 rounded-full bg-neon-green flex-shrink-0" />
+              {isRu ? "Игрок" : "Players"}
+            </span>
+            <span className="font-bold text-neon-green tabular-nums">{players.value}</span>
+          </div>
+        )}
+        {ping && ping.value > 0 && (
+          <div className="flex items-center justify-between gap-3 mt-1">
+            <span className="flex items-center gap-1.5 text-muted-foreground">
+              <span className="w-1.5 h-1.5 rounded-full bg-neon-blue flex-shrink-0" />
+              {isRu ? "Пинг" : "Ping"}
+            </span>
+            <span className="font-bold text-neon-blue tabular-nums">{ping.value} ms</span>
+          </div>
+        )}
+      </div>
+    );
+  };
+}
 
 export default function PlayerChart({ serverId }: PlayerChartProps) {
   const [period, setPeriod] = useState<Period>("24h");
@@ -74,6 +85,7 @@ export default function PlayerChart({ serverId }: PlayerChartProps) {
     : 0;
 
   const hasPing = chartData.some((d) => d.ping > 0);
+  const isRu = locale === "ru";
 
   return (
     <div className="flex flex-col gap-3">
@@ -151,7 +163,7 @@ export default function PlayerChart({ serverId }: PlayerChartProps) {
                   width={28}
                 />
               )}
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={makeTooltip(locale)} cursor={{ stroke: "rgba(255,255,255,0.08)", strokeWidth: 1 }} />
               {peak > 0 && (
                 <ReferenceLine
                   yAxisId="players"
@@ -193,11 +205,11 @@ export default function PlayerChart({ serverId }: PlayerChartProps) {
         <div className="flex items-center gap-3 text-xs text-muted-foreground/60">
           <span className="flex items-center gap-1">
             <span className="w-3 h-0.5 bg-neon-green rounded inline-block" />
-            Players
+            {isRu ? "Игроки" : "Players"}
           </span>
           <span className="flex items-center gap-1">
             <span className="w-3 h-0.5 bg-neon-blue rounded inline-block opacity-70" />
-            Ping
+            {isRu ? "Пинг" : "Ping"}
           </span>
         </div>
       )}
