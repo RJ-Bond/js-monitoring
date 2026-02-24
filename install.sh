@@ -283,17 +283,61 @@ info "$T_SYSTEMD_OK"
 section "$T_BUILD"
 if $IS_UPDATE; then
     info "$T_UPDATE_REBUILD"
-    # Clear MySQL data volume on update to avoid version conflicts
+fi
+
+# Aggressive cleanup for MySQL data volume and MySQL 5.7 containers
+echo "  Preparing for fresh MySQL 8.0 initialization..."
+
+# Stop and remove containers
+docker compose down -v 2>/dev/null || true
+docker kill jsmon-mysql 2>/dev/null || true
+docker rm -f jsmon-mysql 2>/dev/null || true
+sleep 2
+
+# Remove MySQL data volume (with multiple attempts if needed)
+if docker volume inspect jsmon-mysql_mysql_data >/dev/null 2>&1; then
+    warn "Removing MySQL data volume (attempt 1)..."
+    docker volume rm jsmon-mysql_mysql_data 2>/dev/null || true
+    sleep 1
+    
+    # Second attempt if first failed
     if docker volume inspect jsmon-mysql_mysql_data >/dev/null 2>&1; then
-        warn "Clearing MySQL data volume for clean update..."
-        docker compose down 2>/dev/null || true
-        docker volume rm jsmon-mysql_mysql_data 2>/dev/null || true
-        sleep 2
+        warn "Removing MySQL data volume (attempt 2 - force)..."
+        docker volume rm -f jsmon-mysql_mysql_data 2>/dev/null || {
+            error "Failed to remove old MySQL data volume. This usually means:
+
+1. The volume is still in use by another container
+2. Permission issue with Docker daemon
+
+To fix manually, run:
+  docker volume rm -f jsmon-mysql_mysql_data
+  
+Or clean everything:
+  docker compose down -v
+  docker system prune -a -f --volumes
+  
+Then restart: sudo bash install.sh update"
+        }
     fi
 fi
 
+# Verify volume is gone
+if docker volume inspect jsmon-mysql_mysql_data >/dev/null 2>&1; then
+    error "MySQL data volume still exists and cannot be removed. Please:
+
+1. Stop all services: docker compose down
+2. Manually list and inspect: docker volume ls | grep jsmon
+3. Try removing: docker volume rm -f jsmon-mysql_mysql_data
+4. If that fails, check what container is using it: docker ps -a
+
+Then restart installation."
+fi
+
+info "MySQL data volume cleaned"
+
 # Ensure containers are not running
 docker compose down 2>/dev/null || true
+docker ps | grep jsmon | awk '{print $1}' | xargs -r docker kill 2>/dev/null || true
 sleep 2
 
 # Remove old MySQL 5.7 image if it exists to force MySQL 8.0
@@ -336,6 +380,28 @@ fi
 
 echo "  Containers started. Checking service status..."
 docker compose ps --format "table {{.Names}}\t{{.Status}}" || true
+
+# Verify MySQL 8.0 is running (not 5.7)
+echo "  Verifying MySQL version in running container..."
+sleep 2
+RUNNING_MYSQL=$(docker compose logs mysql 2>/dev/null | grep -oP "mysqld \(mysqld \K[0-9.]+")
+if [[ "$RUNNING_MYSQL" =~ ^5\.7 ]]; then
+    error "CRITICAL: MySQL 5.7 is running instead of MySQL 8.0!
+
+This happens when old MySQL 5.7 data exists and Docker pulls the wrong image.
+
+To fix:
+1. docker compose down -v
+2. docker volume rm -f jsmon-mysql_mysql_data
+3. docker image rm -f mysql:5.7 mysql:8.0
+4. docker system prune -a -f --volumes
+5. git pull && sudo bash install.sh update
+
+The container will be stopped to prevent corruption."
+    docker compose down
+    exit 1
+fi
+info "MySQL 8.0 is correctly running"
 
 # ── Wait for MySQL to be healthy ──────────────────────────────────────────────
 section "$T_HEALTH"
