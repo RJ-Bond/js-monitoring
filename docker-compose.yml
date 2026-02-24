@@ -4,24 +4,26 @@ services:
     image: mysql:8.0
     container_name: jsmon-mysql
     restart: unless-stopped
-    command: --default-storage-engine=InnoDB --innodb-autoinc-lock-mode=2 --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --explicit_defaults_for_timestamp=ON
+    command: --default-storage-engine=InnoDB --innodb-autoinc-lock-mode=2 --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --explicit_defaults_for_timestamp=ON --innodb-buffer-pool-size=128M --innodb-log-file-size=48M
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
       MYSQL_DATABASE:      ${MYSQL_DATABASE:-js_monitoring}
       MYSQL_USER:          ${MYSQL_USER:-jsmon}
       MYSQL_PASSWORD:      ${MYSQL_PASSWORD:-supersecretpassword}
       MYSQL_ROOT_HOST: "%"
+      MYSQL_INITDB_SKIP_TZINFO: "yes"
+      TZ: "UTC"
     volumes:
       - mysql_data:/var/lib/mysql
       - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
       - "127.0.0.1:3306:3306"   # только localhost (безопасность)
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--silent"]
       interval: 10s
       timeout: 10s
-      start_period: 90s
-      retries: 15
+      start_period: 120s
+      retries: 20
     networks:
       - jsmon-net
 

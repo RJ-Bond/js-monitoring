@@ -283,16 +283,18 @@ info "$T_SYSTEMD_OK"
 section "$T_BUILD"
 if $IS_UPDATE; then
     info "$T_UPDATE_REBUILD"
-fi
-
-# Check if we need to clear old MySQL 5.7 data during upgrade
-if $IS_UPDATE && docker volume inspect jsmon-mysql_mysql_data >/dev/null 2>&1; then
-    if ! docker run --rm -v jsmon-mysql_mysql_data:/data alpine:latest ls /data/mysql 2>/dev/null | grep -q "mysql"; then
-        # Volume exists but is empty - might be from an old version
-        warn "Clearing old MySQL data volume for fresh installation..."
+    # Clear MySQL data volume on update to avoid version conflicts
+    if docker volume inspect jsmon-mysql_mysql_data >/dev/null 2>&1; then
+        warn "Clearing MySQL data volume for clean update..."
+        docker compose down 2>/dev/null || true
         docker volume rm jsmon-mysql_mysql_data 2>/dev/null || true
+        sleep 2
     fi
 fi
+
+# Ensure containers are not running
+docker compose down 2>/dev/null || true
+sleep 2
 
 # Validate docker-compose.yml syntax
 echo "  Validating docker-compose.yml..."
@@ -322,41 +324,46 @@ docker compose ps --format "table {{.Names}}\t{{.Status}}" || true
 section "$T_HEALTH"
 MAX_WAIT=600
 WAITED=0
-echo "  Waiting for MySQL database to initialize (this may take a minute)..."
+echo "  Waiting for MySQL database to initialize (this may take 2-3 minutes)..."
+LAST_STATUS=""
 while (( WAITED < 180 )); do
-    MYSQL_STATUS=$(docker compose ps mysql 2>/dev/null | grep -oP '(?<=\(|\s)\(healthy\)|unhealthy|starting' | head -1 || echo "unknown")
-    if [[ "$MYSQL_STATUS" == "healthy" ]]; then
+    MYSQL_STATUS=$(docker compose ps mysql 2>/dev/null | tail -1 | awk '{print $NF}' || echo "unknown")
+    
+    # Print status updates every 30 seconds or when status changes
+    if (( WAITED % 30 == 0 )) || [[ "$MYSQL_STATUS" != "$LAST_STATUS" ]]; then
+        printf "  Status: %-30s [%ds/180s]\n" "$MYSQL_STATUS" "$WAITED"
+        LAST_STATUS="$MYSQL_STATUS"
+    fi
+    
+    if [[ "$MYSQL_STATUS" == *"healthy"* ]]; then
         info "MySQL is healthy"
+        echo
         break
     fi
     
-    # Check for InnoDB corruption errors
-    MYSQL_LOGS=$(docker compose logs mysql 2>/dev/null)
-    if echo "$MYSQL_LOGS" | grep -q "InnoDB: Table flags are 0 in the data dictionary\|InnoDB: Assertion failure"; then
-        error "MySQL InnoDB database corruption detected. This commonly happens when upgrading MySQL versions.
+    # Check for critical errors
+    if docker compose logs mysql 2>/dev/null | grep -q "ERROR\|FATAL"; then
+        MYSQL_LOGS=$(docker compose logs mysql 2>/dev/null | tail -30)
+        error "MySQL encountered an error during initialization:
+
+$MYSQL_LOGS
 
 To fix this:
-
-  1. Stop all containers:
-     cd ${INSTALL_DIR} && docker compose down
-     
-  2. Remove the corrupted MySQL database volume:
-     docker volume rm jsmon-mysql_mysql_data
-     
-  3. Restart installation:
-     cd ${INSTALL_DIR} && sudo bash install.sh update
-     
-  The database will be recreated automatically with the new MySQL version."
+  1. cd ${INSTALL_DIR} && docker compose down
+  2. docker volume rm jsmon-mysql_mysql_data
+  3. sudo bash install.sh update"
     fi
     
-    printf "  Waiting for MySQL... [%ds/%ds]\r" "$WAITED" "180"
     sleep 5
     WAITED=$((WAITED+5))
 done
 
-if [[ "$MYSQL_STATUS" != "healthy" ]]; then
-    warn "MySQL failed to become healthy. Checking logs..."
-    docker compose logs mysql 2>/dev/null | tail -20
+# Final status check
+MYSQL_FINAL_STATUS=$(docker compose ps mysql 2>/dev/null | tail -1 | awk '{print $NF}' || echo "unknown")
+if [[ "$MYSQL_FINAL_STATUS" != *"healthy"* ]]; then
+    warn "MySQL initialization timed out. Container status: $MYSQL_FINAL_STATUS"
+    warn "Recent MySQL logs:"
+    docker compose logs mysql 2>/dev/null | tail -30 || true
 fi
 
 # ── Wait for application to be ready ──────────────────────────────────────────
