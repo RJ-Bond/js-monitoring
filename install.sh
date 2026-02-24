@@ -298,7 +298,7 @@ sleep 2
 
 # Remove old MySQL 5.7 image if it exists to force MySQL 8.0
 echo "  Cleaning up old Docker images..."
-docker image rm mysql:5.7 mysql:5.7-debian 2>/dev/null || true
+docker image rm mysql:5.7 mysql:5.7-debian mysql:8.0 2>/dev/null || true
 docker system prune -f --filter "dangling=true" 2>/dev/null || true
 
 # Validate docker-compose.yml syntax
@@ -308,13 +308,19 @@ if ! docker compose config >/dev/null 2>&1; then
 $(docker compose config 2>&1 | head -20)"
 fi
 
-# Pull latest images (--pull=always ensures fresh images)
-echo "  Pulling latest Docker images..."
-docker compose pull 2>&1 | grep -E "(Pulling|Downloaded|Digest|Status|Error)" || true
+# Pull latest MySQL 8.0.36 image (--pull=always ensures fresh images)
+echo "  Pulling MySQL 8.0.36 image..."
+if ! docker pull mysql:8.0.36 2>&1 | grep -E "(Pulling|Downloaded|Digest|Status|already|Error)"; then
+    error "Failed to pull MySQL 8.0.36 image"
+fi
 
-# Verify MySQL image version
-echo "  Verifying MySQL image..."
-docker inspect mysql:8.0 >/dev/null 2>&1 || error "Failed to pull MySQL 8.0 image"
+# Verify MySQL 8.0.36 image
+echo "  Verifying MySQL image version..."
+MYSQL_VERSION=$(docker run --rm mysql:8.0.36 mysqld --version 2>/dev/null | grep -oP '\d+\.\d+\.\d+' | head -1)
+if [[ ! "$MYSQL_VERSION" =~ ^8\.0 ]]; then
+    error "MySQL image verification failed. Expected 8.0.x, got: $MYSQL_VERSION"
+fi
+info "MySQL 8.0.36 verified: $MYSQL_VERSION"
 
 # Try to start containers with better error handling
 info "Building and starting containers..."
