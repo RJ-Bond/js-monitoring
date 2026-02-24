@@ -284,6 +284,16 @@ section "$T_BUILD"
 if $IS_UPDATE; then
     info "$T_UPDATE_REBUILD"
 fi
+
+# Check if we need to clear old MySQL 5.7 data during upgrade
+if $IS_UPDATE && docker volume inspect jsmon-mysql_mysql_data >/dev/null 2>&1; then
+    if ! docker run --rm -v jsmon-mysql_mysql_data:/data alpine:latest ls /data/mysql 2>/dev/null | grep -q "mysql"; then
+        # Volume exists but is empty - might be from an old version
+        warn "Clearing old MySQL data volume for fresh installation..."
+        docker volume rm jsmon-mysql_mysql_data 2>/dev/null || true
+    fi
+fi
+
 docker compose pull --quiet 2>/dev/null || true
 docker compose up -d --build --remove-orphans
 
@@ -300,19 +310,22 @@ while (( WAITED < 180 )); do
     fi
     
     # Check for InnoDB corruption errors
-    if docker compose logs mysql 2>/dev/null | grep -q "InnoDB: Table flags are 0 in the data dictionary"; then
-        error "MySQL database appears to be corrupted. To fix this:
-        
+    MYSQL_LOGS=$(docker compose logs mysql 2>/dev/null)
+    if echo "$MYSQL_LOGS" | grep -q "InnoDB: Table flags are 0 in the data dictionary\|InnoDB: Assertion failure"; then
+        error "MySQL InnoDB database corruption detected. This commonly happens when upgrading MySQL versions.
+
+To fix this:
+
   1. Stop all containers:
      cd ${INSTALL_DIR} && docker compose down
      
-  2. Remove the corrupted database volume:
+  2. Remove the corrupted MySQL database volume:
      docker volume rm jsmon-mysql_mysql_data
      
   3. Restart installation:
      cd ${INSTALL_DIR} && sudo bash install.sh update
      
-  Or manually remove the docker volume if the command above fails."
+  The database will be recreated automatically with the new MySQL version."
     fi
     
     printf "  Waiting for MySQL... [%ds/%ds]\r" "$WAITED" "180"
