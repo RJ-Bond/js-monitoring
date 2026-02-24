@@ -298,6 +298,23 @@ while (( WAITED < 180 )); do
         info "MySQL is healthy"
         break
     fi
+    
+    # Check for InnoDB corruption errors
+    if docker compose logs mysql 2>/dev/null | grep -q "InnoDB: Table flags are 0 in the data dictionary"; then
+        error "MySQL database appears to be corrupted. To fix this:
+        
+  1. Stop all containers:
+     cd ${INSTALL_DIR} && docker compose down
+     
+  2. Remove the corrupted database volume:
+     docker volume rm jsmon-mysql_mysql_data
+     
+  3. Restart installation:
+     cd ${INSTALL_DIR} && sudo bash install.sh update
+     
+  Or manually remove the docker volume if the command above fails."
+    fi
+    
     printf "  Waiting for MySQL... [%ds/%ds]\r" "$WAITED" "180"
     sleep 5
     WAITED=$((WAITED+5))
