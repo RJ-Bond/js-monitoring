@@ -294,8 +294,29 @@ if $IS_UPDATE && docker volume inspect jsmon-mysql_mysql_data >/dev/null 2>&1; t
     fi
 fi
 
+# Validate docker-compose.yml syntax
+echo "  Validating docker-compose.yml..."
+if ! docker compose config >/dev/null 2>&1; then
+    error "Invalid docker-compose.yml syntax. Details:
+$(docker compose config 2>&1 | head -20)"
+fi
+
 docker compose pull --quiet 2>/dev/null || true
-docker compose up -d --build --remove-orphans
+
+# Try to start containers with better error handling
+info "Building and starting containers..."
+if ! docker compose up -d --build --remove-orphans 2>&1 | tee /tmp/docker_build.log; then
+    error "Failed to start containers. Full log:
+$(cat /tmp/docker_build.log | tail -50)"
+fi
+
+# Check if containers started
+if ! docker compose ps >/dev/null 2>&1; then
+    error "Failed to list containers. Docker daemon may not be responding."
+fi
+
+echo "  Containers started. Checking service status..."
+docker compose ps --format "table {{.Names}}\t{{.Status}}" || true
 
 # ── Wait for MySQL to be healthy ──────────────────────────────────────────────
 section "$T_HEALTH"
