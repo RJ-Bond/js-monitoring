@@ -11,7 +11,7 @@ RUN go mod download
 # Копируем весь исходный код и синхронизируем go.sum с реальными импортами
 COPY . .
 RUN go mod tidy && \
-    CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /bin/server ./cmd/server
+    CGO_ENABLED=0 GOOS=linux GOAMD64=v1 go build -ldflags="-s -w" -o /bin/server ./cmd/server
 
 # ── Stage 2: Runtime ──────────────────────────────────────────────────────────
 FROM alpine:3.21
