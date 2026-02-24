@@ -1,7 +1,7 @@
 services:
   # ─── MySQL 8.0 ──────────────────────────────────────────────────────────────
   mysql:
-    image: mysql:8.0-lts
+    image: mysql:8.0
     container_name: jsmon-mysql
     restart: unless-stopped
     command: --default-storage-engine=InnoDB --innodb-autoinc-lock-mode=2 --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --explicit_defaults_for_timestamp=ON
