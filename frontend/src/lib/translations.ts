@@ -338,6 +338,10 @@ export const translations = {
     // Version
     adminStatsVersion: "Current version",
     adminStatsCheckUpdates: "Releases on GitHub",
+    adminStatsUpToDate: "Up to date",
+    adminStatsUpdateAvailable: "Update available",
+    adminStatsChangelog: "What's new",
+    adminStatsChecking: "Checking for updates…",
     // Registration control
     adminSettingsRegistration: "Allow registration",
     adminSettingsRegistrationHint: "When disabled, new users cannot register. Existing accounts and Steam auth are unaffected.",
@@ -755,6 +759,10 @@ export const translations = {
     // Version
     adminStatsVersion: "Текущая версия",
     adminStatsCheckUpdates: "Релизы на GitHub",
+    adminStatsUpToDate: "Актуальная версия",
+    adminStatsUpdateAvailable: "Доступно обновление",
+    adminStatsChangelog: "Что нового",
+    adminStatsChecking: "Проверка обновлений…",
     // Registration control
     adminSettingsRegistration: "Разрешить регистрацию",
     adminSettingsRegistrationHint: "При отключении новые пользователи не смогут зарегистрироваться. Существующие аккаунты и Steam-авторизация продолжат работать.",

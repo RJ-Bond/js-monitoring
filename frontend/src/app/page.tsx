@@ -15,7 +15,7 @@ import { useSiteSettings } from "@/contexts/SiteSettingsContext";
 import { useFavorites } from "@/hooks/useFavorites";
 import { api } from "@/lib/api";
 import { toast } from "@/lib/toast";
-import { renderMarkdown, stripMarkdown } from "@/lib/markdown";
+import { renderMarkdown, renderMarkdownPreview, stripMarkdown } from "@/lib/markdown";
 import ServerCard from "@/components/ServerCard";
 import ServerCardSkeleton from "@/components/ServerCardSkeleton";
 import CommandPalette from "@/components/CommandPalette";
@@ -474,9 +474,9 @@ export default function Home() {
                     </div>
                     <ArrowUpRight className="w-4 h-4 text-muted-foreground/30 group-hover:text-neon-blue/60 transition-colors flex-shrink-0 mt-1" />
                   </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 sm:line-clamp-3">
-                    {stripMarkdown(visibleNews[0].content)}
-                  </p>
+                  <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 sm:line-clamp-3"
+                    dangerouslySetInnerHTML={{ __html: renderMarkdownPreview(visibleNews[0].content) }}
+                  />
                   {/* Tags */}
                   {parseTags(visibleNews[0]).length > 0 && (
                     <div className="flex gap-1 flex-wrap">
@@ -543,9 +543,9 @@ export default function Home() {
                           {item.title}
                         </h3>
                       </div>
-                      <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3 flex-1">
-                        {stripMarkdown(item.content)}
-                      </p>
+                      <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3 flex-1"
+                        dangerouslySetInnerHTML={{ __html: renderMarkdownPreview(item.content) }}
+                      />
                       {parseTags(item).length > 0 && (
                         <div className="flex gap-1 flex-wrap">
                           {parseTags(item).slice(0, 3).map((tag) => (

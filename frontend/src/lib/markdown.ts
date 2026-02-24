@@ -40,20 +40,21 @@ export function renderMarkdown(md: string): string {
     '<hr style="border:none;border-top:1px solid rgba(255,255,255,.08);margin:16px 0" />',
   );
 
-  // Links
+  // Links (must be done before paragraph wrapping)
   html = html.replace(
     /\[(.+?)\]\((.+?)\)/g,
     '<a href="$2" style="color:#00d4ff;text-decoration:underline;text-underline-offset:3px" target="_blank" rel="noopener noreferrer">$1</a>',
   );
 
-  // Paragraph wrapping
+  // Paragraph wrapping (convert single newlines to <br /> and handle paragraph breaks)
   html = html
     .split("\n\n")
     .map((block) => {
       const t = block.trim();
       if (!t) return "";
       if (/^<(h[23]|li|hr)/.test(t)) return t;
-      return `<p style="margin:0 0 10px;line-height:1.7;color:rgba(255,255,255,.82)">${t.replace(/\n/g, "<br />")}</p>`;
+      // Convert single newlines to <br /> for line breaks
+      return `<p style="margin:0 0 10px;line-height:1.7;color:rgba(255,255,255,.82);white-space:pre-wrap;word-wrap:break-word">${t.replace(/\n/g, "<br />")}</p>`;
     })
     .join("\n");
 
@@ -71,4 +72,36 @@ export function stripMarkdown(s: string): string {
     .replace(/^[-*] /gm, "• ")
     .replace(/---/g, "")
     .trim();
+}
+/** Render markdown for preview (inline formatting with links) */
+export function renderMarkdownPreview(md: string): string {
+  let html = md
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+  // Inline: bold, italic
+  html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  html = html.replace(/\*(.+?)\*/g, "<em style='color:rgba(255,255,255,.75)'>$1</em>");
+
+  // Inline: code span
+  html = html.replace(
+    /`(.+?)`/g,
+    '<code style="font-family:monospace;font-size:.85em;background:rgba(255,255,255,.08);padding:1px 5px;border-radius:4px;color:#00ff88">$1</code>',
+  );
+
+  // Links
+  html = html.replace(
+    /\[(.+?)\]\((.+?)\)/g,
+    '<a href="$2" style="color:#00d4ff;text-decoration:underline;text-underline-offset:3px" target="_blank" rel="noopener noreferrer">$1</a>',
+  );
+
+  // Convert newlines to space/truncate
+  html = html
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .join(" ");
+
+  return html;
 }
