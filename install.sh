@@ -287,9 +287,28 @@ fi
 docker compose pull --quiet 2>/dev/null || true
 docker compose up -d --build --remove-orphans
 
-# ── Wait for healthy state ────────────────────────────────────────────────────
+# ── Wait for MySQL to be healthy ──────────────────────────────────────────────
 section "$T_HEALTH"
 MAX_WAIT=600
+WAITED=0
+echo "  Waiting for MySQL database to initialize (this may take a minute)..."
+while (( WAITED < 180 )); do
+    MYSQL_STATUS=$(docker compose ps mysql 2>/dev/null | grep -oP '(?<=\(|\s)\(healthy\)|unhealthy|starting' | head -1 || echo "unknown")
+    if [[ "$MYSQL_STATUS" == "healthy" ]]; then
+        info "MySQL is healthy"
+        break
+    fi
+    printf "  Waiting for MySQL... [%ds/%ds]\r" "$WAITED" "180"
+    sleep 5
+    WAITED=$((WAITED+5))
+done
+
+if [[ "$MYSQL_STATUS" != "healthy" ]]; then
+    warn "MySQL failed to become healthy. Checking logs..."
+    docker compose logs mysql 2>/dev/null | tail -20
+fi
+
+# ── Wait for application to be ready ──────────────────────────────────────────
 WAITED=0
 while ! curl -sf http://localhost/api/v1/stats >/dev/null 2>&1; do
     if [[ $WAITED -ge $MAX_WAIT ]]; then
