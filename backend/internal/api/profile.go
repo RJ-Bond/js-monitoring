@@ -139,7 +139,7 @@ func GenerateAPIToken(c echo.Context) error {
 	if err := database.DB.Model(&user).Update("api_token", token).Error; err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "failed to save token"})
 	}
-	user.APIToken = token
+	user.APIToken = &token
 	return c.JSON(http.StatusOK, user)
 }
 

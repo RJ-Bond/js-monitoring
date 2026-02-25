@@ -35,7 +35,10 @@ export default function RegisterPage() {
       login(data.token, data.user);
       router.push("/");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Registration failed");
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.includes("already exists") || msg.includes("already taken")) setError(t.authErrorConflict);
+      else if (msg.includes("disabled")) setError(t.authErrorDisabled);
+      else setError(msg || t.authErrorConflict);
     } finally { setLoading(false); }
   };
 

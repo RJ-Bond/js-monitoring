@@ -295,7 +295,7 @@ func SteamCallback(c echo.Context) error {
 		}
 		user = models.User{
 			Username: username,
-			SteamID:  steamID,
+			SteamID:  &steamID,
 			Role:     role,
 		}
 		_ = avatar // stored for future avatar field

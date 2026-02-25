@@ -13,9 +13,9 @@ type User struct {
 	Username          string     `gorm:"type:varchar(50);uniqueIndex;not null" json:"username"`
 	Email             *string    `gorm:"type:varchar(255);uniqueIndex"         json:"email,omitempty"`
 	PasswordHash      string     `gorm:"type:varchar(255)"                     json:"-"`
-	SteamID           string     `gorm:"type:varchar(30);uniqueIndex"          json:"steam_id,omitempty"`
+	SteamID           *string    `gorm:"type:varchar(30);uniqueIndex"          json:"steam_id,omitempty"`
 	Avatar            string     `gorm:"type:mediumtext"                       json:"avatar,omitempty"`
-	APIToken          string     `gorm:"type:varchar(64);uniqueIndex"          json:"api_token,omitempty"`
+	APIToken          *string    `gorm:"type:varchar(64);uniqueIndex"          json:"api_token,omitempty"`
 	Role              string     `gorm:"type:varchar(20);default:'user'"       json:"role"`
 	Banned            bool       `gorm:"default:false"                         json:"banned"`
 	TOTPSecret        string     `gorm:"type:varchar(100)"                     json:"-"`

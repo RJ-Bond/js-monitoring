@@ -59,6 +59,8 @@ export const translations = {
     authNoAccount: "No account? Sign up",
     authHaveAccount: "Have an account? Sign in",
     authPasswordMismatch: "Passwords do not match",
+    authErrorConflict: "Username or email is already taken",
+    authErrorDisabled: "Registration is currently disabled",
     authLoginWithSteam: "Sign in with Steam",
     // Admin
     adminPanel: "Admin Panel",
@@ -496,6 +498,8 @@ export const translations = {
     authNoAccount: "Нет аккаунта? Зарегистрироваться",
     authHaveAccount: "Есть аккаунт? Войти",
     authPasswordMismatch: "Пароли не совпадают",
+    authErrorConflict: "Имя пользователя или email уже занят",
+    authErrorDisabled: "Регистрация в данный момент отключена",
     authLoginWithSteam: "Войти через Steam",
     // Admin
     adminPanel: "Панель администратора",
