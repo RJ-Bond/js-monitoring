@@ -397,21 +397,35 @@ docker compose config >/dev/null 2>&1 \
   || err "Invalid docker-compose.yml:\n$(docker compose config 2>&1 | head -5)"
 
 info "$T_BUILD_PULL"
-docker pull mysql:8.0.36 2>&1 | grep -E "(Pulling|Downloaded|Status|already)" || true
+docker pull mysql:8.0.36 >/tmp/jsmon_pull.log 2>&1 || true
 MYSQL_VER=$(docker run --rm mysql:8.0.36 mysqld --version 2>/dev/null | grep -oP '\d+\.\d+\.\d+' | head -1)
 [[ "$MYSQL_VER" =~ ^8\.0 ]] || err "MySQL image check failed: got ${MYSQL_VER:-unknown} (expected 8.0.x)"
-ok "MySQL 8.0.36 image verified"
+ok "🗄️  MySQL 8.0.36 ✔"
 
 info "$T_BUILD_UP"
 COMPOSE_PROF=""
 [[ "$SSL_MODE_VAL" == "letsencrypt" ]] && COMPOSE_PROF="--profile ssl"
 # shellcheck disable=SC2086
-docker compose $COMPOSE_PROF up -d --build --remove-orphans 2>&1 | tee /tmp/jsmon_build.log \
-  || err "Build failed. See /tmp/jsmon_build.log"
+docker compose $COMPOSE_PROF up -d --build --remove-orphans >/tmp/jsmon_build.log 2>&1 \
+  || { echo; tail -20 /tmp/jsmon_build.log >&2; err "Build failed. See /tmp/jsmon_build.log"; }
 
 echo
-docker compose ps --format "table {{.Names}}\t{{.Status}}" 2>/dev/null | \
-  awk 'NR==1{print "  "$0} NR>1{printf "  %-35s %s\n",$1,$2}' || true
+while IFS=$'\t' read -r _n _s; do
+  [[ -z "$_n" || "$_n" == "NAME" ]] && continue
+  case "$_n" in
+    jsmon-mysql)    _i="🗄️ " ;;
+    jsmon-backend)  _i="⚙️ " ;;
+    jsmon-frontend) _i="🖥️ " ;;
+    jsmon-nginx)    _i="🌐" ;;
+    jsmon-certbot)  _i="🔒" ;;
+    *)              _i="📦" ;;
+  esac
+  if   [[ "$_s" == *"healthy"* ]]; then printf "  %s  %-24s  ${G}✔ healthy${NC}\n"   "$_i" "$_n"
+  elif [[ "$_s" == *"running"* || "$_s" == *"Up"* ]]; then printf "  %s  %-24s  ${G}▶ running${NC}\n"   "$_i" "$_n"
+  else printf "  %s  %-24s  ${Y}%s${NC}\n" "$_i" "$_n" "$_s"
+  fi
+done < <(docker compose ps --format "{{.Names}}\t{{.Status}}" 2>/dev/null)
+echo
 
 sleep 3
 RUNNING_VER=$(docker compose logs mysql 2>/dev/null | grep -oP "mysqld \(mysqld \K[0-9.]+" | tail -1 || echo "")
