@@ -227,6 +227,7 @@ else
   ok "$T_REPO_CLONE"
 fi
 cd "$INSTALL_DIR"
+echo "$L" > "${INSTALL_DIR}/.jsmon-lang"
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # STEP 4 — Configuration
@@ -484,24 +485,26 @@ elif [[ "$SSL_FINAL" != "none" ]];                    then DASH_URL="https://${S
 else                                                       DASH_URL="http://${SERVER_IP}"
 fi
 
+B="${G}${BD}"
+BL="  ${G}${BD}║${NC}"
 echo
-echo -e "${G}${BD}  ╔═══════════════════════════════════════════════════╗"
-echo -e           "  ║                                                   ║"
-printf             "${G}${BD}  ║  %-49s║\n" "$T_DONE_TITLE"
-echo -e           "  ║                                                   ║"
-echo -e           "  ╠═══════════════════════════════════════════════════╣"
-printf             "  ║  %-13s  %-34s  ║\n" "$T_INFO_DASH" "${DASH_URL}"
-printf             "  ║  %-13s  %-34s  ║\n" "$T_INFO_DIR"  "${INSTALL_DIR}"
-printf             "  ║  %-13s  %-34s  ║\n" "$T_INFO_CFG"  "${INSTALL_DIR}/.env"
-echo -e           "  ╠═══════════════════════════════════════════════════╣"
-printf             "  ║  %-49s║\n" "  $T_CMDS"
-printf             "  ║  %-49s║\n" ""
-printf             "  ║    %-12s   %-32s║\n" "jsmon"                   "→  $T_C1"
-printf             "  ║    %-12s   %-32s║\n" "systemctl status"        "→  $T_C2"
-printf             "  ║    %-12s   %-32s║\n" "docker compose logs"     "→  $T_C3"
-printf             "  ║    %-12s   %-32s║\n" "systemctl restart"       "→  $T_C4"
-echo -e           "  ║                                                   ║"
-echo -e           "  ╚═══════════════════════════════════════════════════╝${NC}"
+echo -e "${B}  ╔═══════════════════════════════════════════════════╗${NC}"
+echo -e "${B}  ║                                                   ║${NC}"
+echo -e "${BL}  $T_DONE_TITLE"
+echo -e "${B}  ║                                                   ║${NC}"
+echo -e "${B}  ╠═══════════════════════════════════════════════════╣${NC}"
+echo -e "${BL}  $T_INFO_DASH  ${C}${DASH_URL}${NC}"
+echo -e "${BL}  $T_INFO_DIR   ${DIM}${INSTALL_DIR}${NC}"
+echo -e "${BL}  $T_INFO_CFG   ${DIM}${INSTALL_DIR}/.env${NC}"
+echo -e "${B}  ╠═══════════════════════════════════════════════════╣${NC}"
+echo -e "${BL}  ${W}$T_CMDS${NC}"
+echo -e "${BL}"
+echo -e "${BL}    ${Y}jsmon${NC}               →  $T_C1"
+echo -e "${BL}    ${Y}systemctl status${NC}    →  $T_C2"
+echo -e "${BL}    ${Y}docker compose logs${NC} →  $T_C3"
+echo -e "${BL}    ${Y}systemctl restart${NC}   →  $T_C4"
+echo -e "${B}  ║                                                   ║${NC}"
+echo -e "${B}  ╚═══════════════════════════════════════════════════╝${NC}"
 echo
 
 if command -v jsmon &>/dev/null; then jsmon; fi
