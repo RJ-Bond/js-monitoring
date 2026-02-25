@@ -148,9 +148,13 @@ func Register(c echo.Context) error {
 		role = "admin"
 	}
 
+	var emailPtr *string
+	if trimmed := strings.TrimSpace(req.Email); trimmed != "" {
+		emailPtr = &trimmed
+	}
 	user := models.User{
 		Username:     req.Username,
-		Email:        req.Email,
+		Email:        emailPtr,
 		PasswordHash: string(hash),
 		Role:         role,
 	}

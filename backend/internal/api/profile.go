@@ -52,8 +52,16 @@ func UpdateProfile(c echo.Context) error {
 		updates["username"] = strings.TrimSpace(req.Username)
 	}
 
-	if req.Email != user.Email {
-		updates["email"] = strings.TrimSpace(req.Email)
+	currentEmail := ""
+	if user.Email != nil {
+		currentEmail = *user.Email
+	}
+	if trimmedEmail := strings.TrimSpace(req.Email); trimmedEmail != currentEmail {
+		if trimmedEmail == "" {
+			updates["email"] = nil
+		} else {
+			updates["email"] = trimmedEmail
+		}
 	}
 
 	if req.NewPassword != "" {

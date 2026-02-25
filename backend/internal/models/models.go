@@ -11,7 +11,7 @@ import (
 type User struct {
 	ID                uint       `gorm:"primaryKey;autoIncrement"              json:"id"`
 	Username          string     `gorm:"type:varchar(50);uniqueIndex;not null" json:"username"`
-	Email             string     `gorm:"type:varchar(255);uniqueIndex"         json:"email,omitempty"`
+	Email             *string    `gorm:"type:varchar(255);uniqueIndex"         json:"email,omitempty"`
 	PasswordHash      string     `gorm:"type:varchar(255)"                     json:"-"`
 	SteamID           string     `gorm:"type:varchar(30);uniqueIndex"          json:"steam_id,omitempty"`
 	Avatar            string     `gorm:"type:mediumtext"                       json:"avatar,omitempty"`
