@@ -370,23 +370,29 @@ ok "$T_SVC_OK"
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 step "$T_BUILD"
 
-info "$T_BUILD_PREP"
-docker compose down -v 2>/dev/null || true
-docker kill jsmon-mysql 2>/dev/null || true
-docker rm -f jsmon-mysql 2>/dev/null || true
-sleep 2
-
 VOL="js-monitoring_mysql_data"
-for attempt in 1 2; do
-  docker volume inspect "$VOL" >/dev/null 2>&1 || break
-  info "Removing MySQL volume (attempt ${attempt}/2)…"
-  docker volume rm -f "$VOL" 2>/dev/null || true; sleep 1
-done
-docker volume inspect "$VOL" >/dev/null 2>&1 \
-  && err "Cannot remove MySQL volume. Run:\n    docker volume rm -f $VOL && sudo bash install.sh"
 
-docker image rm mysql:5.7 mysql:5.7-debian 2>/dev/null || true
-docker system prune -f --filter "dangling=true" 2>/dev/null || true
+if [[ "$IS_UPDATE" == "false" ]]; then
+  info "$T_BUILD_PREP"
+  docker compose down -v 2>/dev/null || true
+  docker kill jsmon-mysql 2>/dev/null || true
+  docker rm -f jsmon-mysql 2>/dev/null || true
+  sleep 2
+
+  for attempt in 1 2; do
+    docker volume inspect "$VOL" >/dev/null 2>&1 || break
+    info "Removing MySQL volume (attempt ${attempt}/2)…"
+    docker volume rm -f "$VOL" 2>/dev/null || true; sleep 1
+  done
+  docker volume inspect "$VOL" >/dev/null 2>&1 \
+    && err "Cannot remove MySQL volume. Run:\n    docker volume rm -f $VOL && sudo bash install.sh"
+
+  docker image rm mysql:5.7 mysql:5.7-debian 2>/dev/null || true
+  docker system prune -f --filter "dangling=true" 2>/dev/null || true
+else
+  info "$T_BUILD_PREP"
+  docker compose down 2>/dev/null || true
+fi
 docker compose config >/dev/null 2>&1 \
   || err "Invalid docker-compose.yml:\n$(docker compose config 2>&1 | head -5)"
 
