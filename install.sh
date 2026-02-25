@@ -443,17 +443,17 @@ step "$T_HEALTH"
 echo -e "  ${DIM}$T_MYSQL_WAIT…${NC}"
 WAITED=0; LAST=""
 while (( WAITED < 180 )); do
-  ST=$(docker compose ps mysql 2>/dev/null | tail -1 | awk '{print $NF}' || echo "…")
-  [[ "$ST" != "$LAST" ]] && { printf "  ${DIM}%-40s${NC}  [%ds]\n" "$ST" "$WAITED"; LAST="$ST"; }
-  [[ "$ST" == *"healthy"* ]] && { ok "$T_MYSQL_OK"; break; }
+  ST=$(docker inspect --format='{{.State.Health.Status}}' jsmon-mysql 2>/dev/null || echo "starting")
+  [[ "$ST" != "$LAST" ]] && { printf "  ${DIM}⏳  %-16s${NC}  [%ds]\n" "$ST" "$WAITED"; LAST="$ST"; }
+  [[ "$ST" == "healthy" ]] && { ok "$T_MYSQL_OK"; break; }
   docker compose logs mysql 2>/dev/null | grep -q "ERROR\|FATAL" && {
     docker compose logs mysql 2>/dev/null | tail -15
     err "MySQL init failed. Run:\n    docker compose down && docker volume rm -f $VOL && sudo bash install.sh"
   }
   sleep 5; WAITED=$((WAITED+5))
 done
-ST_FINAL=$(docker compose ps mysql 2>/dev/null | tail -1 | awk '{print $NF}' || echo "unknown")
-[[ "$ST_FINAL" == *"healthy"* ]] || warn "MySQL health check timed out (status: $ST_FINAL)"
+ST_FINAL=$(docker inspect --format='{{.State.Health.Status}}' jsmon-mysql 2>/dev/null || echo "unknown")
+[[ "$ST_FINAL" == "healthy" ]] || warn "MySQL health check timed out (status: $ST_FINAL)"
 
 # Backend API
 echo -e "\n  ${DIM}$T_HEALTH_API${NC}"
