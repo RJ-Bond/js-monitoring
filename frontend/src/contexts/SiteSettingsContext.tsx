@@ -27,6 +27,7 @@ export function SiteSettingsProvider({ children }: { children: React.ReactNode }
     steam_enabled: false,
     app_url: "",
     registration_enabled: true,
+    force_https: false,
   });
 
   const load = useCallback(async () => {
@@ -39,6 +40,17 @@ export function SiteSettingsProvider({ children }: { children: React.ReactNode }
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (
+      settings.force_https &&
+      typeof window !== "undefined" &&
+      window.location.protocol === "http:" &&
+      !["localhost", "127.0.0.1"].includes(window.location.hostname)
+    ) {
+      window.location.href = window.location.href.replace("http:", "https:");
+    }
+  }, [settings.force_https]);
 
   return (
     <SiteSettingsContext.Provider

@@ -45,6 +45,7 @@ export interface SiteSettings {
   steam_enabled: boolean;
   app_url: string;
   registration_enabled: boolean;
+  force_https: boolean;
 }
 
 export interface AdminSiteSettings {
@@ -58,6 +59,19 @@ export interface AdminSiteSettings {
   registration_enabled: boolean;
   news_webhook_url: string;
   news_role_id: string;
+  ssl_mode: string;
+  ssl_domain: string;
+  force_https: boolean;
+}
+
+export interface SSLStatus {
+  mode: string;
+  domain: string;
+  force_https: boolean;
+  expires_at?: string;
+  days_remaining?: number;
+  issuer?: string;
+  certbot_logs?: string[];
 }
 
 export interface PublicProfile {
@@ -225,8 +239,9 @@ export const api = {
     fetchJSON("/api/v1/admin/servers/bulk", { method: "POST", body: JSON.stringify({ action, ids }) }),
 
   // Update settings with registration_enabled and news webhook
-  updateSettingsFull: (data: { site_name?: string; logo_data?: string; app_url?: string; steam_api_key?: string; registration_enabled?: boolean; news_webhook_url?: string; news_role_id?: string }) =>
+  updateSettingsFull: (data: { site_name?: string; logo_data?: string; app_url?: string; steam_api_key?: string; registration_enabled?: boolean; news_webhook_url?: string; news_role_id?: string; force_https?: boolean }) =>
     fetchJSON<SiteSettings>("/api/v1/admin/settings", { method: "PUT", body: JSON.stringify(data) }),
 
   testNewsWebhook: () => fetchJSON<{ ok: boolean }>("/api/v1/admin/news/webhook/test", { method: "POST" }),
+  getSSLStatus: () => fetchJSON<SSLStatus>("/api/v1/admin/ssl/status"),
 };

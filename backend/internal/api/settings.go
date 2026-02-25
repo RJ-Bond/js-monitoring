@@ -45,6 +45,7 @@ func GetSettings(c echo.Context) error {
 		"steam_enabled":        effectiveKey != "",
 		"app_url":              s.AppURL,
 		"registration_enabled": s.RegistrationEnabled,
+		"force_https":          s.ForceHTTPS,
 	})
 }
 
@@ -81,6 +82,9 @@ func GetAdminSettings(c echo.Context) error {
 		"registration_enabled": s.RegistrationEnabled,
 		"news_webhook_url":     s.NewsWebhookURL,
 		"news_role_id":         s.NewsRoleID,
+		"ssl_mode":             s.SSLMode,
+		"ssl_domain":           s.SSLDomain,
+		"force_https":          s.ForceHTTPS,
 	})
 }
 
@@ -94,6 +98,7 @@ func UpdateSettings(c echo.Context) error {
 		RegistrationEnabled *bool  `json:"registration_enabled"`
 		NewsWebhookURL      string `json:"news_webhook_url"`
 		NewsRoleID          string `json:"news_role_id"`
+		ForceHTTPS          *bool  `json:"force_https"`
 	}
 	if err := c.Bind(&payload); err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid payload"})
@@ -116,6 +121,9 @@ func UpdateSettings(c echo.Context) error {
 	s.NewsRoleID = payload.NewsRoleID
 	if payload.RegistrationEnabled != nil {
 		s.RegistrationEnabled = *payload.RegistrationEnabled
+	}
+	if payload.ForceHTTPS != nil {
+		s.ForceHTTPS = *payload.ForceHTTPS
 	}
 
 	switch payload.SteamAPIKey {

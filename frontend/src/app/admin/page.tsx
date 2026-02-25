@@ -8,7 +8,7 @@ import {
   Search, ChevronUp, ChevronDown, ChevronsUpDown,
   Trash2, AlertTriangle, Settings, Eye, EyeOff, ExternalLink, Tag,
   Bell, KeyRound, ClipboardList, Copy, X, MessageSquare, Download, CheckSquare, Square,
-  CalendarDays, Mail, UserCheck,
+  CalendarDays, Mail, UserCheck, Lock,
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -17,7 +17,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useSiteSettings } from "@/contexts/SiteSettingsContext";
-import { api, type AdminSiteSettings } from "@/lib/api";
+import { api, type AdminSiteSettings, type SSLStatus } from "@/lib/api";
 import { toast } from "@/lib/toast";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -129,6 +129,11 @@ interface SettingsTabProps {
   onNewsWebhookChange: (v: string) => void;
   onNewsRoleIdChange: (v: string) => void;
   onTestNewsWebhook: () => void;
+  sslStatus: SSLStatus | null;
+  sslStatusLoading: boolean;
+  forceHttps: boolean;
+  onForceHttpsChange: (v: boolean) => void;
+  onRefreshSsl: () => void;
   onSave: () => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   t: any;
@@ -156,7 +161,9 @@ function resizeLogo(file: File, maxSize = 64): Promise<string> {
 function SettingsTab({
   name, logo, appUrl, steamKeySet, steamKeyHint, steamKeySource, steamNewKey, steamClear,
   saving, saved, registrationEnabled, newsWebhook, newsRoleId, onNameChange, onLogoChange, onAppUrlChange,
-  onSteamNewKeyChange, onSteamClear, onRegistrationEnabledChange, onNewsWebhookChange, onNewsRoleIdChange, onTestNewsWebhook, onSave, t,
+  onSteamNewKeyChange, onSteamClear, onRegistrationEnabledChange, onNewsWebhookChange, onNewsRoleIdChange, onTestNewsWebhook,
+  sslStatus, sslStatusLoading, forceHttps, onForceHttpsChange, onRefreshSsl,
+  onSave, t,
 }: SettingsTabProps) {
   const [showKey, setShowKey] = useState(false);
   const inputCls = "bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-neon-green/50 transition-all placeholder:text-muted-foreground w-full";
@@ -378,6 +385,98 @@ function SettingsTab({
         <p className="text-xs text-muted-foreground">{t.adminSettingsNewsRoleIdHint}</p>
       </div>
 
+      {/* SSL / HTTPS */}
+      <div className="glass-card p-4 flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Lock className="w-4 h-4 text-neon-green" />
+            <span className="text-sm font-semibold">{t.adminSslSection}</span>
+          </div>
+          <button
+            type="button"
+            onClick={onRefreshSsl}
+            disabled={sslStatusLoading}
+            className="text-xs text-neon-blue hover:underline disabled:opacity-50"
+          >
+            {sslStatusLoading ? "..." : t.adminSslRefresh}
+          </button>
+        </div>
+        <p className="text-xs text-muted-foreground">{t.adminSslSetupHint}</p>
+
+        {sslStatus && (
+          <>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div>
+                <span className="text-muted-foreground">{t.adminSslMode}:</span>{" "}
+                <span className={sslStatus.mode === "none" ? "text-muted-foreground" : "text-neon-green font-medium"}>
+                  {sslStatus.mode === "letsencrypt" ? t.adminSslModeLetsEncrypt
+                    : sslStatus.mode === "custom" ? t.adminSslModeCustom
+                    : t.adminSslModeNone}
+                </span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">{t.adminSslDomain}:</span>{" "}
+                <span>{sslStatus.domain || t.adminSslDomainNone}</span>
+              </div>
+              {sslStatus.expires_at && (
+                <>
+                  <div>
+                    <span className="text-muted-foreground">{t.adminSslExpires}:</span>{" "}
+                    <span className={
+                      (sslStatus.days_remaining ?? 999) < 7 ? "text-red-400 font-medium"
+                        : (sslStatus.days_remaining ?? 999) < 30 ? "text-yellow-400 font-medium"
+                        : "text-neon-green"
+                    }>
+                      {new Date(sslStatus.expires_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">{t.adminSslIssuer}:</span>{" "}
+                    <span className="text-xs">{sslStatus.issuer}</span>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {sslStatus.days_remaining !== undefined && (
+              <div className={`text-xs px-2 py-1 rounded-lg inline-flex items-center gap-1 w-fit ${
+                sslStatus.days_remaining < 7 ? "bg-red-500/15 text-red-400"
+                  : sslStatus.days_remaining < 30 ? "bg-yellow-500/15 text-yellow-400"
+                  : "bg-neon-green/15 text-neon-green"
+              }`}>
+                {t.adminSslDaysRemaining(sslStatus.days_remaining)}
+              </div>
+            )}
+
+            {sslStatus.mode !== "none" && (
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={forceHttps}
+                  onChange={(e) => onForceHttpsChange(e.target.checked)}
+                  className="w-4 h-4 rounded accent-neon-green"
+                />
+                <div>
+                  <span className="text-sm">{t.adminSslForceHttps}</span>
+                  <p className="text-xs text-muted-foreground">{t.adminSslForceHttpsHint}</p>
+                </div>
+              </label>
+            )}
+
+            {sslStatus.certbot_logs && sslStatus.certbot_logs.length > 0 && (
+              <details className="text-xs">
+                <summary className="cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
+                  {t.adminSslCertbotLogs}
+                </summary>
+                <div className="mt-2 bg-black/30 rounded-lg p-2 font-mono text-[11px] text-muted-foreground space-y-0.5 max-h-32 overflow-y-auto">
+                  {sslStatus.certbot_logs.map((line, i) => <div key={i}>{line}</div>)}
+                </div>
+              </details>
+            )}
+          </>
+        )}
+      </div>
+
       {/* Save */}
       <button
         onClick={onSave}
@@ -431,6 +530,9 @@ export default function AdminPage() {
   const [settingsRegistrationEnabled, setSettingsRegistrationEnabled] = useState(true);
   const [settingsNewsWebhook, setSettingsNewsWebhook] = useState("");
   const [settingsNewsRoleId, setSettingsNewsRoleId] = useState("");
+  const [settingsForceHttps, setSettingsForceHttps] = useState(false);
+  const [sslStatus, setSslStatus] = useState<SSLStatus | null>(null);
+  const [sslStatusLoading, setSslStatusLoading] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSaved, setSettingsSaved] = useState(false);
 
@@ -511,9 +613,12 @@ export default function AdminPage() {
         setSettingsRegistrationEnabled(s.registration_enabled ?? true);
         setSettingsNewsWebhook(s.news_webhook_url ?? "");
         setSettingsNewsRoleId(s.news_role_id ?? "");
+        setSettingsForceHttps(s.force_https ?? false);
         setSteamNewKey("");
         setSteamClear(false);
       }).catch(() => {});
+      setSslStatusLoading(true);
+      api.getSSLStatus().then((s) => setSslStatus(s)).catch(() => {}).finally(() => setSslStatusLoading(false));
     }
     if (tab === "stats" && !ghChecked && !ghChecking) {
       setGhChecking(true);
@@ -1535,6 +1640,14 @@ export default function AdminPage() {
                 toast(t.adminSettingsTestWebhookFail, "error");
               }
             }}
+            sslStatus={sslStatus}
+            sslStatusLoading={sslStatusLoading}
+            forceHttps={settingsForceHttps}
+            onForceHttpsChange={setSettingsForceHttps}
+            onRefreshSsl={() => {
+              setSslStatusLoading(true);
+              api.getSSLStatus().then((s) => setSslStatus(s)).catch(() => {}).finally(() => setSslStatusLoading(false));
+            }}
             onSave={async () => {
               setSettingsSaving(true);
               setSettingsSaved(false);
@@ -1550,6 +1663,7 @@ export default function AdminPage() {
                   registration_enabled: settingsRegistrationEnabled,
                   news_webhook_url: settingsNewsWebhook,
                   news_role_id: settingsNewsRoleId,
+                  force_https: settingsForceHttps,
                 });
                 await refreshSettings();
                 // Refresh Steam key info

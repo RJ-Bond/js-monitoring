@@ -160,6 +160,7 @@ func main() {
 	admin.POST("/users/bulk", api.AdminBulkUsers)
 	admin.POST("/servers/bulk", api.AdminBulkServers)
 	admin.POST("/news/webhook/test", api.TestNewsWebhook)
+	admin.GET("/ssl/status", api.GetSSLStatus)
 
 	port := env("PORT", "8080")
 	log.Printf("Starting server on :%s", port)

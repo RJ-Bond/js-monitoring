@@ -10,6 +10,7 @@ INSTALL_DIR="/opt/js-monitoring"
 SERVICE_FILE="/etc/systemd/system/js-monitoring.service"
 GREEN="\033[0;32m"; YELLOW="\033[1;33m"; RED="\033[0;31m"; NC="\033[0m"
 IS_UPDATE=false
+SSL_MODE_VAL="none"
 
 info()    { echo -e "${GREEN}[✔]${NC} $*"; }
 warn()    { echo -e "${YELLOW}[!]${NC} $*"; }
@@ -100,6 +101,17 @@ if [[ "$UI_LANG" == "ru" ]]; then
     T_CMD_LOGS="# логи в реальном времени"
     T_CMD_RESTART="# перезапуск"
     T_CMD_JSMON="# меню управления JS Monitor"
+    T_SSL="SSL / HTTPS"
+    T_SSL_MODE_PROMPT="Выберите режим SSL:"
+    T_SSL_HTTP="1) HTTP (без SSL, по умолчанию)"
+    T_SSL_LE="2) HTTPS — Let's Encrypt (бесплатный автоматический SSL)"
+    T_SSL_CUSTOM="3) HTTPS — свой сертификат (custom)"
+    T_SSL_DOMAIN_PROMPT="Введите домен (например: monitor.example.com)"
+    T_SSL_EMAIL_PROMPT="Введите email для Let's Encrypt уведомлений"
+    T_SSL_GETTING_CERT="Получаю SSL-сертификат от Let's Encrypt…"
+    T_SSL_CERT_OK="SSL-сертификат успешно получен"
+    T_SSL_CUSTOM_CRT="Путь к файлу цепочки сертификатов (fullchain.pem / .crt)"
+    T_SSL_CUSTOM_KEY="Путь к файлу приватного ключа (privkey.pem / .key)"
 else
     T_OS_WARN="Designed for Ubuntu 24.04"
     T_CLEANUP="Cleaning up stale APT repositories"
@@ -145,6 +157,17 @@ else
     T_CMD_LOGS="# live logs"
     T_CMD_RESTART="# restart all"
     T_CMD_JSMON="# JS Monitor management menu"
+    T_SSL="SSL / HTTPS"
+    T_SSL_MODE_PROMPT="Select SSL mode:"
+    T_SSL_HTTP="1) HTTP (no SSL, default)"
+    T_SSL_LE="2) HTTPS — Let's Encrypt (free automatic SSL)"
+    T_SSL_CUSTOM="3) HTTPS — Custom certificate"
+    T_SSL_DOMAIN_PROMPT="Enter your domain (e.g. monitor.example.com)"
+    T_SSL_EMAIL_PROMPT="Enter email for Let's Encrypt notifications"
+    T_SSL_GETTING_CERT="Obtaining SSL certificate from Let's Encrypt…"
+    T_SSL_CERT_OK="SSL certificate obtained successfully"
+    T_SSL_CUSTOM_CRT="Path to certificate chain file (fullchain.pem / .crt)"
+    T_SSL_CUSTOM_KEY="Path to private key file (privkey.pem / .key)"
 fi
 
 # ── Fix: remove stale MySQL APT repo ──────────────────────────────────────────
@@ -226,6 +249,69 @@ if [[ ! -f .env ]]; then
         sed -i "s|APP_URL=.*|APP_URL=${APP_URL_INPUT}|" .env
     fi
 
+    # ── SSL / HTTPS selection ────────────────────────────────────────────────
+    echo
+    section "$T_SSL"
+    echo "  $T_SSL_MODE_PROMPT"
+    echo "    $T_SSL_HTTP"
+    echo "    $T_SSL_LE"
+    echo "    $T_SSL_CUSTOM"
+    echo -n "  [1/2/3, default 1]: "
+    read -r SSL_CHOICE </dev/tty
+    SSL_CHOICE="${SSL_CHOICE:-1}"
+
+    case "$SSL_CHOICE" in
+    2)
+        SSL_MODE_VAL="letsencrypt"
+        echo -n "  $T_SSL_DOMAIN_PROMPT: "
+        read -r SSL_DOMAIN_VAL </dev/tty
+        echo -n "  $T_SSL_EMAIL_PROMPT: "
+        read -r SSL_EMAIL </dev/tty
+        SSL_DOMAIN_VAL="${SSL_DOMAIN_VAL:-}"
+
+        if [[ -n "$SSL_DOMAIN_VAL" ]]; then
+            sed -i "s|APP_URL=.*|APP_URL=https://${SSL_DOMAIN_VAL}|" .env
+            sed -i "s|SSL_DOMAIN=.*|SSL_DOMAIN=${SSL_DOMAIN_VAL}|" .env
+        fi
+        sed -i "s|SSL_MODE=.*|SSL_MODE=letsencrypt|" .env
+
+        info "$T_SSL_GETTING_CERT"
+        apt-get install -y -qq certbot
+        mkdir -p /var/www/certbot
+        certbot certonly --standalone --non-interactive --agree-tos \
+            --email "$SSL_EMAIL" -d "$SSL_DOMAIN_VAL" \
+            --preferred-challenges http
+        sed "s|{DOMAIN}|${SSL_DOMAIN_VAL}|g" nginx/nginx-ssl.conf > nginx/nginx.conf
+        info "$T_SSL_CERT_OK"
+        ;;
+    3)
+        SSL_MODE_VAL="custom"
+        echo -n "  $T_SSL_CUSTOM_CRT: "
+        read -r CUSTOM_CRT </dev/tty
+        echo -n "  $T_SSL_CUSTOM_KEY: "
+        read -r CUSTOM_KEY </dev/tty
+        mkdir -p nginx/ssl
+        cp "$CUSTOM_CRT" nginx/ssl/fullchain.pem
+        cp "$CUSTOM_KEY" nginx/ssl/privkey.pem
+        if command -v openssl &>/dev/null; then
+            SSL_DOMAIN_VAL=$(openssl x509 -noout -subject -in nginx/ssl/fullchain.pem 2>/dev/null \
+                | grep -oP 'CN\s*=\s*\K[^,/]+' | head -1 || echo "")
+        else
+            SSL_DOMAIN_VAL=""
+        fi
+        cp nginx/nginx-ssl-custom.conf nginx/nginx.conf
+        sed -i "s|SSL_MODE=.*|SSL_MODE=custom|" .env
+        if [[ -n "$SSL_DOMAIN_VAL" ]]; then
+            sed -i "s|SSL_DOMAIN=.*|SSL_DOMAIN=${SSL_DOMAIN_VAL}|" .env
+            sed -i "s|APP_URL=.*|APP_URL=https://${SSL_DOMAIN_VAL}|" .env
+        fi
+        info "$T_SSL_CERT_OK"
+        ;;
+    *)
+        SSL_MODE_VAL="none"
+        ;;
+    esac
+
     info "$T_ENV_GENERATED"
     warn "$T_ENV_EDIT"
     warn "$T_ENV_TG_TOKEN"
@@ -235,6 +321,8 @@ if [[ ! -f .env ]]; then
     read -r </dev/tty
 else
     info "$T_ENV_EXISTS"
+    # Read SSL mode from existing .env to decide whether to activate certbot profile
+    SSL_MODE_VAL=$(grep "^SSL_MODE=" .env 2>/dev/null | cut -d= -f2 || echo "none")
 fi
 
 # ── Firewall ──────────────────────────────────────────────────────────────────
@@ -368,7 +456,10 @@ info "MySQL 8.0.36 verified: $MYSQL_VERSION"
 
 # Try to start containers with better error handling
 info "Building and starting containers..."
-if ! docker compose up -d --build --remove-orphans 2>&1 | tee /tmp/docker_build.log; then
+COMPOSE_PROFILES_ARG=""
+[[ "$SSL_MODE_VAL" == "letsencrypt" ]] && COMPOSE_PROFILES_ARG="--profile ssl"
+# shellcheck disable=SC2086
+if ! docker compose $COMPOSE_PROFILES_ARG up -d --build --remove-orphans 2>&1 | tee /tmp/docker_build.log; then
     error "Failed to start containers. Full log:
 $(cat /tmp/docker_build.log | tail -50)"
 fi
@@ -451,7 +542,14 @@ fi
 
 # ── Wait for application to be ready ──────────────────────────────────────────
 WAITED=0
-while ! curl -sf http://localhost/api/v1/stats >/dev/null 2>&1; do
+# Re-read SSL mode (handles both fresh install and update paths)
+SSL_MODE_VAL=$(grep "^SSL_MODE=" .env 2>/dev/null | cut -d= -f2 || echo "none")
+if [[ "$SSL_MODE_VAL" != "none" ]]; then
+    HEALTH_URL="https://localhost/api/v1/stats"
+else
+    HEALTH_URL="http://localhost/api/v1/stats"
+fi
+while ! curl -Lksf "$HEALTH_URL" >/dev/null 2>&1; do
     if [[ $WAITED -ge $MAX_WAIT ]]; then
         warn "$T_HEALTH_TIMEOUT"
         warn "  docker compose --project-directory ${INSTALL_DIR} logs"
@@ -469,7 +567,7 @@ while ! curl -sf http://localhost/api/v1/stats >/dev/null 2>&1; do
     sleep 5
     WAITED=$((WAITED+5))
 done
-if curl -sf http://localhost/api/v1/stats >/dev/null 2>&1; then
+if curl -Lksf "$HEALTH_URL" >/dev/null 2>&1; then
     echo
     info "$T_HEALTH_OK"
 fi
@@ -479,13 +577,22 @@ fi
 trap - ERR
 
 SERVER_IP=$(curl -sf https://checkip.amazonaws.com 2>/dev/null || hostname -I | awk '{print $1}')
+SSL_MODE_FINAL=$(grep "^SSL_MODE=" .env 2>/dev/null | cut -d= -f2 || echo "none")
+SSL_DOMAIN_FINAL=$(grep "^SSL_DOMAIN=" .env 2>/dev/null | cut -d= -f2 || echo "")
+if [[ "$SSL_MODE_FINAL" != "none" && -n "$SSL_DOMAIN_FINAL" ]]; then
+    DASHBOARD_URL="https://${SSL_DOMAIN_FINAL}"
+elif [[ "$SSL_MODE_FINAL" != "none" ]]; then
+    DASHBOARD_URL="https://${SERVER_IP}"
+else
+    DASHBOARD_URL="http://${SERVER_IP}"
+fi
 
 echo
 echo -e "${GREEN}╔══════════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║   ${T_DONE_TITLE}   ║${NC}"
 echo -e "${GREEN}╚══════════════════════════════════════════════╝${NC}"
 echo
-echo -e "  🌐 ${T_DONE_DASH}:  ${GREEN}http://${SERVER_IP}${NC}"
+echo -e "  🌐 ${T_DONE_DASH}:  ${GREEN}${DASHBOARD_URL}${NC}"
 echo -e "  📁 ${T_DONE_DIR}:   ${INSTALL_DIR}"
 echo -e "  🔧 ${T_DONE_CFG}:     ${INSTALL_DIR}/.env"
 echo

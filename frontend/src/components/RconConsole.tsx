@@ -19,7 +19,8 @@ interface LogLine {
 
 const WS_URL =
   typeof window !== "undefined"
-    ? (process.env.NEXT_PUBLIC_WS_URL ?? `ws://${window.location.host}`)
+    ? (process.env.NEXT_PUBLIC_WS_URL ??
+        `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}`)
     : "";
 
 export default function RconConsole({ serverId, serverTitle, apiKey, onClose }: RconConsoleProps) {
