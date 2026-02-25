@@ -22,6 +22,7 @@ import { toast } from "@/lib/toast";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ThemeToggle from "@/components/ThemeToggle";
 import { APP_VERSION } from "@/lib/version";
+import { renderMarkdown } from "@/lib/markdown";
 import SiteBrand from "@/components/SiteBrand";
 import AlertConfigModal from "@/components/AlertConfigModal";
 import DiscordConfigModal from "@/components/DiscordConfigModal";
@@ -396,6 +397,13 @@ export default function AdminPage() {
   const { siteName, logoData, refresh: refreshSettings } = useSiteSettings();
 
   const [tab, setTab] = useState<AdminTab>("users");
+
+  // GitHub release check state
+  const [ghRelease, setGhRelease] = useState<{ version: string; url: string; body: string } | null>(null);
+  const [ghChecking, setGhChecking] = useState(false);
+  const [ghChecked, setGhChecked] = useState(false);
+  const [changelogOpen, setChangelogOpen] = useState(false);
+
   const [users, setUsers] = useState<User[]>([]);
   const [servers, setServers] = useState<AdminServer[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
@@ -506,6 +514,18 @@ export default function AdminPage() {
         setSteamNewKey("");
         setSteamClear(false);
       }).catch(() => {});
+    }
+    if (tab === "stats" && !ghChecked && !ghChecking) {
+      setGhChecking(true);
+      fetch("https://api.github.com/repos/RJ-Bond/js-monitoring/releases/latest", {
+        headers: { Accept: "application/vnd.github+json" },
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          setGhRelease({ version: data.tag_name, url: data.html_url, body: data.body ?? "" });
+        })
+        .catch(() => {})
+        .finally(() => { setGhChecking(false); setGhChecked(true); });
     }
   }, [tab]);
 
@@ -1323,25 +1343,71 @@ export default function AdminPage() {
             )}
 
             {/* Version card */}
-            <div className="glass-card rounded-2xl px-5 py-4 flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/5">
-                  <Tag className="w-5 h-5 text-muted-foreground" />
+            <div className="glass-card rounded-2xl px-5 py-4 flex flex-col gap-3">
+              {/* Top row */}
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/5 flex-shrink-0">
+                    <Tag className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-bold font-mono">{APP_VERSION}</span>
+                      {ghChecking && (
+                        <span className="text-[10px] text-muted-foreground animate-pulse">{t.adminStatsChecking}</span>
+                      )}
+                      {!ghChecking && ghRelease && (
+                        ghRelease.version === APP_VERSION ? (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] bg-neon-green/10 text-neon-green border border-neon-green/20">
+                            ✓ {t.adminStatsUpToDate}
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] bg-yellow-400/10 text-yellow-400 border border-yellow-400/20 animate-pulse">
+                            ↑ {t.adminStatsUpdateAvailable}: {ghRelease.version}
+                          </span>
+                        )
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground">{t.adminStatsVersion}</div>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-sm font-bold font-mono">{APP_VERSION}</div>
-                  <div className="text-xs text-muted-foreground">{t.adminStatsVersion}</div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {ghRelease?.body && (
+                    <button
+                      onClick={() => setChangelogOpen((v) => !v)}
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-white/10 hover:border-white/20 px-3 py-1.5 rounded-xl transition-all"
+                    >
+                      {t.adminStatsChangelog}
+                      {changelogOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                    </button>
+                  )}
+                  <a
+                    href={ghRelease?.url ?? "https://github.com/RJ-Bond/js-monitoring/releases"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-white/10 hover:border-white/20 px-3 py-1.5 rounded-xl transition-all"
+                  >
+                    GitHub
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
                 </div>
               </div>
-              <a
-                href="https://github.com/RJ-Bond/js-monitoring/releases"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-white/10 hover:border-white/20 px-3 py-1.5 rounded-xl transition-all"
-              >
-                {t.adminStatsCheckUpdates}
-                <ExternalLink className="w-3 h-3" />
-              </a>
+
+              {/* Changelog */}
+              {changelogOpen && ghRelease?.body && (
+                <div className="border-t border-white/10 pt-3">
+                  <div
+                    className="prose prose-sm prose-invert max-w-none text-xs text-foreground/80 leading-relaxed
+                      [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:text-foreground [&_h2]:mt-3 [&_h2]:mb-1
+                      [&_h3]:text-xs [&_h3]:font-semibold [&_h3]:text-foreground [&_h3]:mt-2 [&_h3]:mb-0.5
+                      [&_ul]:pl-4 [&_li]:mt-0.5 [&_strong]:text-foreground
+                      [&_a]:text-neon-blue [&_a]:no-underline [&_a:hover]:underline
+                      [&_code]:bg-white/10 [&_code]:px-1 [&_code]:rounded [&_code]:text-[11px]
+                      [&_hr]:border-white/10 [&_hr]:my-2"
+                    dangerouslySetInnerHTML={{ __html: renderMarkdown(ghRelease.body) }}
+                  />
+                </div>
+              )}
             </div>
           </div>
         )}
