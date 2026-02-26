@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"golang.org/x/crypto/bcrypt"
@@ -143,7 +144,7 @@ func GenerateAPIToken(c echo.Context) error {
 	return c.JSON(http.StatusOK, user)
 }
 
-// DeleteProfile DELETE /api/v1/profile — delete own account
+// DeleteProfile DELETE /api/v1/profile — schedule account deletion (7-day grace period)
 func DeleteProfile(c echo.Context) error {
 	id := profileUserID(c)
 
@@ -152,7 +153,7 @@ func DeleteProfile(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, echo.Map{"error": "user not found"})
 	}
 
-	// Prevent deleting the last admin
+	// Prevent scheduling deletion for the last admin
 	if user.Role == "admin" {
 		var adminCount int64
 		database.DB.Model(&models.User{}).Where("role = ?", "admin").Count(&adminCount)
@@ -161,14 +162,46 @@ func DeleteProfile(c echo.Context) error {
 		}
 	}
 
-	// Delete user's servers (and their statuses via cascade or manual)
-	database.DB.Where("owner_id = ?", id).Delete(&models.Server{})
-
-	// Delete user
-	if err := database.DB.Delete(&models.User{}, id).Error; err != nil {
-		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "failed to delete account"})
+	deleteAt := time.Now().UTC().Add(7 * 24 * time.Hour)
+	if err := database.DB.Model(&user).Update("delete_scheduled_at", deleteAt).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "failed to schedule deletion"})
 	}
-	return c.JSON(http.StatusOK, echo.Map{"message": "account deleted"})
+	user.DeleteScheduledAt = &deleteAt
+	return c.JSON(http.StatusOK, user)
+}
+
+// CancelDeleteProfile POST /api/v1/profile/delete-cancel — cancel a scheduled account deletion
+func CancelDeleteProfile(c echo.Context) error {
+	id := profileUserID(c)
+
+	var user models.User
+	if err := database.DB.First(&user, id).Error; err != nil {
+		return c.JSON(http.StatusNotFound, echo.Map{"error": "user not found"})
+	}
+	if user.DeleteScheduledAt == nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "no deletion scheduled"})
+	}
+
+	if err := database.DB.Model(&user).Update("delete_scheduled_at", nil).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "failed to cancel deletion"})
+	}
+	user.DeleteScheduledAt = nil
+	return c.JSON(http.StatusOK, user)
+}
+
+// PurgeScheduledDeletions permanently deletes accounts whose 7-day grace period has expired.
+// Called periodically by the poller.
+func PurgeScheduledDeletions() {
+	var users []models.User
+	if err := database.DB.
+		Where("delete_scheduled_at IS NOT NULL AND delete_scheduled_at <= ?", time.Now().UTC()).
+		Find(&users).Error; err != nil || len(users) == 0 {
+		return
+	}
+	for _, u := range users {
+		database.DB.Where("owner_id = ?", u.ID).Delete(&models.Server{})
+		database.DB.Delete(&models.User{}, u.ID)
+	}
 }
 
 // GetProfileServers GET /api/v1/profile/servers — current user's servers with status

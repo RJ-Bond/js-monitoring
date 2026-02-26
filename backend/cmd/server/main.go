@@ -127,6 +127,7 @@ func main() {
 	protected.PUT("/profile/avatar", api.UpdateAvatar)
 	protected.POST("/profile/token", api.GenerateAPIToken)
 	protected.DELETE("/profile", api.DeleteProfile)
+	protected.POST("/profile/delete-cancel", api.CancelDeleteProfile)
 	protected.GET("/profile/servers", api.GetProfileServers)
 	protected.GET("/profile/sessions", api.GetSessions)
 	protected.DELETE("/profile/sessions/:id", api.DeleteSession)

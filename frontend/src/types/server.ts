@@ -125,6 +125,8 @@ export interface User {
   api_token?: string;
   role: "admin" | "user";
   banned: boolean;
+  totp_enabled?: boolean;
+  delete_scheduled_at?: string;
   created_at: string;
   updated_at: string;
   server_count?: number;

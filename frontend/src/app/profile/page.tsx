@@ -102,9 +102,12 @@ export default function ProfilePage() {
   const [serversExpanded, setServersExpanded] = useState(false);
 
   // Delete account
-  const [deleteInput, setDeleteInput]   = useState("");
-  const [deleting, setDeleting]         = useState(false);
-  const [deleteError, setDeleteError]   = useState("");
+  const [deleteInput, setDeleteInput]     = useState("");
+  const [deleting, setDeleting]           = useState(false);
+  const [deleteError, setDeleteError]     = useState("");
+  const [cancelling, setCancelling]       = useState(false);
+  const [deleteScheduledAt, setDeleteScheduledAt] = useState<string | null>(null);
+  const [countdown, setCountdown]         = useState("");
 
   // 2FA
   const [showTotpSetup, setShowTotpSetup]   = useState(false);
@@ -124,9 +127,31 @@ export default function ProfilePage() {
       setAvatarSrc(user.avatar ?? "");
       setUsername(user.username ?? "");
       setEmail(user.email ?? "");
-      setTotpEnabled((user as { totp_enabled?: boolean }).totp_enabled ?? false);
+      setTotpEnabled(user.totp_enabled ?? false);
+      setDeleteScheduledAt(user.delete_scheduled_at ?? null);
     }
   }, [user, isLoading, isAuthenticated, router]);
+
+  // Countdown timer for scheduled deletion
+  useEffect(() => {
+    if (!deleteScheduledAt) { setCountdown(""); return; }
+    const update = () => {
+      const diff = new Date(deleteScheduledAt).getTime() - Date.now();
+      if (diff <= 0) { setCountdown("00:00:00"); return; }
+      const d = Math.floor(diff / 86400000);
+      const h = Math.floor((diff % 86400000) / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setCountdown(
+        d > 0
+          ? `${d}д ${String(h).padStart(2, "0")}ч ${String(m).padStart(2, "0")}м ${String(s).padStart(2, "0")}с`
+          : `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`,
+      );
+    };
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [deleteScheduledAt]);
 
   // Load my servers once
   useEffect(() => {
@@ -258,16 +283,17 @@ export default function ProfilePage() {
     navigator.clipboard.writeText(user.api_token).then(() => toast(t.profileApiTokenCopied));
   };
 
-  // ── Delete account handler ───────────────────────────────────────────────
+  // ── Delete account handlers ──────────────────────────────────────────────
 
   const handleDeleteAccount = async () => {
     setDeleteError("");
     if (deleteInput !== user?.username) return;
     setDeleting(true);
     try {
-      await api.deleteProfile();
-      logout();
-      router.replace("/");
+      const updated = await api.deleteProfile();
+      setDeleteScheduledAt(updated.delete_scheduled_at ?? null);
+      setDeleteInput("");
+      toast(t.profileDeleteScheduled);
     } catch (err: unknown) {
       const msg = err instanceof Error && err.message.includes("403")
         ? t.profileDeleteLastAdmin
@@ -275,6 +301,19 @@ export default function ProfilePage() {
       setDeleteError(msg);
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleCancelDelete = async () => {
+    setCancelling(true);
+    try {
+      const updated = await api.cancelDeleteProfile();
+      setDeleteScheduledAt(updated.delete_scheduled_at ?? null);
+      toast(t.profileDeleteCancelled);
+    } catch {
+      toast("Error");
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -771,34 +810,78 @@ export default function ProfilePage() {
 
         {/* ── Danger Zone ────────────────────────────────────────────────── */}
         <div className="glass-card rounded-2xl p-6 border border-red-500/15">
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-2 mb-4">
             <Trash2 className="w-4 h-4 text-red-400" />
             <h2 className="text-sm font-semibold uppercase tracking-wider text-red-400">{t.profileDangerZone}</h2>
           </div>
-          <p className="text-sm font-medium mb-1">{t.profileDeleteAccount}</p>
-          <p className="text-xs text-muted-foreground mb-4">{t.profileDeleteAccountHint}</p>
 
-          <div className="flex flex-col gap-3 max-w-sm">
-            <p className="text-xs text-muted-foreground">{t.profileDeleteAccountConfirm(user.username)}</p>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={deleteInput}
-                onChange={(e) => { setDeleteInput(e.target.value); setDeleteError(""); }}
-                placeholder={user.username}
-                className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-red-400/40 transition-colors"
-              />
-              <button
-                onClick={handleDeleteAccount}
-                disabled={deleting || deleteInput !== user.username}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-all disabled:opacity-40 disabled:cursor-default"
-              >
-                {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                {deleting ? t.profileDeleting : t.profileDeleteAccount}
-              </button>
+          {deleteScheduledAt ? (
+            /* ── Pending deletion banner ── */
+            <div className="flex flex-col gap-4">
+              <div className="rounded-xl border border-red-500/30 bg-red-500/8 p-4 flex flex-col gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-red-500/15 border border-red-500/25 flex items-center justify-center flex-shrink-0">
+                    <Trash2 className="w-4 h-4 text-red-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-red-400 mb-0.5">{t.profileDeleteScheduled}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {t.profileDeletePending(
+                        new Date(deleteScheduledAt).toLocaleString(locale === "ru" ? "ru-RU" : "en-US", {
+                          day: "numeric", month: "long", year: "numeric",
+                          hour: "2-digit", minute: "2-digit",
+                        })
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Live countdown */}
+                <div className="flex items-center justify-center gap-2 py-2 rounded-lg bg-red-500/10 border border-red-500/20">
+                  <span className="text-xs text-muted-foreground">{locale === "ru" ? "До удаления:" : "Time remaining:"}</span>
+                  <span className="font-mono text-sm font-bold text-red-400 tabular-nums">{countdown}</span>
+                </div>
+
+                <button
+                  onClick={handleCancelDelete}
+                  disabled={cancelling}
+                  className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-semibold
+                    bg-white/5 border border-white/15 hover:border-neon-green/40 hover:text-neon-green
+                    text-foreground transition-all disabled:opacity-50"
+                >
+                  {cancelling
+                    ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />{t.profileCancellingDelete}</>
+                    : <><Check className="w-3.5 h-3.5" />{t.profileCancelDelete}</>
+                  }
+                </button>
+              </div>
             </div>
-            {deleteError && <p className="text-xs text-red-400">{deleteError}</p>}
-          </div>
+          ) : (
+            /* ── Schedule deletion form ── */
+            <div className="flex flex-col gap-3">
+              <p className="text-sm font-medium">{t.profileDeleteAccount}</p>
+              <p className="text-xs text-muted-foreground">{t.profileDeleteAccountHint}</p>
+              <p className="text-xs text-muted-foreground mt-1">{t.profileDeleteAccountConfirm(user.username)}</p>
+              <div className="flex gap-2 max-w-sm">
+                <input
+                  type="text"
+                  value={deleteInput}
+                  onChange={(e) => { setDeleteInput(e.target.value); setDeleteError(""); }}
+                  placeholder={user.username}
+                  className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-red-400/40 transition-colors"
+                />
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={deleting || deleteInput !== user.username}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-all disabled:opacity-40 disabled:cursor-default whitespace-nowrap"
+                >
+                  {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                  {deleting ? t.profileDeleting : t.profileScheduleDeleteBtn}
+                </button>
+              </div>
+              {deleteError && <p className="text-xs text-red-400">{deleteError}</p>}
+            </div>
+          )}
         </div>
       </main>
 

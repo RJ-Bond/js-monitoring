@@ -136,8 +136,10 @@ export const api = {
     fetchJSON<User>("/api/v1/profile/avatar", { method: "PUT", body: JSON.stringify({ avatar }) }),
   generateToken: () =>
     fetchJSON<User>("/api/v1/profile/token", { method: "POST" }),
-  deleteProfile: (): Promise<void> =>
-    fetchJSON<void>("/api/v1/profile", { method: "DELETE" }),
+  deleteProfile: () =>
+    fetchJSON<User>("/api/v1/profile", { method: "DELETE" }),
+  cancelDeleteProfile: () =>
+    fetchJSON<User>("/api/v1/profile/delete-cancel", { method: "POST" }),
   getProfileServers: () =>
     fetchJSON<Server[]>("/api/v1/profile/servers"),
 

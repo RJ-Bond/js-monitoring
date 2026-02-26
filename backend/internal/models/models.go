@@ -20,9 +20,10 @@ type User struct {
 	Banned            bool       `gorm:"default:false"                         json:"banned"`
 	TOTPSecret        string     `gorm:"type:varchar(100)"                     json:"-"`
 	TOTPEnabled       bool       `gorm:"default:false"                         json:"totp_enabled"`
-	SessionsClearedAt *time.Time `                                             json:"-"`
-	CreatedAt         time.Time  `                                             json:"created_at"`
-	UpdatedAt         time.Time  `                                             json:"updated_at"`
+	SessionsClearedAt *time.Time `                                              json:"-"`
+	DeleteScheduledAt *time.Time `gorm:"index"                                 json:"delete_scheduled_at,omitempty"`
+	CreatedAt         time.Time  `                                              json:"created_at"`
+	UpdatedAt         time.Time  `                                              json:"updated_at"`
 }
 
 // Server — основная запись игрового сервера

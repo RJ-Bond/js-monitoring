@@ -84,6 +84,7 @@ func New(onUpdate func(serverID uint, status *models.ServerStatus)) *Poller {
 // Start запускает воркеры, обработчик результатов и планировщик
 func (p *Poller) Start() {
 	p.closeOrphanSessions()
+	p.purgeScheduledDeletions() // run once on startup
 	for i := 0; i < workerCount; i++ {
 		p.wg.Add(1)
 		go p.worker()
@@ -92,8 +93,38 @@ func (p *Poller) Start() {
 	go p.batchHistoryWriter()
 	go p.scheduler()
 	go p.discordWorker()
+	go p.accountCleanupWorker()
 
 	log.Printf("[Poller] started with %d workers", workerCount)
+}
+
+// accountCleanupWorker runs hourly to permanently delete accounts past their grace period.
+func (p *Poller) accountCleanupWorker() {
+	ticker := time.NewTicker(1 * time.Hour)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			p.purgeScheduledDeletions()
+		case <-p.done:
+			return
+		}
+	}
+}
+
+func (p *Poller) purgeScheduledDeletions() {
+	var users []models.User
+	if err := p.db.
+		Where("delete_scheduled_at IS NOT NULL AND delete_scheduled_at <= ?", time.Now().UTC()).
+		Find(&users).Error; err != nil || len(users) == 0 {
+		return
+	}
+	for _, u := range users {
+		p.db.Where("owner_id = ?", u.ID).Delete(&models.Server{})
+		if err := p.db.Delete(&models.User{}, u.ID).Error; err == nil {
+			log.Printf("[cleanup] Deleted account %q (ID=%d) — grace period expired", u.Username, u.ID)
+		}
+	}
 }
 
 // Stop корректно завершает поллер
