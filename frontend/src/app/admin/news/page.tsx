@@ -56,6 +56,143 @@ function renderMarkdown(md: string): string {
   return html;
 }
 
+// ── Markdown renderers for previews ──────────────────────────────────────────
+
+function renderDiscordMarkdown(md: string): string {
+  let html = md.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  html = html.replace(/\*(.+?)\*/g, "<em>$1</em>");
+  html = html.replace(/`([^`]+)`/g,
+    '<code style="background:rgba(0,0,0,.35);border-radius:3px;padding:0 3px;font-size:.88em;font-family:monospace">$1</code>');
+  html = html.replace(/\[(.+?)\]\((.+?)\)/g,
+    '<a href="$2" style="color:#00aff4;text-decoration:none" target="_blank" rel="noopener noreferrer">$1</a>');
+  html = html.replace(/\n/g, "<br>");
+  return html;
+}
+
+function renderTelegramMarkdown(md: string): string {
+  let html = md.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  html = html.replace(/\*(.+?)\*/g, "<em>$1</em>");
+  html = html.replace(/`([^`]+)`/g,
+    '<code style="background:rgba(0,0,0,.3);border-radius:3px;padding:0 3px;font-size:.88em;font-family:monospace">$1</code>');
+  html = html.replace(/\[(.+?)\]\((.+?)\)/g,
+    '<a href="$2" style="color:#4fa8e0;text-decoration:none" target="_blank" rel="noopener noreferrer">$1</a>');
+  html = html.replace(/\n/g, "<br>");
+  return html;
+}
+
+// ── Inline preview components ─────────────────────────────────────────────────
+
+function DiscordNewsPreview({ form }: { form: NewsFormData }) {
+  const color  = form.pinned ? "#f0c030" : "#00b0f4";
+  const desc   = form.content.length > 350
+    ? form.content.slice(0, 350) + "…"
+    : form.content;
+  const tagList = (form.tags ?? "").split(",").map(s => s.trim()).filter(Boolean);
+  const now     = new Date().toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" });
+  const today   = new Date().toLocaleDateString("ru", { day: "numeric", month: "long" });
+
+  return (
+    <div style={{ background: "#313338", padding: "12px 10px", fontSize: 13,
+      fontFamily: "Whitney, 'Helvetica Neue', Helvetica, Arial, sans-serif", minHeight: "100%" }}>
+      <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+        {/* Avatar */}
+        <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#5865f2",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          color: "white", fontWeight: 700, fontSize: 10, flexShrink: 0 }}>
+          BOT
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {/* Username + time */}
+          <div style={{ marginBottom: 4 }}>
+            <span style={{ color: "white", fontWeight: 600, fontSize: 13 }}>JS Monitor</span>
+            <span style={{ color: "#949ba4", fontWeight: 400, fontSize: 11, marginLeft: 8 }}>сегодня в {now}</span>
+          </div>
+          {/* Embed card */}
+          <div style={{ background: "#2b2d31", borderRadius: 4, display: "flex", overflow: "hidden" }}>
+            {/* Left color bar */}
+            <div style={{ width: 4, background: color, flexShrink: 0 }} />
+            <div style={{ flex: 1, padding: "8px 12px 10px", minWidth: 0 }}>
+              {/* Title + thumbnail */}
+              <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  {form.title && (
+                    <div style={{ color: "white", fontWeight: 700, fontSize: 14, marginBottom: 4, lineHeight: 1.2 }}>
+                      {form.title}
+                    </div>
+                  )}
+                  {desc && (
+                    <div style={{ color: "#dbdee1", fontSize: 13, lineHeight: 1.35,
+                      whiteSpace: "pre-wrap", wordBreak: "break-word" }}
+                      dangerouslySetInnerHTML={{ __html: renderDiscordMarkdown(desc) }}
+                    />
+                  )}
+                </div>
+                {form.image_url && (
+                  <img src={form.image_url} alt=""
+                    style={{ width: 72, height: 72, borderRadius: 4, objectFit: "cover", flexShrink: 0 }}
+                    onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+                  />
+                )}
+              </div>
+              {/* Tags field */}
+              {tagList.length > 0 && (
+                <div style={{ marginTop: 8 }}>
+                  <div style={{ color: "white", fontWeight: 600, fontSize: 12, marginBottom: 2 }}>🏷️ Теги</div>
+                  <div style={{ color: "#dbdee1", fontSize: 12 }}>{tagList.join(", ")}</div>
+                </div>
+              )}
+              {/* Footer */}
+              <div style={{ color: "#949ba4", fontSize: 11, marginTop: 8 }}>
+                JS Monitor · {today}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TelegramNewsPreview({ form }: { form: NewsFormData }) {
+  const now = new Date().toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" });
+
+  return (
+    <div style={{ background: "#17212b", padding: "12px 10px", minHeight: "100%" }}>
+      <div style={{ fontSize: 11, color: "#8babb8", textAlign: "center", marginBottom: 10 }}>
+        📢 Канал · Предпросмотр
+      </div>
+      <div style={{ background: "#182533", borderRadius: 16, borderBottomLeftRadius: 4,
+        maxWidth: 280, overflow: "hidden", fontSize: 13,
+        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+        {form.image_url && (
+          <img src={form.image_url} alt=""
+            style={{ width: "100%", maxHeight: 160, objectFit: "cover", display: "block" }}
+            onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+          />
+        )}
+        <div style={{ padding: "8px 12px 6px" }}>
+          {form.title && (
+            <div style={{ color: "#e8f0f7", fontWeight: 700, fontSize: 14, marginBottom: 3, lineHeight: 1.3 }}>
+              {form.title}
+            </div>
+          )}
+          {form.content && (
+            <div style={{ color: "#e8f0f7", fontSize: 13, lineHeight: 1.4,
+              whiteSpace: "pre-wrap", wordBreak: "break-word" }}
+              dangerouslySetInnerHTML={{ __html: renderTelegramMarkdown(form.content) }}
+            />
+          )}
+          <div style={{ color: "#6c8fa8", fontSize: 11, textAlign: "right", marginTop: 6 }}>
+            {now} ✓✓
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const EMPTY_FORM: NewsFormData = {
   title: "",
   content: "",
@@ -83,6 +220,7 @@ export default function AdminNewsPage() {
   const [formError, setFormError] = useState("");
   const [editorTab, setEditorTab] = useState<"write" | "preview">("write");
   const [deleteConfirm, setDeleteConfirm] = useState<NewsItem | null>(null);
+  const [previewTab, setPreviewTab] = useState<"markdown" | "discord" | "telegram">("markdown");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -521,16 +659,48 @@ export default function AdminNewsPage() {
                   </div>
 
                   {/* Preview panel */}
-                  <div
-                    className={`min-h-[13rem] bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-foreground overflow-auto ${
-                      editorTab === "write" ? "hidden md:block" : ""
-                    }`}
-                    dangerouslySetInnerHTML={{
-                      __html: form.content
-                        ? renderMarkdown(form.content)
-                        : `<span style="color:rgba(255,255,255,.25)">${t.newsContentPlaceholder}</span>`,
-                    }}
-                  />
+                  <div className={`min-h-[13rem] flex flex-col border border-white/10 rounded-xl overflow-hidden ${
+                    editorTab === "write" ? "hidden md:flex" : "flex"
+                  }`}>
+                    {/* Preview type tabs */}
+                    <div className="flex items-center gap-0.5 bg-white/5 border-b border-white/10 px-2 py-1.5 flex-shrink-0">
+                      {(
+                        [
+                          { id: "markdown", label: "Markdown" },
+                          { id: "discord",  label: "🟣 Discord" },
+                          { id: "telegram", label: "✈️ Telegram" },
+                        ] as { id: typeof previewTab; label: string }[]
+                      ).map((tab) => (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          onClick={() => setPreviewTab(tab.id)}
+                          className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
+                            previewTab === tab.id
+                              ? "bg-white/10 text-foreground"
+                              : "text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          {tab.label}
+                        </button>
+                      ))}
+                    </div>
+                    {/* Preview content */}
+                    <div className="flex-1 overflow-auto">
+                      {previewTab === "markdown" && (
+                        <div
+                          className="px-4 py-3 text-sm text-foreground"
+                          dangerouslySetInnerHTML={{
+                            __html: form.content
+                              ? renderMarkdown(form.content)
+                              : `<span style="color:rgba(255,255,255,.25)">${t.newsContentPlaceholder}</span>`,
+                          }}
+                        />
+                      )}
+                      {previewTab === "discord"  && <DiscordNewsPreview  form={form} />}
+                      {previewTab === "telegram" && <TelegramNewsPreview form={form} />}
+                    </div>
+                  </div>
                 </div>
               </div>
 
