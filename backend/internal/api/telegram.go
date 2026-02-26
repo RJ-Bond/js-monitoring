@@ -2,12 +2,10 @@ package api
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"html"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -253,57 +251,3 @@ func TestTelegramNewsWebhook(c echo.Context) error {
 	return c.JSON(http.StatusOK, echo.Map{"ok": true})
 }
 
-// TelegramTopic — один топик супергруппы из getForumTopics.
-type TelegramTopic struct {
-	MessageThreadID int    `json:"message_thread_id"`
-	Name            string `json:"name"`
-}
-
-// GetTelegramTopics GET /api/v1/admin/news/telegram/topics
-// Возвращает список тем (топиков) супергруппы через getForumTopics Bot API.
-// Работает только для супергрупп с включённым режимом Forum.
-func GetTelegramTopics(c echo.Context) error {
-	var s models.SiteSettings
-	database.DB.First(&s, 1)
-
-	if s.NewsTGBotToken == "" || s.NewsTGChatID == "" {
-		return c.JSON(http.StatusBadRequest, echo.Map{"error": "Telegram bot token or chat ID not configured"})
-	}
-
-	apiURL := fmt.Sprintf(
-		"https://api.telegram.org/bot%s/getForumTopics?chat_id=%s",
-		s.NewsTGBotToken,
-		url.QueryEscape(s.NewsTGChatID),
-	)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
-	}
-
-	resp, err := sharedHTTPClient.Do(req)
-	if err != nil {
-		return c.JSON(http.StatusBadGateway, echo.Map{"error": err.Error()})
-	}
-	defer resp.Body.Close()
-
-	var tgResp struct {
-		OK     bool `json:"ok"`
-		Result struct {
-			Topics []TelegramTopic `json:"topics"`
-		} `json:"result"`
-		Description string `json:"description"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&tgResp); err != nil {
-		return c.JSON(http.StatusBadGateway, echo.Map{"error": "failed to parse Telegram response"})
-	}
-
-	if !tgResp.OK {
-		return c.JSON(http.StatusBadGateway, echo.Map{"error": tgResp.Description})
-	}
-
-	return c.JSON(http.StatusOK, echo.Map{"topics": tgResp.Result.Topics})
-}

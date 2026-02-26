@@ -35,7 +35,11 @@ async function fetchJSON<T>(path: string, options?: RequestInit): Promise<T> {
       ...(options?.headers ?? {}),
     },
   });
-  if (!res.ok) throw new Error(`API error ${res.status}: ${path}`);
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try { const b = await res.json(); if (b?.error) msg = b.error; } catch { /* ignore */ }
+    throw new Error(msg);
+  }
   return res.json() as Promise<T>;
 }
 
@@ -250,6 +254,5 @@ export const api = {
 
   testNewsWebhook: () => fetchJSON<{ ok: boolean }>("/api/v1/admin/news/webhook/test", { method: "POST" }),
   testTelegramWebhook: () => fetchJSON<{ ok: boolean }>("/api/v1/admin/news/telegram/test", { method: "POST" }),
-  getTelegramTopics: () => fetchJSON<{ topics: { message_thread_id: number; name: string }[] }>("/api/v1/admin/news/telegram/topics"),
   getSSLStatus: () => fetchJSON<SSLStatus>("/api/v1/admin/ssl/status"),
 };
