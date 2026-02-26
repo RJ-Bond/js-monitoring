@@ -96,12 +96,11 @@ export function renderMarkdownPreview(md: string): string {
     '<a href="$2" style="color:#00d4ff;text-decoration:underline;text-underline-offset:3px" target="_blank" rel="noopener noreferrer">$1</a>',
   );
 
-  // Convert newlines to space/truncate
+  // Convert newlines to <br> for line-break support in card previews
   html = html
     .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-    .join(" ");
+    .map((line) => line.trimEnd())
+    .join("<br>");
 
   return html;
 }
