@@ -84,6 +84,7 @@ func GetAdminSettings(c echo.Context) error {
 		"news_role_id":         s.NewsRoleID,
 		"news_tg_bot_token":    s.NewsTGBotToken,
 		"news_tg_chat_id":      s.NewsTGChatID,
+		"news_tg_thread_id":    s.NewsTGThreadID,
 		"ssl_mode":             s.SSLMode,
 		"ssl_domain":           s.SSLDomain,
 		"force_https":          s.ForceHTTPS,
@@ -102,6 +103,7 @@ func UpdateSettings(c echo.Context) error {
 		NewsRoleID          string `json:"news_role_id"`
 		NewsTGBotToken      string `json:"news_tg_bot_token"`
 		NewsTGChatID        string `json:"news_tg_chat_id"`
+		NewsTGThreadID      string `json:"news_tg_thread_id"`
 		ForceHTTPS          *bool  `json:"force_https"`
 	}
 	if err := c.Bind(&payload); err != nil {
@@ -125,6 +127,7 @@ func UpdateSettings(c echo.Context) error {
 	s.NewsRoleID = payload.NewsRoleID
 	s.NewsTGBotToken = payload.NewsTGBotToken
 	s.NewsTGChatID = payload.NewsTGChatID
+	s.NewsTGThreadID = payload.NewsTGThreadID
 	if payload.RegistrationEnabled != nil {
 		s.RegistrationEnabled = *payload.RegistrationEnabled
 	}
@@ -162,5 +165,6 @@ func UpdateSettings(c echo.Context) error {
 		"news_role_id":         s.NewsRoleID,
 		"news_tg_bot_token":    s.NewsTGBotToken,
 		"news_tg_chat_id":      s.NewsTGChatID,
+		"news_tg_thread_id":    s.NewsTGThreadID,
 	})
 }

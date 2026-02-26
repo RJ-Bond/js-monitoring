@@ -2,10 +2,12 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"html"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -16,15 +18,19 @@ import (
 )
 
 // sendTGMessage отправляет текстовое сообщение в Telegram-чат (parse_mode=HTML).
-func sendTGMessage(token, chatID, text string) error {
+// threadID — ID темы (топика) в супергруппе; пустая строка = главный чат.
+func sendTGMessage(token, chatID, threadID, text string) error {
 	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", token)
 	payload := map[string]interface{}{
 		"chat_id":    chatID,
 		"text":       text,
 		"parse_mode": "HTML",
 	}
+	if threadID != "" && threadID != "0" {
+		payload["message_thread_id"] = threadID
+	}
 	b, _ := json.Marshal(payload)
-	resp, err := http.Post(apiURL, "application/json", bytes.NewReader(b)) //nolint:noctx
+	resp, err := sharedHTTPClient.Post(apiURL, "application/json", bytes.NewReader(b)) //nolint:noctx
 	if err != nil {
 		return err
 	}
@@ -36,7 +42,7 @@ func sendTGMessage(token, chatID, text string) error {
 }
 
 // sendTGPhoto отправляет фото с подписью (parse_mode=HTML).
-func sendTGPhoto(token, chatID, photoURL, caption string) error {
+func sendTGPhoto(token, chatID, threadID, photoURL, caption string) error {
 	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/sendPhoto", token)
 	payload := map[string]interface{}{
 		"chat_id":    chatID,
@@ -44,8 +50,11 @@ func sendTGPhoto(token, chatID, photoURL, caption string) error {
 		"caption":    caption,
 		"parse_mode": "HTML",
 	}
+	if threadID != "" && threadID != "0" {
+		payload["message_thread_id"] = threadID
+	}
 	b, _ := json.Marshal(payload)
-	resp, err := http.Post(apiURL, "application/json", bytes.NewReader(b)) //nolint:noctx
+	resp, err := sharedHTTPClient.Post(apiURL, "application/json", bytes.NewReader(b)) //nolint:noctx
 	if err != nil {
 		return err
 	}
@@ -88,9 +97,9 @@ func buildTGNewsText(item *models.NewsItem, appURL string) string {
 	return sb.String()
 }
 
-// SendNewsToTelegram отправляет новость в Telegram-канал через Bot API (асинхронно).
-// Если у новости есть image_url — отправляет sendPhoto, иначе sendMessage.
-func SendNewsToTelegram(item *models.NewsItem, appURL, botToken, chatID string) {
+// SendNewsToTelegram отправляет новость в Telegram-канал/группу через Bot API (асинхронно).
+// threadID — ID топика в супергруппе; пустая строка = главный чат или канал без тем.
+func SendNewsToTelegram(item *models.NewsItem, appURL, botToken, chatID, threadID string) {
 	if botToken == "" || chatID == "" {
 		return
 	}
@@ -98,23 +107,20 @@ func SendNewsToTelegram(item *models.NewsItem, appURL, botToken, chatID string) 
 
 	go func() {
 		if item.ImageURL != "" {
-			// Лимит подписи Telegram — 1024 символа
 			caption := text
 			if len([]rune(caption)) > 1000 {
 				caption = string([]rune(caption)[:1000]) + "…"
 			}
-			if err := sendTGPhoto(botToken, chatID, item.ImageURL, caption); err != nil {
-				// Fallback: отправить без фото
-				_ = sendTGMessage(botToken, chatID, text)
+			if err := sendTGPhoto(botToken, chatID, threadID, item.ImageURL, caption); err != nil {
+				_ = sendTGMessage(botToken, chatID, threadID, text)
 			}
 		} else {
-			_ = sendTGMessage(botToken, chatID, text)
+			_ = sendTGMessage(botToken, chatID, threadID, text)
 		}
 	}()
 }
 
 // TestTelegramNewsWebhook POST /api/v1/admin/news/telegram/test
-// Отправляет тестовое сообщение в настроенный Telegram-канал.
 func TestTelegramNewsWebhook(c echo.Context) error {
 	var s models.SiteSettings
 	database.DB.First(&s, 1)
@@ -135,7 +141,7 @@ func TestTelegramNewsWebhook(c echo.Context) error {
 	)
 
 	ch := make(chan error, 1)
-	go func() { ch <- sendTGMessage(s.NewsTGBotToken, s.NewsTGChatID, text) }()
+	go func() { ch <- sendTGMessage(s.NewsTGBotToken, s.NewsTGChatID, s.NewsTGThreadID, text) }()
 
 	select {
 	case err := <-ch:
@@ -147,4 +153,59 @@ func TestTelegramNewsWebhook(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, echo.Map{"ok": true})
+}
+
+// TelegramTopic — один топик супергруппы из getForumTopics.
+type TelegramTopic struct {
+	MessageThreadID int    `json:"message_thread_id"`
+	Name            string `json:"name"`
+}
+
+// GetTelegramTopics GET /api/v1/admin/news/telegram/topics
+// Возвращает список тем (топиков) супергруппы через getForumTopics Bot API.
+// Работает только для супергрупп с включённым режимом Forum.
+func GetTelegramTopics(c echo.Context) error {
+	var s models.SiteSettings
+	database.DB.First(&s, 1)
+
+	if s.NewsTGBotToken == "" || s.NewsTGChatID == "" {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "Telegram bot token or chat ID not configured"})
+	}
+
+	apiURL := fmt.Sprintf(
+		"https://api.telegram.org/bot%s/getForumTopics?chat_id=%s",
+		s.NewsTGBotToken,
+		url.QueryEscape(s.NewsTGChatID),
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
+	}
+
+	resp, err := sharedHTTPClient.Do(req)
+	if err != nil {
+		return c.JSON(http.StatusBadGateway, echo.Map{"error": err.Error()})
+	}
+	defer resp.Body.Close()
+
+	var tgResp struct {
+		OK     bool `json:"ok"`
+		Result struct {
+			Topics []TelegramTopic `json:"topics"`
+		} `json:"result"`
+		Description string `json:"description"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&tgResp); err != nil {
+		return c.JSON(http.StatusBadGateway, echo.Map{"error": "failed to parse Telegram response"})
+	}
+
+	if !tgResp.OK {
+		return c.JSON(http.StatusBadGateway, echo.Map{"error": tgResp.Description})
+	}
+
+	return c.JSON(http.StatusOK, echo.Map{"topics": tgResp.Result.Topics})
 }

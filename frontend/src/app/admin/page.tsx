@@ -134,6 +134,12 @@ interface SettingsTabProps {
   onNewsTGBotTokenChange: (v: string) => void;
   onNewsTGChatIdChange: (v: string) => void;
   onTestTGWebhook: () => void;
+  newsTGThreadId: string;
+  onNewsTGThreadIdChange: (v: string) => void;
+  tgTopics: { message_thread_id: number; name: string }[];
+  tgTopicsLoading: boolean;
+  tgTopicsError: string;
+  onLoadTGTopics: () => void;
   sslStatus: SSLStatus | null;
   sslStatusLoading: boolean;
   forceHttps: boolean;
@@ -169,6 +175,7 @@ function SettingsTab({
   onNameChange, onLogoChange, onAppUrlChange,
   onSteamNewKeyChange, onSteamClear, onRegistrationEnabledChange, onNewsWebhookChange, onNewsRoleIdChange, onTestNewsWebhook,
   onNewsTGBotTokenChange, onNewsTGChatIdChange, onTestTGWebhook,
+  newsTGThreadId, onNewsTGThreadIdChange, tgTopics, tgTopicsLoading, tgTopicsError, onLoadTGTopics,
   sslStatus, sslStatusLoading, forceHttps, onForceHttpsChange, onRefreshSsl,
   onSave, t,
 }: SettingsTabProps) {
@@ -426,6 +433,48 @@ function SettingsTab({
           />
           <p className="text-xs text-muted-foreground mt-1">{t.adminSettingsNewsTGChatIdHint}</p>
         </div>
+
+        {/* Thread / Topic selector */}
+        {newsTGBotToken && newsTGChatId && (
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs text-muted-foreground">{t.adminSettingsNewsTGThread}</label>
+              <button
+                type="button"
+                onClick={onLoadTGTopics}
+                disabled={tgTopicsLoading}
+                className="text-xs text-neon-blue hover:underline disabled:opacity-50"
+              >
+                {tgTopicsLoading ? t.adminSettingsNewsTGThreadLoading : t.adminSettingsNewsTGThreadLoad}
+              </button>
+            </div>
+            {tgTopicsError && (
+              <p className="text-xs text-red-400 mb-1">{t.adminSettingsNewsTGThreadError}</p>
+            )}
+            {tgTopics.length > 0 ? (
+              <select
+                className={inputCls + " cursor-pointer"}
+                value={newsTGThreadId}
+                onChange={(e) => onNewsTGThreadIdChange(e.target.value)}
+              >
+                <option value="">{t.adminSettingsNewsTGThreadNone}</option>
+                {tgTopics.map((topic) => (
+                  <option key={topic.message_thread_id} value={String(topic.message_thread_id)}>
+                    {topic.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                className={inputCls}
+                value={newsTGThreadId}
+                onChange={(e) => onNewsTGThreadIdChange(e.target.value)}
+                placeholder="ID темы (или загрузите список)"
+              />
+            )}
+            <p className="text-xs text-muted-foreground mt-1">{t.adminSettingsNewsTGThreadHint}</p>
+          </div>
+        )}
       </div>
 
       {/* SSL / HTTPS */}
@@ -575,6 +624,10 @@ export default function AdminPage() {
   const [settingsNewsRoleId, setSettingsNewsRoleId] = useState("");
   const [settingsNewsTGBotToken, setSettingsNewsTGBotToken] = useState("");
   const [settingsNewsTGChatId, setSettingsNewsTGChatId] = useState("");
+  const [settingsNewsTGThreadId, setSettingsNewsTGThreadId] = useState("");
+  const [tgTopics, setTGTopics] = useState<{ message_thread_id: number; name: string }[]>([]);
+  const [tgTopicsLoading, setTGTopicsLoading] = useState(false);
+  const [tgTopicsError, setTGTopicsError] = useState("");
   const [settingsForceHttps, setSettingsForceHttps] = useState(false);
   const [sslStatus, setSslStatus] = useState<SSLStatus | null>(null);
   const [sslStatusLoading, setSslStatusLoading] = useState(false);
@@ -660,6 +713,7 @@ export default function AdminPage() {
         setSettingsNewsRoleId(s.news_role_id ?? "");
         setSettingsNewsTGBotToken(s.news_tg_bot_token ?? "");
         setSettingsNewsTGChatId(s.news_tg_chat_id ?? "");
+        setSettingsNewsTGThreadId(s.news_tg_thread_id ?? "");
         setSettingsForceHttps(s.force_https ?? false);
         setSteamNewKey("");
         setSteamClear(false);
@@ -1699,6 +1753,23 @@ export default function AdminPage() {
                 toast(t.adminSettingsTestTGWebhookFail, "error");
               }
             }}
+            newsTGThreadId={settingsNewsTGThreadId}
+            onNewsTGThreadIdChange={setSettingsNewsTGThreadId}
+            tgTopics={tgTopics}
+            tgTopicsLoading={tgTopicsLoading}
+            tgTopicsError={tgTopicsError}
+            onLoadTGTopics={async () => {
+              setTGTopicsLoading(true);
+              setTGTopicsError("");
+              try {
+                const res = await api.getTelegramTopics();
+                setTGTopics(res.topics ?? []);
+              } catch {
+                setTGTopicsError("error");
+              } finally {
+                setTGTopicsLoading(false);
+              }
+            }}
             sslStatus={sslStatus}
             sslStatusLoading={sslStatusLoading}
             forceHttps={settingsForceHttps}
@@ -1724,6 +1795,7 @@ export default function AdminPage() {
                   news_role_id: settingsNewsRoleId,
                   news_tg_bot_token: settingsNewsTGBotToken,
                   news_tg_chat_id: settingsNewsTGChatId,
+                  news_tg_thread_id: settingsNewsTGThreadId,
                   force_https: settingsForceHttps,
                 });
                 await refreshSettings();

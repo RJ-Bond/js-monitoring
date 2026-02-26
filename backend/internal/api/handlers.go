@@ -434,7 +434,7 @@ func CreateNews(c echo.Context) error {
 			SendNewsToDiscord(&item, s.AppURL, s.NewsWebhookURL, discordSiteName(), s.NewsRoleID)
 		}
 		if req.SendToTelegram == nil || *req.SendToTelegram {
-			SendNewsToTelegram(&item, s.AppURL, s.NewsTGBotToken, s.NewsTGChatID)
+			SendNewsToTelegram(&item, s.AppURL, s.NewsTGBotToken, s.NewsTGChatID, s.NewsTGThreadID)
 		}
 	}
 	return c.JSON(http.StatusCreated, item)
@@ -499,7 +499,7 @@ func UpdateNews(c echo.Context) error {
 			SendNewsToDiscord(&item, s.AppURL, s.NewsWebhookURL, discordSiteName(), s.NewsRoleID)
 		}
 		if req.SendToTelegram || justPublished {
-			SendNewsToTelegram(&item, s.AppURL, s.NewsTGBotToken, s.NewsTGChatID)
+			SendNewsToTelegram(&item, s.AppURL, s.NewsTGBotToken, s.NewsTGChatID, s.NewsTGThreadID)
 		}
 	}
 	return c.JSON(http.StatusOK, item)

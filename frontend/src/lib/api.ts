@@ -62,6 +62,7 @@ export interface AdminSiteSettings {
   news_role_id: string;
   news_tg_bot_token: string;
   news_tg_chat_id: string;
+  news_tg_thread_id: string;
   ssl_mode: string;
   ssl_domain: string;
   force_https: boolean;
@@ -244,10 +245,11 @@ export const api = {
     fetchJSON("/api/v1/admin/servers/bulk", { method: "POST", body: JSON.stringify({ action, ids }) }),
 
   // Update settings with registration_enabled and news webhook
-  updateSettingsFull: (data: { site_name?: string; logo_data?: string; app_url?: string; steam_api_key?: string; registration_enabled?: boolean; news_webhook_url?: string; news_role_id?: string; news_tg_bot_token?: string; news_tg_chat_id?: string; force_https?: boolean }) =>
+  updateSettingsFull: (data: { site_name?: string; logo_data?: string; app_url?: string; steam_api_key?: string; registration_enabled?: boolean; news_webhook_url?: string; news_role_id?: string; news_tg_bot_token?: string; news_tg_chat_id?: string; news_tg_thread_id?: string; force_https?: boolean }) =>
     fetchJSON<SiteSettings>("/api/v1/admin/settings", { method: "PUT", body: JSON.stringify(data) }),
 
   testNewsWebhook: () => fetchJSON<{ ok: boolean }>("/api/v1/admin/news/webhook/test", { method: "POST" }),
   testTelegramWebhook: () => fetchJSON<{ ok: boolean }>("/api/v1/admin/news/telegram/test", { method: "POST" }),
+  getTelegramTopics: () => fetchJSON<{ topics: { message_thread_id: number; name: string }[] }>("/api/v1/admin/news/telegram/topics"),
   getSSLStatus: () => fetchJSON<SSLStatus>("/api/v1/admin/ssl/status"),
 };
