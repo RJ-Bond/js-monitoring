@@ -24,12 +24,17 @@ type discordThumbnail struct {
 	URL string `json:"url"`
 }
 
+type discordEmbedAuthor struct {
+	Name string `json:"name"`
+}
+
 type discordEmbed struct {
-	Title       string            `json:"title"`
-	Description string            `json:"description"`
-	Color       int               `json:"color"`
-	Fields      []discordField    `json:"fields,omitempty"`
-	Thumbnail   *discordThumbnail `json:"thumbnail,omitempty"`
+	Author      *discordEmbedAuthor `json:"author,omitempty"`
+	Title       string              `json:"title"`
+	Description string              `json:"description"`
+	Color       int                 `json:"color"`
+	Fields      []discordField      `json:"fields,omitempty"`
+	Thumbnail   *discordThumbnail   `json:"thumbnail,omitempty"`
 	Footer      struct {
 		Text string `json:"text"`
 	} `json:"footer"`
@@ -186,6 +191,14 @@ func SendNewsToDiscord(item *models.NewsItem, appURL, webhookURL, siteName, role
 		Timestamp:   item.CreatedAt.UTC().Format(time.RFC3339),
 	}
 	embed.Footer.Text = siteName
+
+	// Автор новости
+	if item.AuthorID > 0 {
+		var author models.User
+		if database.DB.Select("username").First(&author, item.AuthorID).Error == nil && author.Username != "" {
+			embed.Author = &discordEmbedAuthor{Name: author.Username}
+		}
+	}
 
 	// Thumbnail из ImageURL новости
 	if item.ImageURL != "" {
