@@ -27,6 +27,7 @@ import SiteBrand from "@/components/SiteBrand";
 import AlertConfigModal from "@/components/AlertConfigModal";
 import DiscordConfigModal from "@/components/DiscordConfigModal";
 import BulkActionBar from "@/components/BulkActionBar";
+import { DiscordIcon, TelegramIcon } from "@/components/BrandIcons";
 import type { User, AdminServer, AuditLogEntry } from "@/types/server";
 import { GAME_META } from "@/lib/utils";
 
@@ -371,7 +372,7 @@ function SettingsTab({
 
       {/* News Discord Webhook */}
       <div className="glass-card rounded-2xl p-5 space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t.adminSettingsNewsWebhook}</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"><DiscordIcon size={14} />{t.adminSettingsNewsWebhook}</h2>
         <div className="flex gap-2">
           <input
             className={inputCls}
@@ -401,7 +402,7 @@ function SettingsTab({
 
       {/* News Telegram Bot */}
       <div className="glass-card rounded-2xl p-5 space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t.adminSettingsNewsTG}</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"><TelegramIcon size={14} />{t.adminSettingsNewsTG}</h2>
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">{t.adminSettingsNewsTGBotToken}</label>
           <div className="flex gap-2">

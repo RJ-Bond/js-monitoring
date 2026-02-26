@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useState, useRef, useMemo, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Newspaper, Plus, Pencil, Trash2, X, Save, User, Pin, Eye, Copy, Clock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,6 +12,7 @@ import SiteBrand from "@/components/SiteBrand";
 import type { NewsItem } from "@/types/server";
 import { parseTags } from "@/types/server";
 import { renderDiscordMarkdown, renderTelegramMarkdown } from "@/lib/markdown";
+import { DiscordIcon, TelegramIcon } from "@/components/BrandIcons";
 
 function renderMarkdown(md: string): string {
   let html = md
@@ -658,7 +659,7 @@ export default function AdminNewsPage() {
                             : "bg-white/5 border-white/10 text-muted-foreground"
                         }`}
                       >
-                        💬 Discord
+                        <DiscordIcon size={13} /> Discord
                       </button>
                       <button
                         type="button"
@@ -669,7 +670,7 @@ export default function AdminNewsPage() {
                             : "bg-white/5 border-white/10 text-muted-foreground"
                         }`}
                       >
-                        ✈️ Telegram
+                        <TelegramIcon size={13} /> Telegram
                       </button>
                     </div>
                   </div>
@@ -754,9 +755,9 @@ export default function AdminNewsPage() {
                     {(
                       [
                         { id: "markdown", label: "Preview" },
-                        { id: "discord",  label: "🟣 Discord" },
-                        { id: "telegram", label: "✈️ Telegram" },
-                      ] as { id: typeof previewTab; label: string }[]
+                        { id: "discord",  label: <span className="inline-flex items-center gap-1"><DiscordIcon size={12} /> Discord</span> },
+                        { id: "telegram", label: <span className="inline-flex items-center gap-1"><TelegramIcon size={12} /> Telegram</span> },
+                      ] as { id: typeof previewTab; label: ReactNode }[]
                     ).map((tab) => (
                       <button
                         key={tab.id}
