@@ -224,10 +224,11 @@ func TestTelegramNewsWebhook(c echo.Context) error {
 		siteName = "JSMonitor"
 	}
 
+	moscow := time.FixedZone("Europe/Moscow", 3*60*60)
 	text := fmt.Sprintf(
-		"<b>Test Notification</b>\n\nThis is a test message from <b>%s</b> (%s).",
+		"<b>Тестовое уведомление</b>\n\nЭто тестовое сообщение от <b>%s</b> (%s МСК).",
 		html.EscapeString(siteName),
-		time.Now().Format("15:04:05"),
+		time.Now().In(moscow).Format("15:04:05"),
 	)
 
 	type result struct {
