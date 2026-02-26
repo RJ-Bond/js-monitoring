@@ -56,10 +56,10 @@ function UserAvatar({ username, role }: { username: string; role: string }) {
 
 // Audit action badge color
 function getActionColor(action: string): string {
-  if (action.startsWith("create_")) return "bg-neon-green/10 text-neon-green";
-  if (action.startsWith("delete_")) return "bg-red-400/10 text-red-400";
-  if (action.startsWith("update_")) return "bg-neon-blue/10 text-neon-blue";
-  return "bg-white/5 text-muted-foreground";
+  if (action.startsWith("create_")) return "bg-neon-green/10 border border-neon-green/30 text-neon-green rounded-full";
+  if (action.startsWith("delete_")) return "bg-red-400/10 border border-red-400/30 text-red-400 rounded-full";
+  if (action.startsWith("update_")) return "bg-neon-blue/10 border border-neon-blue/30 text-neon-blue rounded-full";
+  return "bg-white/5 border border-white/10 text-muted-foreground rounded-full";
 }
 
 // Sort indicator icon
@@ -79,8 +79,10 @@ function ConfirmModal({ state, onClose }: { state: ConfirmState; onClose: () => 
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="w-full max-w-sm glass-card rounded-2xl overflow-hidden shadow-2xl animate-fade-in">
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-white/10">
-          <AlertTriangle className="w-5 h-5 text-yellow-400 flex-shrink-0" />
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-white/10 bg-gradient-to-r from-red-400/[0.07] to-transparent rounded-t-2xl">
+          <div className="w-8 h-8 rounded-xl bg-red-400/15 flex items-center justify-center flex-shrink-0">
+            <AlertTriangle className="w-4 h-4 text-red-400" />
+          </div>
           <h2 className="font-bold text-sm">{state.title}</h2>
         </div>
         <div className="px-5 py-4">
@@ -181,7 +183,7 @@ function SettingsTab({
   onSave, t,
 }: SettingsTabProps) {
   const [showKey, setShowKey] = useState(false);
-  const inputCls = "bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-neon-green/50 transition-all placeholder:text-muted-foreground w-full";
+  const inputCls = "bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-neon-green/50 focus:shadow-[0_0_0_3px_rgba(0,200,120,0.08)] transition-all placeholder:text-muted-foreground w-full";
 
   async function handleLogoFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -199,7 +201,7 @@ function SettingsTab({
     <div className="max-w-lg space-y-5">
       {/* Site name */}
       <div className="glass-card rounded-2xl p-5 space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t.adminSettingsName}</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground/80 flex items-center gap-2"><span className="w-0.5 h-3.5 rounded-full bg-neon-green/60 flex-shrink-0" />{t.adminSettingsName}</h2>
         <input
           className={inputCls}
           value={name}
@@ -212,7 +214,7 @@ function SettingsTab({
 
       {/* Logo */}
       <div className="glass-card rounded-2xl p-5 space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t.adminSettingsLogo}</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground/80 flex items-center gap-2"><span className="w-0.5 h-3.5 rounded-full bg-neon-green/60 flex-shrink-0" />{t.adminSettingsLogo}</h2>
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-neon-green/20 border border-neon-green/40 flex items-center justify-center flex-shrink-0">
             {logo ? (
@@ -241,7 +243,7 @@ function SettingsTab({
 
       {/* Preview */}
       <div className="glass-card rounded-2xl p-5 space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t.adminSettingsPreview}</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground/80 flex items-center gap-2"><span className="w-0.5 h-3.5 rounded-full bg-neon-green/60 flex-shrink-0" />{t.adminSettingsPreview}</h2>
         <div className="flex items-center gap-2 p-3 rounded-xl bg-white/3 border border-white/5">
           <div className="w-6 h-6 rounded-lg bg-neon-green/20 border border-neon-green/40 flex items-center justify-center">
             {logo ? (
@@ -256,7 +258,7 @@ function SettingsTab({
 
       {/* App URL */}
       <div className="glass-card rounded-2xl p-5 space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t.adminSettingsSteamTitle}</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground/80 flex items-center gap-2"><span className="w-0.5 h-3.5 rounded-full bg-neon-blue/60 flex-shrink-0" />{t.adminSettingsSteamTitle}</h2>
         <div className="space-y-2">
           <label className="text-xs text-muted-foreground">{t.adminSettingsAppUrl}</label>
           <input
@@ -359,7 +361,7 @@ function SettingsTab({
 
       {/* Registration control */}
       <div className="glass-card rounded-2xl p-5 space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t.adminSettingsRegistration}</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground/80 flex items-center gap-2"><span className="w-0.5 h-3.5 rounded-full bg-neon-green/60 flex-shrink-0" />{t.adminSettingsRegistration}</h2>
         <button
           type="button"
           onClick={() => onRegistrationEnabledChange(!registrationEnabled)}
@@ -372,7 +374,7 @@ function SettingsTab({
 
       {/* News Discord Webhook */}
       <div className="glass-card rounded-2xl p-5 space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"><DiscordIcon size={14} />{t.adminSettingsNewsWebhook}</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground/80 flex items-center gap-2"><span className="w-0.5 h-3.5 rounded-full bg-[#5865F2]/70 flex-shrink-0" /><DiscordIcon size={14} />{t.adminSettingsNewsWebhook}</h2>
         <div className="flex gap-2">
           <input
             className={inputCls}
@@ -402,7 +404,7 @@ function SettingsTab({
 
       {/* News Telegram Bot */}
       <div className="glass-card rounded-2xl p-5 space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"><TelegramIcon size={14} />{t.adminSettingsNewsTG}</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground/80 flex items-center gap-2"><span className="w-0.5 h-3.5 rounded-full bg-[#229ED9]/70 flex-shrink-0" /><TelegramIcon size={14} />{t.adminSettingsNewsTG}</h2>
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">{t.adminSettingsNewsTGBotToken}</label>
           <div className="flex gap-2">
@@ -574,7 +576,7 @@ function SettingsTab({
       <button
         onClick={onSave}
         disabled={saving}
-        className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-neon-green text-background hover:bg-neon-green/90 disabled:opacity-60 transition-all flex items-center gap-2"
+        className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-neon-green to-neon-blue text-background hover:opacity-90 disabled:opacity-60 transition-all flex items-center gap-2"
       >
         {saving ? t.adminSettingsSaving : saved ? t.adminSettingsSaved : t.adminSettingsSave}
       </button>
@@ -934,7 +936,7 @@ export default function AdminPage() {
   // User detail modal
   const [userDetailUser, setUserDetailUser] = useState<User | null>(null);
 
-  const inputCls = "bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-neon-green/50 transition-all placeholder:text-muted-foreground";
+  const inputCls = "bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-neon-green/50 focus:shadow-[0_0_0_3px_rgba(0,200,120,0.08)] transition-all placeholder:text-muted-foreground";
 
   const tabs: { key: AdminTab; label: string; icon: React.ReactNode; badge?: number }[] = [
     { key: "users",    label: t.adminTabUsers,    icon: <Users className="w-4 h-4" />,        badge: users.length || undefined },
@@ -981,22 +983,22 @@ export default function AdminPage() {
         </div>
 
         {/* Tab bar */}
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="flex gap-0">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-2">
+          <div className="flex gap-1 bg-white/[0.04] rounded-2xl p-1 w-fit">
             {tabs.map((tb) => (
               <button
                 key={tb.key}
                 onClick={() => setTab(tb.key)}
-                className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold border-b-2 transition-all ${
+                className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl transition-all ${
                   tab === tb.key
-                    ? "border-neon-green text-neon-green"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
+                    ? "bg-white/15 text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground hover:bg-white/[0.06]"
                 }`}
               >
                 {tb.icon}
                 <span className="hidden sm:inline">{tb.label}</span>
                 {tb.badge !== undefined && (
-                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-white/10 text-muted-foreground leading-none">
+                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none ${tab === tb.key ? "bg-neon-green/20 text-neon-green" : "bg-white/10 text-muted-foreground"}`}>
                     {tb.badge}
                   </span>
                 )}
@@ -1027,13 +1029,13 @@ export default function AdminPage() {
                   onChange={(e) => setSearch(e.target.value)}
                 />
               </div>
-              <div className="flex gap-1 bg-white/5 rounded-xl p-1 flex-shrink-0">
+              <div className="flex gap-1 bg-white/[0.04] rounded-xl p-1 flex-shrink-0">
                 {(["all", "admin", "user", "banned"] as RoleFilter[]).map((f) => (
                   <button
                     key={f}
                     onClick={() => setRoleFilter(f)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                      roleFilter === f ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground"
+                      roleFilter === f ? "bg-white/15 text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-white/[0.06]"
                     }`}
                   >
                     {f === "all" ? t.adminFilterAll
@@ -1056,7 +1058,7 @@ export default function AdminPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-white/5 text-xs text-muted-foreground uppercase tracking-wide">
+                      <tr className="border-b border-white/5 bg-white/[0.025] text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-widest">
                         <th className="px-3 py-3 w-8">
                           <button
                             onClick={() => {
@@ -1118,7 +1120,7 @@ export default function AdminPage() {
                       {filteredUsers.map((u) => (
                         <tr
                           key={u.id}
-                          className={`border-b border-white/5 last:border-0 transition-colors ${u.banned ? "bg-red-400/5" : "hover:bg-white/[0.02]"} ${selectedUserIDs.has(u.id) ? "bg-neon-blue/5" : ""}`}
+                          className={`border-b border-white/5 last:border-0 transition-colors ${u.banned ? "bg-red-400/[0.04]" : "hover:bg-white/[0.035]"} ${selectedUserIDs.has(u.id) ? "bg-neon-blue/[0.08]" : ""}`}
                         >
                           <td className="px-3 py-3">
                             {u.id !== user?.id && (
@@ -1150,18 +1152,18 @@ export default function AdminPage() {
                             {u.email || "—"}
                           </td>
                           <td className="px-5 py-3">
-                            <span className={`text-xs font-medium px-2 py-0.5 rounded-md ${u.role === "admin" ? "bg-yellow-400/10 text-yellow-400" : "bg-white/5 text-muted-foreground"}`}>
+                            <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full border ${u.role === "admin" ? "bg-yellow-400/10 border-yellow-400/40 text-yellow-400" : "bg-white/5 border-white/10 text-muted-foreground"}`}>
                               {u.role === "admin" ? t.roleAdmin : t.roleUser}
                             </span>
                           </td>
                           <td className="px-5 py-3">
-                            <span className={`text-xs font-medium px-2 py-0.5 rounded-md ${u.banned ? "bg-red-400/10 text-red-400" : "bg-neon-green/10 text-neon-green"}`}>
+                            <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full border ${u.banned ? "bg-red-400/10 border-red-400/30 text-red-400" : "bg-neon-green/10 border-neon-green/30 text-neon-green"}`}>
                               {u.banned ? t.adminBanned : t.adminActive}
                             </span>
                           </td>
                           <td className="px-5 py-3 hidden md:table-cell">
                             {(u.server_count ?? 0) > 0 ? (
-                              <span className="text-xs bg-white/5 px-2 py-0.5 rounded-md text-muted-foreground">
+                              <span className="text-xs bg-white/5 border border-white/10 px-2 py-0.5 rounded-full text-muted-foreground">
                                 {u.server_count} {t.adminServersCount}
                               </span>
                             ) : (
@@ -1177,7 +1179,7 @@ export default function AdminPage() {
                                 <button
                                   onClick={() => handleGenerateResetToken(u.id)}
                                   title={t.resetPasswordBtn}
-                                  className="p-1.5 rounded-lg text-muted-foreground hover:text-neon-blue hover:bg-neon-blue/10 transition-colors"
+                                  className="p-2 rounded-xl text-muted-foreground hover:text-neon-blue hover:bg-neon-blue/10 transition-colors"
                                 >
                                   <KeyRound className="w-4 h-4" />
                                 </button>
@@ -1190,7 +1192,7 @@ export default function AdminPage() {
                                     )
                                   }
                                   title={u.banned ? t.adminUnban : t.adminBan}
-                                  className={`p-1.5 rounded-lg transition-colors ${u.banned ? "text-neon-green hover:bg-neon-green/10" : "text-red-400 hover:bg-red-400/10"}`}
+                                  className={`p-2 rounded-xl transition-colors ${u.banned ? "text-neon-green hover:bg-neon-green/10" : "text-red-400 hover:bg-red-400/10"}`}
                                 >
                                   <Ban className="w-4 h-4" />
                                 </button>
@@ -1205,7 +1207,7 @@ export default function AdminPage() {
                                     )
                                   }
                                   title={u.role === "admin" ? t.adminMakeUser : t.adminMakeAdmin}
-                                  className="p-1.5 rounded-lg text-yellow-400 hover:bg-yellow-400/10 transition-colors"
+                                  className="p-2 rounded-xl text-yellow-400 hover:bg-yellow-400/10 transition-colors"
                                 >
                                   <Crown className="w-4 h-4" />
                                 </button>
@@ -1218,7 +1220,7 @@ export default function AdminPage() {
                                     )
                                   }
                                   title={t.adminDelete}
-                                  className="p-1.5 rounded-lg text-red-400 hover:bg-red-400/10 transition-colors"
+                                  className="p-2 rounded-xl text-red-400 hover:bg-red-400/10 transition-colors"
                                 >
                                   <UserX className="w-4 h-4" />
                                 </button>
@@ -1262,13 +1264,13 @@ export default function AdminPage() {
                   onChange={(e) => setServerSearch(e.target.value)}
                 />
               </div>
-              <div className="flex gap-1 bg-white/5 rounded-xl p-1 flex-shrink-0">
+              <div className="flex gap-1 bg-white/[0.04] rounded-xl p-1 flex-shrink-0">
                 {(["all", "online", "offline"] as const).map((f) => (
                   <button
                     key={f}
                     onClick={() => setServerStatusFilter(f)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                      serverStatusFilter === f ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground"
+                      serverStatusFilter === f ? "bg-white/15 text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-white/[0.06]"
                     }`}
                   >
                     {f === "all" ? t.adminFilterAll : f === "online" ? t.statusOnline : t.statusOffline}
@@ -1341,7 +1343,7 @@ export default function AdminPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-white/5 text-xs text-muted-foreground uppercase tracking-wide">
+                      <tr className="border-b border-white/5 bg-white/[0.025] text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-widest">
                         <th className="px-3 py-3 w-8">
                           <button
                             onClick={() => {
@@ -1371,7 +1373,7 @@ export default function AdminPage() {
                     </thead>
                     <tbody>
                       {filteredServers.map((s) => (
-                        <tr key={s.id} className={`border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors ${selectedServerIDs.has(s.id) ? "bg-neon-blue/5" : ""}`}>
+                        <tr key={s.id} className={`border-b border-white/5 last:border-0 hover:bg-white/[0.035] transition-colors ${selectedServerIDs.has(s.id) ? "bg-neon-blue/[0.08]" : ""}`}>
                           <td className="px-3 py-3">
                             <button
                               onClick={() => setSelectedServerIDs(prev => {
@@ -1414,7 +1416,7 @@ export default function AdminPage() {
                             )}
                           </td>
                           <td className="px-5 py-3">
-                            <span className={`text-xs font-medium px-2 py-0.5 rounded-md ${s.status?.online_status ? "bg-neon-green/10 text-neon-green" : "bg-red-400/10 text-red-400"}`}>
+                            <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full border ${s.status?.online_status ? "bg-neon-green/10 border-neon-green/30 text-neon-green" : "bg-red-400/10 border-red-400/30 text-red-400"}`}>
                               {s.status?.online_status ? t.statusOnline : t.statusOffline}
                             </span>
                           </td>
@@ -1423,14 +1425,14 @@ export default function AdminPage() {
                               <button
                                 onClick={() => { setDiscordServerID(s.id); setDiscordServerName(s.title || s.ip); }}
                                 title={t.discordTitle}
-                                className="p-1.5 rounded-lg text-muted-foreground hover:text-[#5865F2] hover:bg-[#5865F2]/10 transition-colors"
+                                className="p-2 rounded-xl text-muted-foreground hover:text-[#5865F2] hover:bg-[#5865F2]/10 transition-colors"
                               >
                                 <MessageSquare className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={() => { setAlertServerID(s.id); setAlertServerName(s.title || s.ip); }}
                                 title={t.alertsTitle}
-                                className="p-1.5 rounded-lg text-muted-foreground hover:text-neon-blue hover:bg-neon-blue/10 transition-colors"
+                                className="p-2 rounded-xl text-muted-foreground hover:text-neon-blue hover:bg-neon-blue/10 transition-colors"
                               >
                                 <Bell className="w-4 h-4" />
                               </button>
@@ -1443,7 +1445,7 @@ export default function AdminPage() {
                                   )
                                 }
                                 title={t.adminDelete}
-                                className="p-1.5 rounded-lg text-red-400 hover:bg-red-400/10 transition-colors"
+                                className="p-2 rounded-xl text-red-400 hover:bg-red-400/10 transition-colors"
                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>
@@ -1479,11 +1481,11 @@ export default function AdminPage() {
                 { label: t.adminStatsTotalServers,  value: stats.totalServers, color: "text-neon-purple", bg: "bg-neon-purple/10", icon: <Server className="w-5 h-5 text-neon-purple" /> },
                 { label: t.adminStatsOnline,        value: stats.onlineServers,color: "text-neon-green",  bg: "bg-neon-green/10",  icon: <Shield className="w-5 h-5 text-neon-green" /> },
               ].map((card) => (
-                <div key={card.label} className="glass-card rounded-2xl px-5 py-4 flex flex-col gap-2">
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${card.bg}`}>
+                <div key={card.label} className="glass-card rounded-2xl px-5 py-4 flex flex-col gap-2 group cursor-default transition-all duration-300 hover:shadow-lg">
+                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 transition-transform duration-300 group-hover:scale-110 ${card.bg}`}>
                     {card.icon}
                   </div>
-                  <div className="text-2xl font-black tabular-nums">{card.value}</div>
+                  <div className={`text-2xl font-black tabular-nums tracking-tight ${card.color}`}>{card.value}</div>
                   <div className="text-xs text-muted-foreground leading-tight">{card.label}</div>
                 </div>
               ))}
@@ -1624,13 +1626,13 @@ export default function AdminPage() {
           <div className="flex flex-col gap-4">
             {/* Action filter + export */}
             <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex gap-1 bg-white/5 rounded-xl p-1">
+              <div className="flex gap-1 bg-white/[0.04] rounded-xl p-1">
                 {(["all", "create", "update", "delete"] as const).map((f) => (
                   <button
                     key={f}
                     onClick={() => setAuditActionFilter(f)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                      auditActionFilter === f ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground"
+                      auditActionFilter === f ? "bg-white/15 text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-white/[0.06]"
                     }`}
                   >
                     {f === "all" ? t.adminFilterAll : f}
@@ -1660,7 +1662,7 @@ export default function AdminPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-white/5 text-xs text-muted-foreground uppercase tracking-wide">
+                      <tr className="border-b border-white/5 bg-white/[0.025] text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-widest">
                         <th className="text-left px-5 py-3">{t.auditAction}</th>
                         <th className="text-left px-5 py-3 hidden sm:table-cell">{t.auditActor}</th>
                         <th className="text-left px-5 py-3 hidden md:table-cell">{t.auditEntity}</th>
@@ -1670,9 +1672,9 @@ export default function AdminPage() {
                     </thead>
                     <tbody>
                       {filteredAudit.map((log) => (
-                        <tr key={log.id} className="border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors">
+                        <tr key={log.id} className="border-b border-white/5 last:border-0 hover:bg-white/[0.035] transition-colors">
                           <td className="px-5 py-3">
-                            <span className={`text-xs font-medium px-2 py-0.5 rounded-md ${getActionColor(log.action)}`}>
+                            <span className={`text-xs font-medium px-2.5 py-0.5 ${getActionColor(log.action)}`}>
                               {log.action}
                             </span>
                           </td>
