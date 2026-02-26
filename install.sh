@@ -102,6 +102,8 @@ if [[ "$L" == "ru" ]]; then
   T_FW_OK="UFW настроен: SSH, HTTP (80), HTTPS (443)"
   T_SVC="⚡  Systemd-сервис"
   T_SVC_OK="Сервис js-monitoring включён в автозапуск"
+  T_SWAP="Swap-файл 2 ГБ создан (защита от OOM при сборке)"
+  T_SWAP_EXISTS="Swap уже настроен"
   T_BUILD="🚀  Сборка и запуск контейнеров"
   T_BUILD_PREP="Подготовка MySQL 8.0…"
   T_BUILD_PULL="Загружаю образы Docker…"
@@ -154,6 +156,8 @@ else
   T_FW_OK="UFW configured: SSH, HTTP (80), HTTPS (443)"
   T_SVC="⚡  Systemd Service"
   T_SVC_OK="js-monitoring service enabled on boot"
+  T_SWAP="2 GB swap file created (OOM protection during build)"
+  T_SWAP_EXISTS="Swap already configured"
   T_BUILD="🚀  Build & Start Containers"
   T_BUILD_PREP="Preparing MySQL 8.0…"
   T_BUILD_PULL="Pulling Docker images…"
@@ -193,6 +197,23 @@ info "apt-get update & upgrade…"
 apt-get update -qq
 apt-get upgrade -y -qq
 apt-get install -y -qq curl git ca-certificates gnupg lsb-release ufw openssl
+
+# ── Swap (prevents OOM during Next.js build on 1 GB VDS) ─────────────
+TOTAL_SWAP=$(swapon --show=SIZE --noheadings --bytes 2>/dev/null | awk '{sum+=$1} END{print sum+0}')
+if (( TOTAL_SWAP < 1073741824 )); then
+  if [[ ! -f /swapfile ]]; then
+    fallocate -l 2G /swapfile 2>/dev/null \
+      || dd if=/dev/zero of=/swapfile bs=1M count=2048 status=none
+    chmod 600 /swapfile
+    mkswap /swapfile -q
+  fi
+  swapon /swapfile 2>/dev/null || true
+  grep -q '/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+  ok "$T_SWAP"
+else
+  ok "$T_SWAP_EXISTS  ($(( TOTAL_SWAP / 1024 / 1024 )) MB)"
+fi
+
 ok "$T_PREP"
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

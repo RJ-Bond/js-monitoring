@@ -2,10 +2,8 @@
 FROM node:22-alpine AS deps
 WORKDIR /app
 
-# package-lock.json может отсутствовать при первой сборке —
-# используем npm install (создаёт lockfile), не npm ci (требует lockfile)
-COPY package.json ./
-RUN npm install --legacy-peer-deps
+COPY package.json package-lock.json ./
+RUN npm ci --legacy-peer-deps
 
 # ── Stage 2: Build ────────────────────────────────────────────────────────────
 FROM node:22-alpine AS builder
@@ -19,6 +17,9 @@ ARG NEXT_PUBLIC_API_URL=
 ARG NEXT_PUBLIC_WS_URL=
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
+
+# Limit Node.js heap to prevent OOM on low-RAM VDS (1 GB)
+ENV NODE_OPTIONS="--max-old-space-size=512"
 
 RUN npm run build
 
