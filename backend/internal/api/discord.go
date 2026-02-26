@@ -211,9 +211,14 @@ func SendNewsToDiscord(item *models.NewsItem, appURL, webhookURL, siteName, role
 	}
 
 	pl := discordWebhookPayload{Username: siteName, Embeds: []discordEmbed{embed}}
-	// @mention роли, если указан roleID
+	// @mention роли, если указан roleID.
+	// @everyone / @here передаются напрямую; числовой ID оборачивается в <@&ID>.
 	if roleID != "" {
-		pl.Content = fmt.Sprintf("<@&%s>", roleID)
+		if strings.HasPrefix(roleID, "@") {
+			pl.Content = roleID
+		} else {
+			pl.Content = fmt.Sprintf("<@&%s>", roleID)
+		}
 	}
 
 	b, _ := json.Marshal(pl)
