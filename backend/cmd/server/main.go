@@ -161,6 +161,7 @@ func main() {
 	admin.POST("/users/bulk", api.AdminBulkUsers)
 	admin.POST("/servers/bulk", api.AdminBulkServers)
 	admin.POST("/news/webhook/test", api.TestNewsWebhook)
+	admin.POST("/news/telegram/test", api.TestTelegramNewsWebhook)
 	admin.GET("/ssl/status", api.GetSSLStatus)
 
 	port := env("PORT", "8080")

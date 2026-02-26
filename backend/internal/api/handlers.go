@@ -373,7 +373,8 @@ func CreateNews(c echo.Context) error {
 		Pinned        bool    `json:"pinned"`
 		Published     *bool   `json:"published"`
 		PublishAt     *string `json:"publish_at"`
-		SendToDiscord *bool   `json:"send_to_discord"`
+		SendToDiscord  *bool `json:"send_to_discord"`
+		SendToTelegram *bool `json:"send_to_telegram"`
 	}
 	if err := c.Bind(&req); err != nil || req.Title == "" || req.Content == "" {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "title and content required"})
@@ -407,11 +408,15 @@ func CreateNews(c echo.Context) error {
 		aid, aname := actorFromCtx(c)
 		logAudit(aid, aname, "create_news", "news", item.ID, item.Title)
 	}
-	sendToDiscord := req.SendToDiscord == nil || *req.SendToDiscord
-	if item.Published && sendToDiscord {
+	if item.Published {
 		var s models.SiteSettings
 		database.DB.First(&s, 1)
-		SendNewsToDiscord(&item, s.AppURL, s.NewsWebhookURL, discordSiteName(), s.NewsRoleID)
+		if req.SendToDiscord == nil || *req.SendToDiscord {
+			SendNewsToDiscord(&item, s.AppURL, s.NewsWebhookURL, discordSiteName(), s.NewsRoleID)
+		}
+		if req.SendToTelegram == nil || *req.SendToTelegram {
+			SendNewsToTelegram(&item, s.AppURL, s.NewsTGBotToken, s.NewsTGChatID)
+		}
 	}
 	return c.JSON(http.StatusCreated, item)
 }
@@ -432,7 +437,8 @@ func UpdateNews(c echo.Context) error {
 		Pinned         *bool   `json:"pinned"`
 		Published      *bool   `json:"published"`
 		PublishAt      *string `json:"publish_at"`
-		SendToDiscord  bool    `json:"send_to_discord"`
+		SendToDiscord  bool `json:"send_to_discord"`
+		SendToTelegram bool `json:"send_to_telegram"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()})
@@ -465,12 +471,17 @@ func UpdateNews(c echo.Context) error {
 		aid, aname := actorFromCtx(c)
 		logAudit(aid, aname, "update_news", "news", item.ID, item.Title)
 	}
-	// Отправляем в Discord если: явно запрошено ИЛИ новость только что опубликована (была черновиком)
+	// Отправляем если: явно запрошено ИЛИ новость только что опубликована (была черновиком)
 	justPublished := !wasPublished && item.Published
-	if (req.SendToDiscord || justPublished) && item.Published {
+	if item.Published && (req.SendToDiscord || req.SendToTelegram || justPublished) {
 		var s models.SiteSettings
 		database.DB.First(&s, 1)
-		SendNewsToDiscord(&item, s.AppURL, s.NewsWebhookURL, discordSiteName(), s.NewsRoleID)
+		if req.SendToDiscord || justPublished {
+			SendNewsToDiscord(&item, s.AppURL, s.NewsWebhookURL, discordSiteName(), s.NewsRoleID)
+		}
+		if req.SendToTelegram || justPublished {
+			SendNewsToTelegram(&item, s.AppURL, s.NewsTGBotToken, s.NewsTGChatID)
+		}
 	}
 	return c.JSON(http.StatusOK, item)
 }

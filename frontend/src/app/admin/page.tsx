@@ -120,6 +120,8 @@ interface SettingsTabProps {
   registrationEnabled: boolean;
   newsWebhook: string;
   newsRoleId: string;
+  newsTGBotToken: string;
+  newsTGChatId: string;
   onNameChange: (v: string) => void;
   onLogoChange: (v: string) => void;
   onAppUrlChange: (v: string) => void;
@@ -129,6 +131,9 @@ interface SettingsTabProps {
   onNewsWebhookChange: (v: string) => void;
   onNewsRoleIdChange: (v: string) => void;
   onTestNewsWebhook: () => void;
+  onNewsTGBotTokenChange: (v: string) => void;
+  onNewsTGChatIdChange: (v: string) => void;
+  onTestTGWebhook: () => void;
   sslStatus: SSLStatus | null;
   sslStatusLoading: boolean;
   forceHttps: boolean;
@@ -160,8 +165,10 @@ function resizeLogo(file: File, maxSize = 64): Promise<string> {
 
 function SettingsTab({
   name, logo, appUrl, steamKeySet, steamKeyHint, steamKeySource, steamNewKey, steamClear,
-  saving, saved, registrationEnabled, newsWebhook, newsRoleId, onNameChange, onLogoChange, onAppUrlChange,
+  saving, saved, registrationEnabled, newsWebhook, newsRoleId, newsTGBotToken, newsTGChatId,
+  onNameChange, onLogoChange, onAppUrlChange,
   onSteamNewKeyChange, onSteamClear, onRegistrationEnabledChange, onNewsWebhookChange, onNewsRoleIdChange, onTestNewsWebhook,
+  onNewsTGBotTokenChange, onNewsTGChatIdChange, onTestTGWebhook,
   sslStatus, sslStatusLoading, forceHttps, onForceHttpsChange, onRefreshSsl,
   onSave, t,
 }: SettingsTabProps) {
@@ -385,6 +392,42 @@ function SettingsTab({
         <p className="text-xs text-muted-foreground">{t.adminSettingsNewsRoleIdHint}</p>
       </div>
 
+      {/* News Telegram Bot */}
+      <div className="glass-card rounded-2xl p-5 space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t.adminSettingsNewsTG}</h2>
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">{t.adminSettingsNewsTGBotToken}</label>
+          <div className="flex gap-2">
+            <input
+              className={inputCls}
+              value={newsTGBotToken}
+              onChange={(e) => onNewsTGBotTokenChange(e.target.value)}
+              placeholder={t.adminSettingsNewsTGBotTokenPlaceholder}
+            />
+            {newsTGBotToken && newsTGChatId && (
+              <button
+                type="button"
+                onClick={onTestTGWebhook}
+                className="px-3 py-2 rounded-xl text-xs font-medium bg-neon-blue/10 text-neon-blue border border-neon-blue/30 hover:bg-neon-blue/20 transition-all whitespace-nowrap"
+              >
+                {t.adminSettingsTestTGWebhook}
+              </button>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">{t.adminSettingsNewsTGBotTokenHint}</p>
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">{t.adminSettingsNewsTGChatId}</label>
+          <input
+            className={inputCls}
+            value={newsTGChatId}
+            onChange={(e) => onNewsTGChatIdChange(e.target.value)}
+            placeholder={t.adminSettingsNewsTGChatIdPlaceholder}
+          />
+          <p className="text-xs text-muted-foreground mt-1">{t.adminSettingsNewsTGChatIdHint}</p>
+        </div>
+      </div>
+
       {/* SSL / HTTPS */}
       <div className="glass-card p-4 flex flex-col gap-3">
         <div className="flex items-center justify-between">
@@ -530,6 +573,8 @@ export default function AdminPage() {
   const [settingsRegistrationEnabled, setSettingsRegistrationEnabled] = useState(true);
   const [settingsNewsWebhook, setSettingsNewsWebhook] = useState("");
   const [settingsNewsRoleId, setSettingsNewsRoleId] = useState("");
+  const [settingsNewsTGBotToken, setSettingsNewsTGBotToken] = useState("");
+  const [settingsNewsTGChatId, setSettingsNewsTGChatId] = useState("");
   const [settingsForceHttps, setSettingsForceHttps] = useState(false);
   const [sslStatus, setSslStatus] = useState<SSLStatus | null>(null);
   const [sslStatusLoading, setSslStatusLoading] = useState(false);
@@ -613,6 +658,8 @@ export default function AdminPage() {
         setSettingsRegistrationEnabled(s.registration_enabled ?? true);
         setSettingsNewsWebhook(s.news_webhook_url ?? "");
         setSettingsNewsRoleId(s.news_role_id ?? "");
+        setSettingsNewsTGBotToken(s.news_tg_bot_token ?? "");
+        setSettingsNewsTGChatId(s.news_tg_chat_id ?? "");
         setSettingsForceHttps(s.force_https ?? false);
         setSteamNewKey("");
         setSteamClear(false);
@@ -1624,6 +1671,8 @@ export default function AdminPage() {
             registrationEnabled={settingsRegistrationEnabled}
             newsWebhook={settingsNewsWebhook}
             newsRoleId={settingsNewsRoleId}
+            newsTGBotToken={settingsNewsTGBotToken}
+            newsTGChatId={settingsNewsTGChatId}
             onNameChange={setSettingsName}
             onLogoChange={setSettingsLogo}
             onAppUrlChange={setSettingsAppUrl}
@@ -1638,6 +1687,16 @@ export default function AdminPage() {
                 toast(t.adminSettingsTestWebhookOk, "success");
               } catch {
                 toast(t.adminSettingsTestWebhookFail, "error");
+              }
+            }}
+            onNewsTGBotTokenChange={setSettingsNewsTGBotToken}
+            onNewsTGChatIdChange={setSettingsNewsTGChatId}
+            onTestTGWebhook={async () => {
+              try {
+                await api.testTelegramWebhook();
+                toast(t.adminSettingsTestTGWebhookOk, "success");
+              } catch {
+                toast(t.adminSettingsTestTGWebhookFail, "error");
               }
             }}
             sslStatus={sslStatus}
@@ -1663,6 +1722,8 @@ export default function AdminPage() {
                   registration_enabled: settingsRegistrationEnabled,
                   news_webhook_url: settingsNewsWebhook,
                   news_role_id: settingsNewsRoleId,
+                  news_tg_bot_token: settingsNewsTGBotToken,
+                  news_tg_chat_id: settingsNewsTGChatId,
                   force_https: settingsForceHttps,
                 });
                 await refreshSettings();

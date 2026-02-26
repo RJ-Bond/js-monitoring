@@ -202,6 +202,7 @@ const EMPTY_FORM: NewsFormData = {
   published: true,
   publish_at: null,
   send_to_discord: true,
+  send_to_telegram: true,
 };
 
 export default function AdminNewsPage() {
@@ -269,6 +270,7 @@ export default function AdminNewsPage() {
         ? new Date(item.publish_at).toISOString().slice(0, 16)
         : null,
       send_to_discord: false,
+      send_to_telegram: false,
     });
     setFormError("");
     setEditorTab("write");
@@ -777,6 +779,19 @@ export default function AdminNewsPage() {
                       className="w-4 h-4 rounded accent-blue-400"
                     />
                     <span className="text-sm text-foreground">💬 {t.newsDiscordSend}</span>
+                  </label>
+                )}
+
+                {/* Send to Telegram */}
+                {form.published && (
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={form.send_to_telegram ?? true}
+                      onChange={(e) => setField("send_to_telegram", e.target.checked)}
+                      className="w-4 h-4 rounded accent-blue-400"
+                    />
+                    <span className="text-sm text-foreground">✈️ {t.newsTelegramSend}</span>
                   </label>
                 )}
               </div>

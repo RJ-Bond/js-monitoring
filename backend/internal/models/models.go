@@ -115,6 +115,8 @@ type SiteSettings struct {
 	RegistrationEnabled bool   `gorm:"default:true"                           json:"registration_enabled"`
 	NewsWebhookURL      string `gorm:"type:varchar(500)"                      json:"news_webhook_url"`
 	NewsRoleID          string `gorm:"type:varchar(50)"                       json:"news_role_id"`
+	NewsTGBotToken      string `gorm:"type:varchar(200)"                      json:"news_tg_bot_token"`
+	NewsTGChatID        string `gorm:"type:varchar(100)"                      json:"news_tg_chat_id"`
 	SSLMode             string `gorm:"type:varchar(20);default:'none'"        json:"ssl_mode"`   // none|letsencrypt|custom
 	SSLDomain           string `gorm:"type:varchar(255)"                      json:"ssl_domain"`
 	ForceHTTPS          bool   `gorm:"default:false"                          json:"force_https"`
