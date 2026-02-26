@@ -223,10 +223,13 @@ func SendNewsToDiscord(item *models.NewsItem, appURL, webhookURL, siteName, role
 
 	b, _ := json.Marshal(pl)
 
+	itemID := item.ID
+	existingMsgID := item.DiscordMessageID
 	go func() {
-		resp, err := http.Post(strings.TrimRight(webhookURL, "/"), "application/json", bytes.NewReader(b)) //nolint:noctx
-		if err == nil {
-			_ = resp.Body.Close()
+		msgID, err := SendOrUpdateDiscordMessage(webhookURL, existingMsgID, b)
+		if err == nil && msgID != "" && msgID != existingMsgID {
+			database.DB.Model(&models.NewsItem{}).Where("id = ?", itemID).
+				Update("discord_message_id", msgID)
 		}
 	}()
 }

@@ -57,9 +57,11 @@ type NewsItem struct {
 	Pinned    bool       `gorm:"default:false;index"        json:"pinned"`
 	Published bool       `gorm:"default:true;index"         json:"published"`
 	PublishAt *time.Time `gorm:"index"                      json:"publish_at"`
-	Views     int        `gorm:"default:0"                  json:"views"`
-	CreatedAt time.Time  `                                  json:"created_at"`
-	UpdatedAt time.Time  `                                  json:"updated_at"`
+	Views             int        `gorm:"default:0"                  json:"views"`
+	DiscordMessageID  string     `gorm:"type:varchar(50)"           json:"discord_message_id"`
+	TelegramMessageID string     `gorm:"type:varchar(50)"           json:"telegram_message_id"`
+	CreatedAt         time.Time  `                                  json:"created_at"`
+	UpdatedAt         time.Time  `                                  json:"updated_at"`
 }
 
 func (s *Server) BeforeCreate(_ *gorm.DB) error {

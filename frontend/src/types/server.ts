@@ -65,6 +65,8 @@ export interface NewsItem {
   published: boolean;
   publish_at?: string | null;
   views: number;
+  discord_message_id?: string;
+  telegram_message_id?: string;
   created_at: string;
   updated_at: string;
 }

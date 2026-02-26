@@ -8,6 +8,7 @@ import (
 	"html"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,7 +20,8 @@ import (
 
 // sendTGMessage отправляет текстовое сообщение в Telegram-чат (parse_mode=HTML).
 // threadID — ID темы (топика) в супергруппе; пустая строка = главный чат.
-func sendTGMessage(token, chatID, threadID, text string) error {
+// Возвращает ID отправленного сообщения как строку.
+func sendTGMessage(token, chatID, threadID, text string) (string, error) {
 	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", token)
 	payload := map[string]interface{}{
 		"chat_id":    chatID,
@@ -32,17 +34,27 @@ func sendTGMessage(token, chatID, threadID, text string) error {
 	b, _ := json.Marshal(payload)
 	resp, err := sharedHTTPClient.Post(apiURL, "application/json", bytes.NewReader(b)) //nolint:noctx
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("telegram API returned %d", resp.StatusCode)
+		return "", fmt.Errorf("telegram API returned %d", resp.StatusCode)
 	}
-	return nil
+	var tgResp struct {
+		OK     bool `json:"ok"`
+		Result struct {
+			MessageID int `json:"message_id"`
+		} `json:"result"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&tgResp); err != nil {
+		return "", nil
+	}
+	return strconv.Itoa(tgResp.Result.MessageID), nil
 }
 
 // sendTGPhoto отправляет фото с подписью (parse_mode=HTML).
-func sendTGPhoto(token, chatID, threadID, photoURL, caption string) error {
+// Возвращает ID отправленного сообщения как строку.
+func sendTGPhoto(token, chatID, threadID, photoURL, caption string) (string, error) {
 	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/sendPhoto", token)
 	payload := map[string]interface{}{
 		"chat_id":    chatID,
@@ -56,11 +68,62 @@ func sendTGPhoto(token, chatID, threadID, photoURL, caption string) error {
 	b, _ := json.Marshal(payload)
 	resp, err := sharedHTTPClient.Post(apiURL, "application/json", bytes.NewReader(b)) //nolint:noctx
 	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("telegram API returned %d", resp.StatusCode)
+	}
+	var tgResp struct {
+		OK     bool `json:"ok"`
+		Result struct {
+			MessageID int `json:"message_id"`
+		} `json:"result"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&tgResp); err != nil {
+		return "", nil
+	}
+	return strconv.Itoa(tgResp.Result.MessageID), nil
+}
+
+// editTGMessage редактирует текст существующего сообщения (parse_mode=HTML).
+func editTGMessage(token, chatID, messageID, text string) error {
+	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/editMessageText", token)
+	payload := map[string]interface{}{
+		"chat_id":    chatID,
+		"message_id": messageID,
+		"text":       text,
+		"parse_mode": "HTML",
+	}
+	b, _ := json.Marshal(payload)
+	resp, err := sharedHTTPClient.Post(apiURL, "application/json", bytes.NewReader(b)) //nolint:noctx
+	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("telegram API returned %d", resp.StatusCode)
+		return fmt.Errorf("telegram editMessageText returned %d", resp.StatusCode)
+	}
+	return nil
+}
+
+// editTGCaption редактирует подпись (caption) существующего медиа-сообщения.
+func editTGCaption(token, chatID, messageID, caption string) error {
+	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/editMessageCaption", token)
+	payload := map[string]interface{}{
+		"chat_id":    chatID,
+		"message_id": messageID,
+		"caption":    caption,
+		"parse_mode": "HTML",
+	}
+	b, _ := json.Marshal(payload)
+	resp, err := sharedHTTPClient.Post(apiURL, "application/json", bytes.NewReader(b)) //nolint:noctx
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("telegram editMessageCaption returned %d", resp.StatusCode)
 	}
 	return nil
 }
@@ -97,25 +160,54 @@ func buildTGNewsText(item *models.NewsItem, appURL string) string {
 	return sb.String()
 }
 
-// SendNewsToTelegram отправляет новость в Telegram-канал/группу через Bot API (асинхронно).
-// threadID — ID топика в супергруппе; пустая строка = главный чат или канал без тем.
+// SendNewsToTelegram отправляет или обновляет новость в Telegram-канале/группе (асинхронно).
+// Если item.TelegramMessageID заполнен — редактирует существующее сообщение.
+// При ошибке редактирования (сообщение удалено) отправляет новое и сохраняет ID.
 func SendNewsToTelegram(item *models.NewsItem, appURL, botToken, chatID, threadID string) {
 	if botToken == "" || chatID == "" {
 		return
 	}
-	text := buildTGNewsText(item, appURL)
+	itemID := item.ID
+	existingMsgID := item.TelegramMessageID
+	hasImage := item.ImageURL != ""
+	imageURL := item.ImageURL
 
 	go func() {
-		if item.ImageURL != "" {
+		text := buildTGNewsText(item, appURL)
+
+		// Попытка редактировать существующее сообщение
+		if existingMsgID != "" {
+			var editErr error
+			if hasImage {
+				editErr = editTGCaption(botToken, chatID, existingMsgID, text)
+			} else {
+				editErr = editTGMessage(botToken, chatID, existingMsgID, text)
+			}
+			if editErr == nil {
+				return // успешно отредактировано
+			}
+			// Сообщение удалено или недоступно — отправляем новое
+		}
+
+		// Отправка нового сообщения
+		var msgID string
+		if hasImage {
 			caption := text
 			if len([]rune(caption)) > 1000 {
 				caption = string([]rune(caption)[:1000]) + "…"
 			}
-			if err := sendTGPhoto(botToken, chatID, threadID, item.ImageURL, caption); err != nil {
-				_ = sendTGMessage(botToken, chatID, threadID, text)
+			var err error
+			msgID, err = sendTGPhoto(botToken, chatID, threadID, imageURL, caption)
+			if err != nil {
+				msgID, _ = sendTGMessage(botToken, chatID, threadID, text)
 			}
 		} else {
-			_ = sendTGMessage(botToken, chatID, threadID, text)
+			msgID, _ = sendTGMessage(botToken, chatID, threadID, text)
+		}
+
+		if msgID != "" && msgID != "0" {
+			database.DB.Model(&models.NewsItem{}).Where("id = ?", itemID).
+				Update("telegram_message_id", msgID)
 		}
 	}()
 }
@@ -140,13 +232,19 @@ func TestTelegramNewsWebhook(c echo.Context) error {
 		time.Now().Format("15:04:05"),
 	)
 
-	ch := make(chan error, 1)
-	go func() { ch <- sendTGMessage(s.NewsTGBotToken, s.NewsTGChatID, s.NewsTGThreadID, text) }()
+	type result struct {
+		err error
+	}
+	ch := make(chan result, 1)
+	go func() {
+		_, err := sendTGMessage(s.NewsTGBotToken, s.NewsTGChatID, s.NewsTGThreadID, text)
+		ch <- result{err}
+	}()
 
 	select {
-	case err := <-ch:
-		if err != nil {
-			return c.JSON(http.StatusBadGateway, echo.Map{"error": err.Error()})
+	case r := <-ch:
+		if r.err != nil {
+			return c.JSON(http.StatusBadGateway, echo.Map{"error": r.err.Error()})
 		}
 	case <-time.After(10 * time.Second):
 		return c.JSON(http.StatusGatewayTimeout, echo.Map{"error": "timeout waiting for Telegram response"})

@@ -660,6 +660,9 @@ export default function AdminNewsPage() {
                         }`}
                       >
                         <DiscordIcon size={13} /> Discord
+                        {editItem?.discord_message_id
+                          ? <span className="ml-0.5 text-[10px] opacity-50">(обновить)</span>
+                          : <span className="ml-0.5 text-[10px] opacity-50">(отправить)</span>}
                       </button>
                       <button
                         type="button"
@@ -671,6 +674,9 @@ export default function AdminNewsPage() {
                         }`}
                       >
                         <TelegramIcon size={13} /> Telegram
+                        {editItem?.telegram_message_id
+                          ? <span className="ml-0.5 text-[10px] opacity-50">(обновить)</span>
+                          : <span className="ml-0.5 text-[10px] opacity-50">(отправить)</span>}
                       </button>
                     </div>
                   </div>
