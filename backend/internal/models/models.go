@@ -123,6 +123,7 @@ type SiteSettings struct {
 	SSLMode             string `gorm:"type:varchar(20);default:'none'"        json:"ssl_mode"`   // none|letsencrypt|custom
 	SSLDomain           string `gorm:"type:varchar(255)"                      json:"ssl_domain"`
 	ForceHTTPS          bool   `gorm:"default:false"                          json:"force_https"`
+	DefaultTheme        string `gorm:"type:varchar(10);default:'dark'"        json:"default_theme"` // dark|light|system
 }
 
 // PasswordReset — токен для сброса пароля (генерируется администратором)

@@ -38,6 +38,10 @@ func GetSettings(c echo.Context) error {
 	if effectiveKey == "" {
 		effectiveKey = os.Getenv("STEAM_API_KEY")
 	}
+	dt := s.DefaultTheme
+	if dt == "" {
+		dt = "dark"
+	}
 	return c.JSON(http.StatusOK, echo.Map{
 		"id":                   s.ID,
 		"site_name":            s.SiteName,
@@ -46,6 +50,7 @@ func GetSettings(c echo.Context) error {
 		"app_url":              s.AppURL,
 		"registration_enabled": s.RegistrationEnabled,
 		"force_https":          s.ForceHTTPS,
+		"default_theme":        dt,
 	})
 }
 
@@ -71,6 +76,10 @@ func GetAdminSettings(c echo.Context) error {
 		hint = maskKey(effectiveKey)
 	}
 
+	adt := s.DefaultTheme
+	if adt == "" {
+		adt = "dark"
+	}
 	return c.JSON(http.StatusOK, echo.Map{
 		"id":                   s.ID,
 		"site_name":            s.SiteName,
@@ -88,6 +97,7 @@ func GetAdminSettings(c echo.Context) error {
 		"ssl_mode":             s.SSLMode,
 		"ssl_domain":           s.SSLDomain,
 		"force_https":          s.ForceHTTPS,
+		"default_theme":        adt,
 	})
 }
 
@@ -105,6 +115,7 @@ func UpdateSettings(c echo.Context) error {
 		NewsTGChatID        string `json:"news_tg_chat_id"`
 		NewsTGThreadID      string `json:"news_tg_thread_id"`
 		ForceHTTPS          *bool  `json:"force_https"`
+		DefaultTheme        string `json:"default_theme"`
 	}
 	if err := c.Bind(&payload); err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid payload"})
@@ -128,6 +139,11 @@ func UpdateSettings(c echo.Context) error {
 	s.NewsTGBotToken = payload.NewsTGBotToken
 	s.NewsTGChatID = payload.NewsTGChatID
 	s.NewsTGThreadID = payload.NewsTGThreadID
+	if payload.DefaultTheme == "light" || payload.DefaultTheme == "system" {
+		s.DefaultTheme = payload.DefaultTheme
+	} else {
+		s.DefaultTheme = "dark"
+	}
 	if payload.RegistrationEnabled != nil {
 		s.RegistrationEnabled = *payload.RegistrationEnabled
 	}

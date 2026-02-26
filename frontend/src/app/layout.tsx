@@ -21,7 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Prevent flash of wrong theme — runs before React hydration */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){var t=localStorage.getItem('jsmon-theme');if(t!=='dark'&&t!=='light'){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';}document.documentElement.className=t;})()`,
+            __html: `(function(){var t=localStorage.getItem('jsmon-theme');if(t!=='dark'&&t!=='light'){var dt='dark';var ca=document.cookie.split(';');for(var i=0;i<ca.length;i++){var c=ca[i].trim();if(c.startsWith('jsmon-dt=')){dt=c.slice(9);break;}}if(dt==='system'){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';}else{t=dt==='light'?'light':'dark';}}document.documentElement.className=t;})()`,
           }}
         />
       </head>

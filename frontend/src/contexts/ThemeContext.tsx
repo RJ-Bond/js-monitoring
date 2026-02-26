@@ -19,9 +19,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     if (stored === "light" || stored === "dark") {
       setTheme(stored);
     } else {
-      const sys: Theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-      setTheme(sys);
-      document.documentElement.className = sys;
+      // Read admin default theme from cookie (set by SiteSettingsContext)
+      let dt = "dark";
+      for (const c of document.cookie.split(";")) {
+        const trimmed = c.trim();
+        if (trimmed.startsWith("jsmon-dt=")) { dt = trimmed.slice(9); break; }
+      }
+      const t: Theme = dt === "system"
+        ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+        : dt === "light" ? "light" : "dark";
+      setTheme(t);
+      document.documentElement.className = t;
     }
   }, []);
 

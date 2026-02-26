@@ -51,6 +51,7 @@ export interface SiteSettings {
   app_url: string;
   registration_enabled: boolean;
   force_https: boolean;
+  default_theme: "dark" | "light" | "system";
 }
 
 export interface AdminSiteSettings {
@@ -70,6 +71,7 @@ export interface AdminSiteSettings {
   ssl_mode: string;
   ssl_domain: string;
   force_https: boolean;
+  default_theme: "dark" | "light" | "system";
 }
 
 export interface SSLStatus {
@@ -249,7 +251,7 @@ export const api = {
     fetchJSON("/api/v1/admin/servers/bulk", { method: "POST", body: JSON.stringify({ action, ids }) }),
 
   // Update settings with registration_enabled and news webhook
-  updateSettingsFull: (data: { site_name?: string; logo_data?: string; app_url?: string; steam_api_key?: string; registration_enabled?: boolean; news_webhook_url?: string; news_role_id?: string; news_tg_bot_token?: string; news_tg_chat_id?: string; news_tg_thread_id?: string; force_https?: boolean }) =>
+  updateSettingsFull: (data: { site_name?: string; logo_data?: string; app_url?: string; steam_api_key?: string; registration_enabled?: boolean; news_webhook_url?: string; news_role_id?: string; news_tg_bot_token?: string; news_tg_chat_id?: string; news_tg_thread_id?: string; force_https?: boolean; default_theme?: string }) =>
     fetchJSON<SiteSettings>("/api/v1/admin/settings", { method: "PUT", body: JSON.stringify(data) }),
 
   testNewsWebhook: () => fetchJSON<{ ok: boolean }>("/api/v1/admin/news/webhook/test", { method: "POST" }),

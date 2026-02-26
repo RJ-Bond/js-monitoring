@@ -121,6 +121,8 @@ interface SettingsTabProps {
   saving: boolean;
   saved: boolean;
   registrationEnabled: boolean;
+  defaultTheme: "dark" | "light" | "system";
+  onDefaultThemeChange: (v: "dark" | "light" | "system") => void;
   newsWebhook: string;
   newsRoleId: string;
   newsTGBotToken: string;
@@ -172,7 +174,7 @@ function SettingsTab({
   name, logo, appUrl, steamKeySet, steamKeyHint, steamKeySource, steamNewKey, steamClear,
   saving, saved, registrationEnabled, newsWebhook, newsRoleId, newsTGBotToken, newsTGChatId,
   onNameChange, onLogoChange, onAppUrlChange,
-  onSteamNewKeyChange, onSteamClear, onRegistrationEnabledChange, onNewsWebhookChange, onNewsRoleIdChange, onTestNewsWebhook,
+  onSteamNewKeyChange, onSteamClear, onRegistrationEnabledChange, defaultTheme, onDefaultThemeChange, onNewsWebhookChange, onNewsRoleIdChange, onTestNewsWebhook,
   onNewsTGBotTokenChange, onNewsTGChatIdChange, onTestTGWebhook,
   newsTGThreadId, onNewsTGThreadIdChange,
   sslStatus, sslStatusLoading, forceHttps, onForceHttpsChange, onRefreshSsl,
@@ -366,6 +368,32 @@ function SettingsTab({
           <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${registrationEnabled ? "translate-x-6" : "translate-x-1"}`} />
         </button>
         <p className="text-xs text-muted-foreground">{t.adminSettingsRegistrationHint}</p>
+      </div>
+
+      {/* Default Theme */}
+      <div className="glass-card rounded-2xl p-5 space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground/80 flex items-center gap-2">
+          <span className="w-0.5 h-3.5 rounded-full bg-neon-purple/60 flex-shrink-0" />
+          {t.adminSettingsTheme}
+        </h2>
+        <div className="flex gap-2">
+          {(["dark", "light", "system"] as const).map((val) => (
+            <button
+              key={val}
+              type="button"
+              onClick={() => onDefaultThemeChange(val)}
+              className={`flex-1 py-2 px-3 rounded-xl text-sm font-medium border transition-all ${
+                defaultTheme === val
+                  ? "bg-white/15 border-white/20 text-foreground shadow-sm"
+                  : "bg-white/[0.04] border-white/5 text-muted-foreground hover:bg-white/[0.08] hover:text-foreground"
+              }`}
+            >
+              {val === "dark" ? "🌙 " : val === "light" ? "☀️ " : "💻 "}
+              {val === "dark" ? t.adminSettingsThemeDark : val === "light" ? t.adminSettingsThemeLight : t.adminSettingsThemeSystem}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground">{t.adminSettingsThemeHint}</p>
       </div>
 
       {/* News Discord Webhook */}
@@ -591,6 +619,7 @@ export default function AdminPage() {
   const [steamNewKey, setSteamNewKey] = useState("");
   const [steamClear, setSteamClear] = useState(false);
   const [settingsRegistrationEnabled, setSettingsRegistrationEnabled] = useState(true);
+  const [settingsDefaultTheme, setSettingsDefaultTheme] = useState<"dark" | "light" | "system">("dark");
   const [settingsNewsWebhook, setSettingsNewsWebhook] = useState("");
   const [settingsNewsRoleId, setSettingsNewsRoleId] = useState("");
   const [settingsNewsTGBotToken, setSettingsNewsTGBotToken] = useState("");
@@ -677,6 +706,7 @@ export default function AdminPage() {
         setSteamKeySource(s.steam_key_source);
         setSettingsAppUrl(s.app_url ?? "");
         setSettingsRegistrationEnabled(s.registration_enabled ?? true);
+        setSettingsDefaultTheme((s.default_theme as "dark" | "light" | "system") || "dark");
         setSettingsNewsWebhook(s.news_webhook_url ?? "");
         setSettingsNewsRoleId(s.news_role_id ?? "");
         setSettingsNewsTGBotToken(s.news_tg_bot_token ?? "");
@@ -1701,6 +1731,8 @@ export default function AdminPage() {
             onSteamNewKeyChange={(v) => { setSteamNewKey(v); if (v) setSteamClear(false); }}
             onSteamClear={() => { setSteamClear((prev) => { if (prev) setSteamNewKey(""); return !prev; }); }}
             onRegistrationEnabledChange={setSettingsRegistrationEnabled}
+            defaultTheme={settingsDefaultTheme}
+            onDefaultThemeChange={setSettingsDefaultTheme}
             onNewsWebhookChange={setSettingsNewsWebhook}
             onNewsRoleIdChange={setSettingsNewsRoleId}
             onTestNewsWebhook={async () => {
@@ -1744,6 +1776,7 @@ export default function AdminPage() {
                   app_url: settingsAppUrl,
                   steam_api_key: steamApiKey,
                   registration_enabled: settingsRegistrationEnabled,
+                  default_theme: settingsDefaultTheme,
                   news_webhook_url: settingsNewsWebhook,
                   news_role_id: settingsNewsRoleId,
                   news_tg_bot_token: settingsNewsTGBotToken,

@@ -353,6 +353,12 @@ export const translations = {
     // Registration control
     adminSettingsRegistration: "Allow registration",
     adminSettingsRegistrationHint: "When disabled, new users cannot register. Existing accounts and Steam auth are unaffected.",
+    // Default theme
+    adminSettingsTheme: "Default Theme",
+    adminSettingsThemeHint: "Applied to visitors who haven't set a preference yet.",
+    adminSettingsThemeDark: "Dark",
+    adminSettingsThemeLight: "Light",
+    adminSettingsThemeSystem: "System (follows OS)",
     // News Discord webhook
     adminSettingsNewsWebhook: "News Discord Webhook",
     adminSettingsNewsWebhookHint: "When set, published news will be sent to this Discord webhook as an embed with a link to the site.",
@@ -813,6 +819,12 @@ export const translations = {
     // Registration control
     adminSettingsRegistration: "Разрешить регистрацию",
     adminSettingsRegistrationHint: "При отключении новые пользователи не смогут зарегистрироваться. Существующие аккаунты и Steam-авторизация продолжат работать.",
+    // Default theme
+    adminSettingsTheme: "Тема по умолчанию",
+    adminSettingsThemeHint: "Применяется к посетителям, которые ещё не выбрали тему.",
+    adminSettingsThemeDark: "Тёмная",
+    adminSettingsThemeLight: "Светлая",
+    adminSettingsThemeSystem: "Системная (следует за ОС)",
     // News Discord webhook
     adminSettingsNewsWebhook: "Discord-вебхук для новостей",
     adminSettingsNewsWebhookHint: "При наличии опубликованные новости будут отправляться в этот Discord-вебхук в виде embed-сообщения со ссылкой на сайт.",

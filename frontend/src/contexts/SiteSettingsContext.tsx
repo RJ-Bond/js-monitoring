@@ -28,12 +28,16 @@ export function SiteSettingsProvider({ children }: { children: React.ReactNode }
     app_url: "",
     registration_enabled: true,
     force_https: false,
+    default_theme: "dark",
   });
 
   const load = useCallback(async () => {
     try {
       const s = await api.getSettings();
       setSettings(s);
+      // Cache default theme in cookie so the FOUC script can read it on next load
+      const dt = s.default_theme || "dark";
+      document.cookie = `jsmon-dt=${dt};max-age=31536000;path=/`;
     } catch {
       // keep defaults
     }
