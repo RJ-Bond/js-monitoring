@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -15,6 +16,24 @@ import (
 	"github.com/RJ-Bond/js-monitoring/internal/models"
 	"github.com/RJ-Bond/js-monitoring/internal/poller"
 )
+
+// Shared HTTP client with connection pooling (reused across all handler requests)
+var sharedHTTPClient = &http.Client{
+	Timeout: 5 * time.Second,
+	Transport: &http.Transport{
+		MaxIdleConns:        50,
+		MaxIdleConnsPerHost: 10,
+		IdleConnTimeout:     90 * time.Second,
+	},
+}
+
+// In-memory GeoIP cache (24h TTL) to avoid repeated ip-api.com calls for the same IP
+type geoIPEntry struct {
+	country, code string
+	expiresAt     time.Time
+}
+
+var geoCache sync.Map // map[string]geoIPEntry
 
 // GetServers GET /api/v1/servers
 func GetServers(c echo.Context) error {
@@ -524,8 +543,16 @@ type geoIPResp struct {
 }
 
 func fetchGeoIP(ip string) (country, code string) {
-	client := &http.Client{Timeout: 3 * time.Second}
-	resp, err := client.Get("http://ip-api.com/json/" + ip + "?fields=country,countryCode") //nolint:noctx
+	// Check cache first
+	if v, ok := geoCache.Load(ip); ok {
+		entry := v.(geoIPEntry)
+		if time.Now().Before(entry.expiresAt) {
+			return entry.country, entry.code
+		}
+		geoCache.Delete(ip)
+	}
+
+	resp, err := sharedHTTPClient.Get("http://ip-api.com/json/" + ip + "?fields=country,countryCode") //nolint:noctx
 	if err != nil {
 		return
 	}
@@ -534,6 +561,12 @@ func fetchGeoIP(ip string) (country, code string) {
 	if err := json.NewDecoder(resp.Body).Decode(&g); err != nil {
 		return
 	}
+
+	geoCache.Store(ip, geoIPEntry{
+		country:   g.Country,
+		code:      g.CountryCode,
+		expiresAt: time.Now().Add(24 * time.Hour),
+	})
 	return g.Country, g.CountryCode
 }
 

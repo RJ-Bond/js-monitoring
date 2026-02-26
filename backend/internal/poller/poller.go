@@ -29,6 +29,17 @@ const (
 	discordWorkerTick  = 1 * time.Minute
 )
 
+// Shared HTTP client for all outbound requests (Telegram, Discord, etc.)
+// Reuses connections via Keep-Alive to avoid per-request overhead.
+var pollerHTTPClient = &http.Client{
+	Timeout: 10 * time.Second,
+	Transport: &http.Transport{
+		MaxIdleConns:        50,
+		MaxIdleConnsPerHost: 10,
+		IdleConnTimeout:     90 * time.Second,
+	},
+}
+
 type pollJob struct {
 	server models.Server
 }
@@ -412,15 +423,22 @@ func (p *Poller) sendAlert(cfg *models.AlertsConfig, emailSubject, tgText string
 		token := os.Getenv("TELEGRAM_BOT_TOKEN")
 		if token != "" {
 			apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", token)
-			resp, err := http.PostForm(apiURL, url.Values{ //nolint:noctx
+			formData := url.Values{
 				"chat_id":    {cfg.TgChatID},
 				"text":       {tgText},
 				"parse_mode": {"HTML"},
-			})
+			}
+			req, err := http.NewRequest(http.MethodPost, apiURL, strings.NewReader(formData.Encode())) //nolint:noctx
 			if err != nil {
 				log.Printf("[Poller] telegram alert error: %v", err)
 			} else {
-				resp.Body.Close()
+				req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+				resp, err := pollerHTTPClient.Do(req)
+				if err != nil {
+					log.Printf("[Poller] telegram alert error: %v", err)
+				} else {
+					resp.Body.Close()
+				}
 			}
 		}
 	}
@@ -613,7 +631,7 @@ func discordSendOrUpdate(webhookURL, messageID string, payload []byte) (string, 
 		req, err := http.NewRequest(http.MethodPatch, patchURL, bytes.NewReader(payload))
 		if err == nil {
 			req.Header.Set("Content-Type", "application/json")
-			resp, err := http.DefaultClient.Do(req) //nolint:noctx
+			resp, err := pollerHTTPClient.Do(req) //nolint:noctx
 			if err == nil {
 				_ = resp.Body.Close()
 				if resp.StatusCode == http.StatusOK {
@@ -624,7 +642,7 @@ func discordSendOrUpdate(webhookURL, messageID string, payload []byte) (string, 
 	}
 
 	postURL := strings.TrimRight(webhookURL, "/") + "?wait=true"
-	resp, err := http.Post(postURL, "application/json", bytes.NewReader(payload)) //nolint:noctx
+	resp, err := pollerHTTPClient.Post(postURL, "application/json", bytes.NewReader(payload)) //nolint:noctx
 	if err != nil {
 		return "", err
 	}

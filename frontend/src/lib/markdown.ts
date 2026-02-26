@@ -65,8 +65,8 @@ export function renderMarkdown(md: string): string {
 export function stripMarkdown(s: string): string {
   return s
     .replace(/#{1,6} /g, "")
-    .replace(/\*\*/g, "")
-    .replace(/\*/g, "")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/\*(.+?)\*/g, "$1")
     .replace(/`(.+?)`/g, "$1")
     .replace(/\[(.+?)\]\(.+?\)/g, "$1")
     .replace(/^[-*] /gm, "• ")
@@ -102,5 +102,39 @@ export function renderMarkdownPreview(md: string): string {
     .map((line) => line.trimEnd())
     .join("<br>");
 
+  return html;
+}
+
+/** Render markdown for Discord embed preview */
+export function renderDiscordMarkdown(md: string): string {
+  let html = md.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  html = html.replace(/\*(.+?)\*/g, "<em>$1</em>");
+  html = html.replace(
+    /`([^`]+)`/g,
+    '<code style="background:rgba(0,0,0,.35);border-radius:3px;padding:0 3px;font-size:.88em;font-family:monospace">$1</code>',
+  );
+  html = html.replace(
+    /\[(.+?)\]\((.+?)\)/g,
+    '<a href="$2" style="color:#00aff4;text-decoration:none" target="_blank" rel="noopener noreferrer">$1</a>',
+  );
+  html = html.replace(/\n/g, "<br>");
+  return html;
+}
+
+/** Render markdown for Telegram message preview */
+export function renderTelegramMarkdown(md: string): string {
+  let html = md.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  html = html.replace(/\*(.+?)\*/g, "<em>$1</em>");
+  html = html.replace(
+    /`([^`]+)`/g,
+    '<code style="background:rgba(0,0,0,.3);border-radius:3px;padding:0 3px;font-size:.88em;font-family:monospace">$1</code>',
+  );
+  html = html.replace(
+    /\[(.+?)\]\((.+?)\)/g,
+    '<a href="$2" style="color:#4fa8e0;text-decoration:none" target="_blank" rel="noopener noreferrer">$1</a>',
+  );
+  html = html.replace(/\n/g, "<br>");
   return html;
 }

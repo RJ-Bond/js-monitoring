@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Newspaper, Plus, Pencil, Trash2, X, Save, User, Pin, Eye, Copy, Clock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,6 +11,7 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
 import SiteBrand from "@/components/SiteBrand";
 import type { NewsItem } from "@/types/server";
 import { parseTags } from "@/types/server";
+import { renderDiscordMarkdown, renderTelegramMarkdown } from "@/lib/markdown";
 
 function renderMarkdown(md: string): string {
   let html = md
@@ -44,36 +45,14 @@ function renderMarkdown(md: string): string {
   return html;
 }
 
-function renderDiscordMarkdown(md: string): string {
-  let html = md.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-  html = html.replace(/\*(.+?)\*/g, "<em>$1</em>");
-  html = html.replace(/`([^`]+)`/g,
-    '<code style="background:rgba(0,0,0,.35);border-radius:3px;padding:0 3px;font-size:.88em;font-family:monospace">$1</code>');
-  html = html.replace(/\[(.+?)\]\((.+?)\)/g,
-    '<a href="$2" style="color:#00aff4;text-decoration:none" target="_blank" rel="noopener noreferrer">$1</a>');
-  html = html.replace(/\n/g, "<br>");
-  return html;
-}
-
-function renderTelegramMarkdown(md: string): string {
-  let html = md.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-  html = html.replace(/\*(.+?)\*/g, "<em>$1</em>");
-  html = html.replace(/`([^`]+)`/g,
-    '<code style="background:rgba(0,0,0,.3);border-radius:3px;padding:0 3px;font-size:.88em;font-family:monospace">$1</code>');
-  html = html.replace(/\[(.+?)\]\((.+?)\)/g,
-    '<a href="$2" style="color:#4fa8e0;text-decoration:none" target="_blank" rel="noopener noreferrer">$1</a>');
-  html = html.replace(/\n/g, "<br>");
-  return html;
-}
 
 function DiscordNewsPreview({ form }: { form: NewsFormData }) {
-  const color  = form.pinned ? "#f0c030" : "#00b0f4";
-  const desc   = form.content.length > 350 ? form.content.slice(0, 350) + "…" : form.content;
+  const color   = form.pinned ? "#f0c030" : "#00b0f4";
+  const desc    = form.content.length > 350 ? form.content.slice(0, 350) + "…" : form.content;
   const tagList = (form.tags ?? "").split(",").map(s => s.trim()).filter(Boolean);
   const now     = new Date().toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" });
   const today   = new Date().toLocaleDateString("ru", { day: "numeric", month: "long" });
+  const descHtml = useMemo(() => renderDiscordMarkdown(desc), [desc]);
 
   return (
     <div style={{ background: "#313338", padding: "12px 10px", fontSize: 13,
@@ -101,7 +80,7 @@ function DiscordNewsPreview({ form }: { form: NewsFormData }) {
                   )}
                   {desc && (
                     <div style={{ color: "#dbdee1", fontSize: 13, lineHeight: 1.35, whiteSpace: "pre-wrap", wordBreak: "break-word" }}
-                      dangerouslySetInnerHTML={{ __html: renderDiscordMarkdown(desc) }}
+                      dangerouslySetInnerHTML={{ __html: descHtml }}
                     />
                   )}
                 </div>
@@ -130,7 +109,8 @@ function DiscordNewsPreview({ form }: { form: NewsFormData }) {
 }
 
 function TelegramNewsPreview({ form }: { form: NewsFormData }) {
-  const now = new Date().toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" });
+  const now         = new Date().toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" });
+  const contentHtml = useMemo(() => renderTelegramMarkdown(form.content), [form.content]);
 
   return (
     <div style={{ background: "#17212b", padding: "12px 10px", minHeight: "100%" }}>
@@ -154,7 +134,7 @@ function TelegramNewsPreview({ form }: { form: NewsFormData }) {
           )}
           {form.content && (
             <div style={{ color: "#e8f0f7", fontSize: 13, lineHeight: 1.4, whiteSpace: "pre-wrap", wordBreak: "break-word" }}
-              dangerouslySetInnerHTML={{ __html: renderTelegramMarkdown(form.content) }}
+              dangerouslySetInnerHTML={{ __html: contentHtml }}
             />
           )}
           <div style={{ color: "#6c8fa8", fontSize: 11, textAlign: "right", marginTop: 6 }}>

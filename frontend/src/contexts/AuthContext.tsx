@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import type { User } from "@/types/server";
 
 interface AuthContextValue {
@@ -24,6 +25,7 @@ const TOKEN_KEY = "jsmon-token";
 const USER_KEY  = "jsmon-user";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const queryClient = useQueryClient();
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser]   = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -52,7 +54,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem(USER_KEY);
     sessionStorage.removeItem(TOKEN_KEY);
     sessionStorage.removeItem(USER_KEY);
-  }, []);
+    queryClient.clear();
+  }, [queryClient]);
 
   const updateUser = useCallback((u: User) => {
     setUser(u);
