@@ -114,14 +114,14 @@ func (p *Poller) accountCleanupWorker() {
 
 func (p *Poller) purgeScheduledDeletions() {
 	var users []models.User
-	if err := p.db.
+	if err := database.DB.
 		Where("delete_scheduled_at IS NOT NULL AND delete_scheduled_at <= ?", time.Now().UTC()).
 		Find(&users).Error; err != nil || len(users) == 0 {
 		return
 	}
 	for _, u := range users {
-		p.db.Where("owner_id = ?", u.ID).Delete(&models.Server{})
-		if err := p.db.Delete(&models.User{}, u.ID).Error; err == nil {
+		database.DB.Where("owner_id = ?", u.ID).Delete(&models.Server{})
+		if err := database.DB.Delete(&models.User{}, u.ID).Error; err == nil {
 			log.Printf("[cleanup] Deleted account %q (ID=%d) — grace period expired", u.Username, u.ID)
 		}
 	}
