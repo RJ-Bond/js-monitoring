@@ -360,17 +360,20 @@ func gameDisplayName(gameType string) string {
 	return gameType
 }
 
-// playerBar returns a 10-segment Unicode progress bar, e.g. "██████░░░░".
-func playerBar(now, max int) string {
-	if max <= 0 {
-		return ""
+// loadLabel returns an emoji+text indicator of server fill percentage.
+func loadLabel(pct int) string {
+	switch {
+	case pct == 0:
+		return "⬛ Пусто"
+	case pct <= 30:
+		return "🟢 Свободно"
+	case pct <= 60:
+		return "🟡 Средне"
+	case pct <= 90:
+		return "🔴 Много"
+	default:
+		return "⛔ Полон"
 	}
-	const segments = 10
-	filled := now * segments / max
-	if filled > segments {
-		filled = segments
-	}
-	return strings.Repeat("█", filled) + strings.Repeat("░", segments-filled)
 }
 
 // formatSessionDuration formats elapsed seconds as a human-readable duration.
@@ -434,14 +437,34 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 		}
 		if srv.Status.PlayersMax > 0 {
 			pct := srv.Status.PlayersNow * 100 / srv.Status.PlayersMax
-			bar := playerBar(srv.Status.PlayersNow, srv.Status.PlayersMax)
-			playersVal = fmt.Sprintf("%d/%d (%d%%)\n%s", srv.Status.PlayersNow, srv.Status.PlayersMax, pct, bar)
+			playersVal = fmt.Sprintf("%d/%d (%d%%) • %s", srv.Status.PlayersNow, srv.Status.PlayersMax, pct, loadLabel(pct))
 		} else {
 			playersVal = fmt.Sprintf("%d", srv.Status.PlayersNow)
 		}
 	}
 
-	// 3×2 inline grid + players row below
+	// Peak players and uptime over last 24 hours from PlayerHistory.
+	since24h := time.Now().Add(-24 * time.Hour)
+	var peak int
+	b.db.Model(&models.PlayerHistory{}).
+		Select("COALESCE(MAX(count), 0)").
+		Where("server_id = ? AND timestamp > ? AND is_online = true", srv.ID, since24h).
+		Scan(&peak)
+
+	var totalH, onlineH int64
+	b.db.Model(&models.PlayerHistory{}).
+		Where("server_id = ? AND timestamp > ?", srv.ID, since24h).
+		Count(&totalH)
+	b.db.Model(&models.PlayerHistory{}).
+		Where("server_id = ? AND timestamp > ? AND is_online = true", srv.ID, since24h).
+		Count(&onlineH)
+	uptimeVal := "—"
+	if totalH > 0 {
+		uptimeVal = fmt.Sprintf("%d%%", onlineH*100/totalH)
+	}
+	peakVal := fmt.Sprintf("%d", peak)
+
+	// 3×2 inline grid + players row + stats row below
 	fields := []*discordgo.MessageEmbedField{
 		{Name: "📊 Статус",    Value: statusText,                                   Inline: true},
 		{Name: "🌐 Адрес",     Value: fmt.Sprintf("`%s:%d`", displayIP, srv.Port),  Inline: true},
@@ -450,6 +473,8 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 		{Name: "🗺️ Карта",    Value: mapVal,                                       Inline: true},
 		{Name: "⚡ Пинг",      Value: pingVal,                                      Inline: true},
 		{Name: "👥 Игроков",   Value: playersVal,                                   Inline: false},
+		{Name: "📈 Пик 24ч",   Value: peakVal,                                      Inline: true},
+		{Name: "⏱️ Аптайм 24ч", Value: uptimeVal,                                  Inline: true},
 	}
 
 	// Player list from active sessions (ended_at IS NULL)
