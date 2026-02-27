@@ -124,6 +124,8 @@ type SiteSettings struct {
 	SSLDomain           string `gorm:"type:varchar(255)"                      json:"ssl_domain"`
 	ForceHTTPS          bool   `gorm:"default:false"                          json:"force_https"`
 	DefaultTheme        string `gorm:"type:varchar(10);default:'dark'"        json:"default_theme"` // dark|light|system
+	DiscordBotToken     string `gorm:"type:varchar(200)"                      json:"-"`             // не раскрывается через API
+	DiscordAppID        string `gorm:"type:varchar(50)"                       json:"discord_app_id"`
 }
 
 // PasswordReset — токен для сброса пароля (генерируется администратором)

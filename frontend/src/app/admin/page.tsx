@@ -141,6 +141,13 @@ interface SettingsTabProps {
   onTestTGWebhook: () => void;
   newsTGThreadId: string;
   onNewsTGThreadIdChange: (v: string) => void;
+  discordBotTokenSet: boolean;
+  discordNewBotToken: string;
+  discordBotClear: boolean;
+  discordAppID: string;
+  onDiscordNewBotTokenChange: (v: string) => void;
+  onDiscordBotClear: () => void;
+  onDiscordAppIDChange: (v: string) => void;
   sslStatus: SSLStatus | null;
   sslStatusLoading: boolean;
   forceHttps: boolean;
@@ -177,6 +184,8 @@ function SettingsTab({
   onSteamNewKeyChange, onSteamClear, onRegistrationEnabledChange, defaultTheme, onDefaultThemeChange, onNewsWebhookChange, onNewsRoleIdChange, onTestNewsWebhook,
   onNewsTGBotTokenChange, onNewsTGChatIdChange, onTestTGWebhook,
   newsTGThreadId, onNewsTGThreadIdChange,
+  discordBotTokenSet, discordNewBotToken, discordBotClear, discordAppID,
+  onDiscordNewBotTokenChange, onDiscordBotClear, onDiscordAppIDChange,
   sslStatus, sslStatusLoading, forceHttps, onForceHttpsChange, onRefreshSsl,
   onSave, t,
 }: SettingsTabProps) {
@@ -476,6 +485,67 @@ function SettingsTab({
         )}
       </div>
 
+      {/* Discord Gateway Bot */}
+      <div className="glass-card rounded-2xl p-5 space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground/80 flex items-center gap-2">
+          <span className="w-0.5 h-3.5 rounded-full bg-[#5865F2]/70 flex-shrink-0" />
+          <DiscordIcon size={14} />
+          {t.adminSettingsDiscordBot}
+        </h2>
+        <p className="text-xs text-muted-foreground">{t.adminSettingsDiscordBotHint}</p>
+
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">{t.adminSettingsDiscordBotToken}</label>
+          <div className="flex gap-2 items-center">
+            {discordBotTokenSet && !discordBotClear && discordNewBotToken === "" ? (
+              <>
+                <span className="flex-1 text-xs text-neon-green bg-neon-green/5 border border-neon-green/20 rounded-xl px-3 py-2">{t.adminSettingsDiscordBotTokenSet}</span>
+                <button
+                  type="button"
+                  onClick={onDiscordBotClear}
+                  className="px-3 py-2 rounded-xl text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-all whitespace-nowrap"
+                >
+                  {t.adminSettingsDiscordBotTokenClear}
+                </button>
+              </>
+            ) : discordBotClear ? (
+              <>
+                <span className="flex-1 text-xs text-red-400 bg-red-500/5 border border-red-500/20 rounded-xl px-3 py-2">Token will be cleared on save</span>
+                <button
+                  type="button"
+                  onClick={onDiscordBotClear}
+                  className="px-3 py-2 rounded-xl text-xs font-medium bg-white/5 text-muted-foreground border border-white/10 hover:bg-white/10 transition-all whitespace-nowrap"
+                >
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <input
+                className={inputCls}
+                type="password"
+                value={discordNewBotToken}
+                onChange={(e) => onDiscordNewBotTokenChange(e.target.value)}
+                placeholder="OTk4…"
+              />
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">{t.adminSettingsDiscordBotTokenHint}</p>
+        </div>
+
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">{t.adminSettingsDiscordAppID}</label>
+          <input
+            className={inputCls}
+            value={discordAppID}
+            onChange={(e) => onDiscordAppIDChange(e.target.value)}
+            placeholder="1234567890123456789"
+          />
+          <p className="text-xs text-muted-foreground mt-1">{t.adminSettingsDiscordAppIDHint}</p>
+        </div>
+
+        <p className="text-xs text-amber-400/70">{t.adminSettingsDiscordRestartHint}</p>
+      </div>
+
       {/* SSL / HTTPS */}
       <div className="glass-card p-4 flex flex-col gap-3">
         <div className="flex items-center justify-between">
@@ -625,6 +695,10 @@ export default function AdminPage() {
   const [settingsNewsTGBotToken, setSettingsNewsTGBotToken] = useState("");
   const [settingsNewsTGChatId, setSettingsNewsTGChatId] = useState("");
   const [settingsNewsTGThreadId, setSettingsNewsTGThreadId] = useState("");
+  const [discordBotTokenSet, setDiscordBotTokenSet] = useState(false);
+  const [discordNewBotToken, setDiscordNewBotToken] = useState("");
+  const [discordBotClear, setDiscordBotClear] = useState(false);
+  const [discordAppID, setDiscordAppID] = useState("");
   const [settingsForceHttps, setSettingsForceHttps] = useState(false);
   const [sslStatus, setSslStatus] = useState<SSLStatus | null>(null);
   const [sslStatusLoading, setSslStatusLoading] = useState(false);
@@ -712,6 +786,10 @@ export default function AdminPage() {
         setSettingsNewsTGBotToken(s.news_tg_bot_token ?? "");
         setSettingsNewsTGChatId(s.news_tg_chat_id ?? "");
         setSettingsNewsTGThreadId(s.news_tg_thread_id ?? "");
+        setDiscordBotTokenSet(s.discord_bot_token_set ?? false);
+        setDiscordAppID(s.discord_app_id ?? "");
+        setDiscordNewBotToken("");
+        setDiscordBotClear(false);
         setSettingsForceHttps(s.force_https ?? false);
         setSteamNewKey("");
         setSteamClear(false);
@@ -1755,6 +1833,13 @@ export default function AdminPage() {
             }}
             newsTGThreadId={settingsNewsTGThreadId}
             onNewsTGThreadIdChange={setSettingsNewsTGThreadId}
+            discordBotTokenSet={discordBotTokenSet}
+            discordNewBotToken={discordNewBotToken}
+            discordBotClear={discordBotClear}
+            discordAppID={discordAppID}
+            onDiscordNewBotTokenChange={(v) => { setDiscordNewBotToken(v); if (v) setDiscordBotClear(false); }}
+            onDiscordBotClear={() => { setDiscordBotClear((prev) => { if (prev) setDiscordNewBotToken(""); return !prev; }); }}
+            onDiscordAppIDChange={setDiscordAppID}
             sslStatus={sslStatus}
             sslStatusLoading={sslStatusLoading}
             forceHttps={settingsForceHttps}
@@ -1770,6 +1855,9 @@ export default function AdminPage() {
                 let steamApiKey = "";
                 if (steamClear) steamApiKey = "__CLEAR__";
                 else if (steamNewKey) steamApiKey = steamNewKey;
+                let discordBotToken = "";
+                if (discordBotClear) discordBotToken = "__CLEAR__";
+                else if (discordNewBotToken) discordBotToken = discordNewBotToken;
                 await api.updateSettingsFull({
                   site_name: settingsName,
                   logo_data: settingsLogo,
@@ -1783,6 +1871,8 @@ export default function AdminPage() {
                   news_tg_chat_id: settingsNewsTGChatId,
                   news_tg_thread_id: settingsNewsTGThreadId,
                   force_https: settingsForceHttps,
+                  discord_bot_token: discordBotToken,
+                  discord_app_id: discordAppID,
                 });
                 await refreshSettings();
                 // Refresh Steam key info
@@ -1792,6 +1882,10 @@ export default function AdminPage() {
                 setSteamKeySource(updated.steam_key_source);
                 setSteamNewKey("");
                 setSteamClear(false);
+                setDiscordBotTokenSet(updated.discord_bot_token_set ?? false);
+                setDiscordAppID(updated.discord_app_id ?? "");
+                setDiscordNewBotToken("");
+                setDiscordBotClear(false);
                 setSettingsSaved(true);
                 setTimeout(() => setSettingsSaved(false), 2000);
               } catch {

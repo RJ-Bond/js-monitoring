@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -11,6 +14,7 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 
 	"github.com/RJ-Bond/js-monitoring/internal/api"
+	"github.com/RJ-Bond/js-monitoring/internal/bot"
 	"github.com/RJ-Bond/js-monitoring/internal/database"
 	"github.com/RJ-Bond/js-monitoring/internal/models"
 	"github.com/RJ-Bond/js-monitoring/internal/poller"
@@ -107,6 +111,7 @@ func main() {
 	v1.GET("/users/:username", api.GetPublicProfile)
 	v1.GET("/leaderboard", api.GetGlobalLeaderboard)
 	v1.GET("/players/:name", api.GetPlayerProfile)
+	v1.GET("/chart/:serverID", api.GetServerChart)
 
 	// ── Auth ─────────────────────────────────────────────────────────────────
 	authG := v1.Group("/auth")
@@ -164,9 +169,52 @@ func main() {
 	admin.POST("/news/telegram/test", api.TestTelegramNewsWebhook)
 	admin.GET("/ssl/status", api.GetSSLStatus)
 
+	// ── Graceful shutdown context ─────────────────────────────────────────────
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-quit
+		cancel()
+	}()
+
+	// ── Start bots (if configured) ────────────────────────────────────────────
+	var settings models.SiteSettings
+	if database.DB.First(&settings, 1).Error == nil {
+		if settings.DiscordBotToken != "" {
+			appURL := settings.AppURL
+			token := settings.DiscordBotToken
+			go func() {
+				b, err := bot.NewDiscordBot(token, appURL)
+				if err != nil {
+					log.Printf("[discord-bot] init error: %v", err)
+					return
+				}
+				b.Start(ctx)
+			}()
+		}
+		if settings.NewsTGBotToken != "" {
+			tgToken := settings.NewsTGBotToken
+			appURL := settings.AppURL
+			go bot.NewTelegramPoller(tgToken, appURL).Start(ctx)
+		}
+	}
+
 	port := env("PORT", "8080")
 	log.Printf("Starting server on :%s", port)
-	e.Logger.Fatal(e.Start(":" + port))
+
+	go func() {
+		<-ctx.Done()
+		shutCtx, shutCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer shutCancel()
+		_ = e.Shutdown(shutCtx)
+	}()
+
+	if err := e.Start(":" + port); err != nil && err.Error() != "http: Server closed" {
+		log.Printf("Server stopped: %v", err)
+	}
 }
 
 func env(key, fallback string) string {

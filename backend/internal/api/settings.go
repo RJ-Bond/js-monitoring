@@ -81,23 +81,25 @@ func GetAdminSettings(c echo.Context) error {
 		adt = "dark"
 	}
 	return c.JSON(http.StatusOK, echo.Map{
-		"id":                   s.ID,
-		"site_name":            s.SiteName,
-		"logo_data":            s.LogoData,
-		"app_url":              s.AppURL,
-		"steam_key_set":        effectiveKey != "",
-		"steam_key_hint":       hint,
-		"steam_key_source":     keySource,
-		"registration_enabled": s.RegistrationEnabled,
-		"news_webhook_url":     s.NewsWebhookURL,
-		"news_role_id":         s.NewsRoleID,
-		"news_tg_bot_token":    s.NewsTGBotToken,
-		"news_tg_chat_id":      s.NewsTGChatID,
-		"news_tg_thread_id":    s.NewsTGThreadID,
-		"ssl_mode":             s.SSLMode,
-		"ssl_domain":           s.SSLDomain,
-		"force_https":          s.ForceHTTPS,
-		"default_theme":        adt,
+		"id":                    s.ID,
+		"site_name":             s.SiteName,
+		"logo_data":             s.LogoData,
+		"app_url":               s.AppURL,
+		"steam_key_set":         effectiveKey != "",
+		"steam_key_hint":        hint,
+		"steam_key_source":      keySource,
+		"registration_enabled":  s.RegistrationEnabled,
+		"news_webhook_url":      s.NewsWebhookURL,
+		"news_role_id":          s.NewsRoleID,
+		"news_tg_bot_token":     s.NewsTGBotToken,
+		"news_tg_chat_id":       s.NewsTGChatID,
+		"news_tg_thread_id":     s.NewsTGThreadID,
+		"ssl_mode":              s.SSLMode,
+		"ssl_domain":            s.SSLDomain,
+		"force_https":           s.ForceHTTPS,
+		"default_theme":         adt,
+		"discord_app_id":        s.DiscordAppID,
+		"discord_bot_token_set": s.DiscordBotToken != "",
 	})
 }
 
@@ -116,6 +118,8 @@ func UpdateSettings(c echo.Context) error {
 		NewsTGThreadID      string `json:"news_tg_thread_id"`
 		ForceHTTPS          *bool  `json:"force_https"`
 		DefaultTheme        string `json:"default_theme"`
+		DiscordBotToken     string `json:"discord_bot_token"` // "" = no change, "__CLEAR__" = delete
+		DiscordAppID        string `json:"discord_app_id"`
 	}
 	if err := c.Bind(&payload); err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid payload"})
@@ -159,6 +163,16 @@ func UpdateSettings(c echo.Context) error {
 	default:
 		s.SteamAPIKey = payload.SteamAPIKey
 	}
+
+	switch payload.DiscordBotToken {
+	case "":
+		// no change
+	case "__CLEAR__":
+		s.DiscordBotToken = ""
+	default:
+		s.DiscordBotToken = payload.DiscordBotToken
+	}
+	s.DiscordAppID = payload.DiscordAppID
 
 	database.DB.Save(&s)
 	{

@@ -385,6 +385,16 @@ export const translations = {
     adminSettingsNewsTGThreadPlaceholder: "e.g. 12345 (leave empty for main chat)",
     adminSettingsNewsTGThreadHint: "For supergroups with Topics enabled. To find the thread ID: open the topic in Telegram Web — the last number in the URL is the ID.",
     newsTelegramSend: "Send to Telegram",
+    // Discord Gateway Bot
+    adminSettingsDiscordBot: "Discord Gateway Bot",
+    adminSettingsDiscordBotHint: "Interactive bot with /server command and period buttons. Requires a separate Discord Application with a Bot token.",
+    adminSettingsDiscordBotToken: "Bot Token",
+    adminSettingsDiscordBotTokenHint: "Create an Application at discord.com/developers, add a Bot, enable Server Members Intent, copy the token.",
+    adminSettingsDiscordBotTokenSet: "Token saved",
+    adminSettingsDiscordBotTokenClear: "Clear token",
+    adminSettingsDiscordAppID: "Application ID",
+    adminSettingsDiscordAppIDHint: "Application ID from the \"General Information\" page of your Discord Application.",
+    adminSettingsDiscordRestartHint: "Token changes take effect after restarting the service.",
     // SSL / HTTPS
     adminSslSection: "Security & SSL",
     adminSslMode: "SSL Mode",
@@ -851,6 +861,16 @@ export const translations = {
     adminSettingsNewsTGThreadPlaceholder: "например 12345 (пустое = основной чат)",
     adminSettingsNewsTGThreadHint: "Для супергрупп с включёнными темами. Чтобы узнать ID темы: откройте тему в Telegram Web — последнее число в URL и есть Thread ID.",
     newsTelegramSend: "Отправить в Telegram",
+    // Discord Gateway Bot
+    adminSettingsDiscordBot: "Discord Gateway Bot",
+    adminSettingsDiscordBotHint: "Интерактивный бот с командой /server и кнопками периодов. Требует отдельное Discord-приложение с Bot токеном.",
+    adminSettingsDiscordBotToken: "Токен бота",
+    adminSettingsDiscordBotTokenHint: "Создайте приложение на discord.com/developers, добавьте Bot, включите Server Members Intent, скопируйте токен.",
+    adminSettingsDiscordBotTokenSet: "Токен сохранён",
+    adminSettingsDiscordBotTokenClear: "Очистить токен",
+    adminSettingsDiscordAppID: "Application ID",
+    adminSettingsDiscordAppIDHint: "Application ID со страницы \"General Information\" вашего Discord-приложения.",
+    adminSettingsDiscordRestartHint: "Изменение токена вступит в силу после перезапуска сервиса.",
     // SSL / HTTPS
     adminSslSection: "Безопасность и SSL",
     adminSslMode: "Режим SSL",
