@@ -160,9 +160,22 @@ func (b *DiscordBot) handleInteraction(s *discordgo.Session, i *discordgo.Intera
 }
 
 // handleServerCommand handles the /addserver slash command.
+// Only Discord server administrators may use it.
 // Responds ephemerally (hidden) so "X uses /addserver" never appears in the channel,
 // then posts the embed as a plain channel message for compact spacing.
 func (b *DiscordBot) handleServerCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	// Only administrators of the Discord server may add server embeds.
+	if i.Member == nil || i.Member.Permissions&discordgo.PermissionAdministrator == 0 {
+		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "❌ Команда `/addserver` доступна только для администраторов сервера.",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+		return
+	}
+
 	// Ephemeral ACK — only the caller sees "thinking", channel stays clean.
 	_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
@@ -219,7 +232,7 @@ func (b *DiscordBot) handleServerCommand(s *discordgo.Session, i *discordgo.Inte
 		})
 		if err != nil {
 			log.Printf("[discord-bot] channel send failed: %v", err)
-			content := "❌ Не удалось отправить сообщение."
+			content := fmt.Sprintf("❌ Не удалось отправить сообщение в канал.\nПричина: `%v`\n\nПроверьте, что у бота есть права **Send Messages** и **Embed Links** в этом канале.", err)
 			b.retryEdit(s, i, &discordgo.WebhookEdit{Content: &content})
 			return
 		}
