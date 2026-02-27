@@ -673,7 +673,7 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 		Color: color,
 		Fields: fields,
 		Footer: &discordgo.MessageEmbedFooter{
-			Text: fmt.Sprintf("JS Monitor %s • 🕐 %s", botVersion, now.Format("2006-01-02 15:04:05")),
+			Text: fmt.Sprintf("JS Monitor %s • 🕐 %s", botVersion, now.Format("02-01-2006 15:04:05")),
 		},
 	}
 
