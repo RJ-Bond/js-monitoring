@@ -294,6 +294,19 @@ func countryFlag(code string) string {
 	return string(r0) + string(r1)
 }
 
+// playerBar returns a 10-segment Unicode progress bar, e.g. "██████░░░░".
+func playerBar(now, max int) string {
+	if max <= 0 {
+		return ""
+	}
+	const segments = 10
+	filled := now * segments / max
+	if filled > segments {
+		filled = segments
+	}
+	return strings.Repeat("█", filled) + strings.Repeat("░", segments-filled)
+}
+
 // buildServerEmbed creates a Discord embed styled after DiscordGSM.
 func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discordgo.MessageEmbed {
 	online := srv.Status != nil && srv.Status.OnlineStatus
@@ -326,27 +339,33 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 	}
 
 	mapVal := "—"
+	pingVal := "—"
 	playersVal := "—"
 	if online && srv.Status != nil {
 		if srv.Status.CurrentMap != "" {
 			mapVal = srv.Status.CurrentMap
 		}
+		if srv.Status.PingMS > 0 {
+			pingVal = fmt.Sprintf("%d мс", srv.Status.PingMS)
+		}
 		if srv.Status.PlayersMax > 0 {
 			pct := srv.Status.PlayersNow * 100 / srv.Status.PlayersMax
-			playersVal = fmt.Sprintf("%d/%d (%d%%)", srv.Status.PlayersNow, srv.Status.PlayersMax, pct)
+			bar := playerBar(srv.Status.PlayersNow, srv.Status.PlayersMax)
+			playersVal = fmt.Sprintf("%s %d/%d (%d%%)", bar, srv.Status.PlayersNow, srv.Status.PlayersMax, pct)
 		} else {
 			playersVal = fmt.Sprintf("%d", srv.Status.PlayersNow)
 		}
 	}
 
-	// 3×2 grid of inline fields (matches DiscordGSM layout)
+	// 3×2 inline grid + players row below (matches DiscordGSM layout)
 	fields := []*discordgo.MessageEmbedField{
-		{Name: "Статус",              Value: statusText,                                Inline: true},
-		{Name: "Адрес:Порт (запрос)", Value: fmt.Sprintf("`%s:%d`", displayIP, srv.Port), Inline: true},
-		{Name: "Страна",              Value: countryVal,                                Inline: true},
-		{Name: "Игра",                Value: gameVal,                                   Inline: true},
-		{Name: "Текущая карта",       Value: mapVal,                                    Inline: true},
-		{Name: "Игроков",             Value: playersVal,                                Inline: true},
+		{Name: "Статус",              Value: statusText,                                   Inline: true},
+		{Name: "Адрес:Порт (запрос)", Value: fmt.Sprintf("`%s:%d`", displayIP, srv.Port),  Inline: true},
+		{Name: "Страна",              Value: countryVal,                                   Inline: true},
+		{Name: "Игра",                Value: gameVal,                                      Inline: true},
+		{Name: "Текущая карта",       Value: mapVal,                                       Inline: true},
+		{Name: "Пинг",                Value: pingVal,                                      Inline: true},
+		{Name: "Игроков",             Value: playersVal,                                   Inline: false},
 	}
 
 	// Player list from active sessions (ended_at IS NULL)
@@ -380,9 +399,11 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 	}
 
 	if b.appURL != "" {
-		chartURL := fmt.Sprintf("%s/api/v1/chart/%d?period=%s&_t=%d",
-			strings.TrimRight(b.appURL, "/"), srv.ID, period, now.Unix())
-		embed.Image = &discordgo.MessageEmbedImage{URL: chartURL}
+		base := strings.TrimRight(b.appURL, "/")
+		embed.URL = base + "/"
+		embed.Image = &discordgo.MessageEmbedImage{
+			URL: fmt.Sprintf("%s/api/v1/chart/%d?period=%s&_t=%d", base, srv.ID, period, now.Unix()),
+		}
 	}
 
 	return embed
