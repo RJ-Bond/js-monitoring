@@ -223,7 +223,11 @@ func (b *DiscordBot) handleServerCommand(s *discordgo.Session, i *discordgo.Inte
 
 		period := "24h"
 		embed := b.buildServerEmbed(&srv, period)
-		comps := b.buildComponents(uint(serverID), period)
+		dip := srv.IP
+		if srv.DisplayIP != "" {
+			dip = srv.DisplayIP
+		}
+		comps := b.buildComponents(uint(serverID), period, dip, srv.Port)
 
 		// Post as a plain channel message — no attribution header.
 		msg, err := s.ChannelMessageSendComplex(i.ChannelID, &discordgo.MessageSend{
@@ -271,7 +275,11 @@ func (b *DiscordBot) handleChartButton(s *discordgo.Session, i *discordgo.Intera
 		}
 
 		embed := b.buildServerEmbed(&srv, period)
-		comps := b.buildComponents(uint(serverID), period)
+		dip := srv.IP
+		if srv.DisplayIP != "" {
+			dip = srv.DisplayIP
+		}
+		comps := b.buildComponents(uint(serverID), period, dip, srv.Port)
 
 		// Edit the message directly by ID — works even after interaction token expiry.
 		if _, err := s.ChannelMessageEditComplex(&discordgo.MessageEdit{
@@ -350,7 +358,11 @@ func (b *DiscordBot) startChannelAutoRefresh(s *discordgo.Session, channelID, me
 				return
 			}
 			embed := b.buildServerEmbed(&srv, period)
-			comps := b.buildComponents(uint(serverID), period)
+			dip := srv.IP
+			if srv.DisplayIP != "" {
+				dip = srv.DisplayIP
+			}
+			comps := b.buildComponents(uint(serverID), period, dip, srv.Port)
 			if _, err := s.ChannelMessageEditComplex(&discordgo.MessageEdit{
 				Channel:    channelID,
 				ID:         messageID,
@@ -669,9 +681,7 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 			Name: siteName,
 			URL:  strings.TrimRight(b.appURL, "/") + "/",
 		},
-		// Title links to steam://connect so clicking the server name opens the connect dialog.
 		Title: title,
-		URL:   fmt.Sprintf("steam://connect/%s:%d", displayIP, srv.Port),
 		Color: color,
 		Fields: fields,
 		Footer: &discordgo.MessageEmbedFooter{
@@ -689,8 +699,10 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 	return embed
 }
 
-// buildComponents builds the row of period-switch buttons.
-func (b *DiscordBot) buildComponents(serverID uint, activePeriod string) []discordgo.MessageComponent {
+// buildComponents builds the action rows of buttons for a server embed.
+// serverID, activePeriod — for chart period buttons.
+// displayIP, port — for the steam:// connect link button.
+func (b *DiscordBot) buildComponents(serverID uint, activePeriod, displayIP string, port uint16) []discordgo.MessageComponent {
 	periods := []struct {
 		label  string
 		period string
@@ -700,20 +712,28 @@ func (b *DiscordBot) buildComponents(serverID uint, activePeriod string) []disco
 		{"30д", "30d"},
 	}
 
-	var btns []discordgo.MessageComponent
+	// Row 1: period buttons + connect link button.
+	// Discord allows steam:// only in button URLs (not in embed.URL).
+	row1 := make([]discordgo.MessageComponent, 0, 4)
 	for _, p := range periods {
 		style := discordgo.SecondaryButton
 		if p.period == activePeriod {
 			style = discordgo.PrimaryButton
 		}
-		btns = append(btns, discordgo.Button{
+		row1 = append(row1, discordgo.Button{
 			Label:    p.label,
 			Style:    style,
 			CustomID: fmt.Sprintf("chart_%d_%s", serverID, p.period),
 		})
 	}
+	row1 = append(row1, discordgo.Button{
+		Label: "🔗 Подключиться",
+		Style: discordgo.LinkButton,
+		URL:   fmt.Sprintf("steam://connect/%s:%d", displayIP, port),
+	})
 
-	adminRow := discordgo.ActionsRow{
+	// Row 2: admin panel button.
+	row2 := discordgo.ActionsRow{
 		Components: []discordgo.MessageComponent{
 			discordgo.Button{
 				Label:    "⚙️ Админка",
@@ -724,7 +744,7 @@ func (b *DiscordBot) buildComponents(serverID uint, activePeriod string) []disco
 	}
 
 	return []discordgo.MessageComponent{
-		discordgo.ActionsRow{Components: btns},
-		adminRow,
+		discordgo.ActionsRow{Components: row1},
+		row2,
 	}
 }
