@@ -100,6 +100,7 @@ func GetAdminSettings(c echo.Context) error {
 		"default_theme":         adt,
 		"discord_app_id":        s.DiscordAppID,
 		"discord_bot_token_set": s.DiscordBotToken != "",
+		"discord_proxy":         s.DiscordProxy,
 	})
 }
 
@@ -120,6 +121,7 @@ func UpdateSettings(c echo.Context) error {
 		DefaultTheme        string `json:"default_theme"`
 		DiscordBotToken     string `json:"discord_bot_token"` // "" = no change, "__CLEAR__" = delete
 		DiscordAppID        string `json:"discord_app_id"`
+		DiscordProxy        string `json:"discord_proxy"`
 	}
 	if err := c.Bind(&payload); err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid payload"})
@@ -173,6 +175,7 @@ func UpdateSettings(c echo.Context) error {
 		s.DiscordBotToken = payload.DiscordBotToken
 	}
 	s.DiscordAppID = payload.DiscordAppID
+	s.DiscordProxy = payload.DiscordProxy
 
 	database.DB.Save(&s)
 	{

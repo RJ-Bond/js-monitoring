@@ -148,6 +148,8 @@ interface SettingsTabProps {
   onDiscordNewBotTokenChange: (v: string) => void;
   onDiscordBotClear: () => void;
   onDiscordAppIDChange: (v: string) => void;
+  discordProxy: string;
+  onDiscordProxyChange: (v: string) => void;
   sslStatus: SSLStatus | null;
   sslStatusLoading: boolean;
   forceHttps: boolean;
@@ -186,6 +188,7 @@ function SettingsTab({
   newsTGThreadId, onNewsTGThreadIdChange,
   discordBotTokenSet, discordNewBotToken, discordBotClear, discordAppID,
   onDiscordNewBotTokenChange, onDiscordBotClear, onDiscordAppIDChange,
+  discordProxy, onDiscordProxyChange,
   sslStatus, sslStatusLoading, forceHttps, onForceHttpsChange, onRefreshSsl,
   onSave, t,
 }: SettingsTabProps) {
@@ -543,6 +546,17 @@ function SettingsTab({
           <p className="text-xs text-muted-foreground mt-1">{t.adminSettingsDiscordAppIDHint}</p>
         </div>
 
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">{t.adminSettingsDiscordProxy}</label>
+          <input
+            className={inputCls}
+            value={discordProxy}
+            onChange={(e) => onDiscordProxyChange(e.target.value)}
+            placeholder="socks5://user:pass@host:1080"
+          />
+          <p className="text-xs text-muted-foreground mt-1">{t.adminSettingsDiscordProxyHint}</p>
+        </div>
+
         {discordAppID && (
           <div className="space-y-1.5">
             <a
@@ -714,6 +728,7 @@ export default function AdminPage() {
   const [discordNewBotToken, setDiscordNewBotToken] = useState("");
   const [discordBotClear, setDiscordBotClear] = useState(false);
   const [discordAppID, setDiscordAppID] = useState("");
+  const [discordProxy, setDiscordProxy] = useState("");
   const [settingsForceHttps, setSettingsForceHttps] = useState(false);
   const [sslStatus, setSslStatus] = useState<SSLStatus | null>(null);
   const [sslStatusLoading, setSslStatusLoading] = useState(false);
@@ -803,6 +818,7 @@ export default function AdminPage() {
         setSettingsNewsTGThreadId(s.news_tg_thread_id ?? "");
         setDiscordBotTokenSet(s.discord_bot_token_set ?? false);
         setDiscordAppID(s.discord_app_id ?? "");
+        setDiscordProxy(s.discord_proxy ?? "");
         setDiscordNewBotToken("");
         setDiscordBotClear(false);
         setSettingsForceHttps(s.force_https ?? false);
@@ -1855,6 +1871,8 @@ export default function AdminPage() {
             onDiscordNewBotTokenChange={(v) => { setDiscordNewBotToken(v); if (v) setDiscordBotClear(false); }}
             onDiscordBotClear={() => { setDiscordBotClear((prev) => { if (prev) setDiscordNewBotToken(""); return !prev; }); }}
             onDiscordAppIDChange={setDiscordAppID}
+            discordProxy={discordProxy}
+            onDiscordProxyChange={setDiscordProxy}
             sslStatus={sslStatus}
             sslStatusLoading={sslStatusLoading}
             forceHttps={settingsForceHttps}
@@ -1888,6 +1906,7 @@ export default function AdminPage() {
                   force_https: settingsForceHttps,
                   discord_bot_token: discordBotToken,
                   discord_app_id: discordAppID,
+                  discord_proxy: discordProxy,
                 });
                 await refreshSettings();
                 // Refresh Steam key info
@@ -1899,6 +1918,7 @@ export default function AdminPage() {
                 setSteamClear(false);
                 setDiscordBotTokenSet(updated.discord_bot_token_set ?? false);
                 setDiscordAppID(updated.discord_app_id ?? "");
+                setDiscordProxy(updated.discord_proxy ?? "");
                 setDiscordNewBotToken("");
                 setDiscordBotClear(false);
                 setSettingsSaved(true);

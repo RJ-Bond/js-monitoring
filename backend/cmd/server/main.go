@@ -186,6 +186,10 @@ func main() {
 		if settings.DiscordBotToken != "" {
 			appURL := settings.AppURL
 			token := settings.DiscordBotToken
+			if settings.DiscordProxy != "" {
+				os.Setenv("HTTPS_PROXY", settings.DiscordProxy)
+				log.Printf("[discord-bot] using proxy from DB settings")
+			}
 			go func() {
 				b, err := bot.NewDiscordBot(token, appURL)
 				if err != nil {

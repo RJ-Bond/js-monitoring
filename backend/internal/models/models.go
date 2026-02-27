@@ -126,6 +126,7 @@ type SiteSettings struct {
 	DefaultTheme        string `gorm:"type:varchar(10);default:'dark'"        json:"default_theme"` // dark|light|system
 	DiscordBotToken     string `gorm:"type:varchar(200)"                      json:"-"`             // не раскрывается через API
 	DiscordAppID        string `gorm:"type:varchar(50)"                       json:"discord_app_id"`
+	DiscordProxy        string `gorm:"type:varchar(500)"                      json:"discord_proxy"`
 }
 
 // PasswordReset — токен для сброса пароля (генерируется администратором)
