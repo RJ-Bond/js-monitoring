@@ -32,7 +32,7 @@ func NewDiscordBot(token, appURL string) (*DiscordBot, error) {
 	dg.Identify.Intents = discordgo.IntentsGuilds
 	// Set explicit timeout so REST calls don't hang indefinitely through a slow proxy.
 	dg.Client = &http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: 30 * time.Second,
 		Transport: &http.Transport{
 			Proxy:               http.ProxyFromEnvironment,
 			MaxIdleConnsPerHost: 10,
@@ -184,17 +184,41 @@ func (b *DiscordBot) replyServerList(s *discordgo.Session, i *discordgo.Interact
 }
 
 // retryEdit attempts InteractionResponseEdit up to 3 times with backoff.
-// With a 10-second HTTP timeout, total worst-case time is ~35 seconds.
+// With a 30-second HTTP timeout, total worst-case time is ~99 seconds.
 func (b *DiscordBot) retryEdit(s *discordgo.Session, i *discordgo.InteractionCreate, data *discordgo.WebhookEdit) {
+	// Ensure AppID is populated (gateway may leave it empty in rare cases).
+	if i.Interaction.AppID == "" && s.State != nil && s.State.User != nil {
+		i.Interaction.AppID = s.State.User.ID
+		log.Printf("[discord-bot] retryEdit: AppID was empty, set to %s", i.Interaction.AppID)
+	}
+	log.Printf("[discord-bot] retryEdit start: appID=%q interaction=%s", i.Interaction.AppID, i.ID)
+
 	for attempt := 1; attempt <= 3; attempt++ {
 		if _, err := s.InteractionResponseEdit(i.Interaction, data); err == nil {
+			log.Printf("[discord-bot] retryEdit: success on attempt %d", attempt)
 			return
-		} else if attempt < 3 {
+		} else {
 			log.Printf("[discord-bot] edit attempt %d/3 failed: %v", attempt, err)
-			time.Sleep(time.Duration(attempt) * 3 * time.Second)
+			if attempt < 3 {
+				time.Sleep(time.Duration(attempt) * 3 * time.Second)
+			}
 		}
 	}
-	log.Printf("[discord-bot] all edit attempts exhausted for interaction %s", i.ID)
+
+	// All retries failed — try FollowupMessageCreate as last resort.
+	log.Printf("[discord-bot] all edit attempts exhausted for interaction %s, trying followup", i.ID)
+	params := &discordgo.WebhookParams{}
+	if data.Content != nil {
+		params.Content = *data.Content
+	}
+	if data.Embeds != nil {
+		params.Embeds = *data.Embeds
+	}
+	if _, err := s.FollowupMessageCreate(i.Interaction, true, params); err != nil {
+		log.Printf("[discord-bot] followup also failed: %v", err)
+	} else {
+		log.Printf("[discord-bot] followup succeeded for interaction %s", i.ID)
+	}
 }
 
 // buildServerEmbed creates a Discord embed for a server status card.
