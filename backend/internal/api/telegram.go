@@ -27,7 +27,9 @@ func sendTGMessage(token, chatID, threadID, text string) (string, error) {
 		"parse_mode": "HTML",
 	}
 	if threadID != "" && threadID != "0" {
-		payload["message_thread_id"] = threadID
+		if tid, err := strconv.Atoi(threadID); err == nil {
+			payload["message_thread_id"] = tid
+		}
 	}
 	b, _ := json.Marshal(payload)
 	resp, err := sharedHTTPClient.Post(apiURL, "application/json", bytes.NewReader(b)) //nolint:noctx
@@ -61,7 +63,9 @@ func sendTGPhoto(token, chatID, threadID, photoURL, caption string) (string, err
 		"parse_mode": "HTML",
 	}
 	if threadID != "" && threadID != "0" {
-		payload["message_thread_id"] = threadID
+		if tid, err := strconv.Atoi(threadID); err == nil {
+			payload["message_thread_id"] = tid
+		}
 	}
 	b, _ := json.Marshal(payload)
 	resp, err := sharedHTTPClient.Post(apiURL, "application/json", bytes.NewReader(b)) //nolint:noctx
@@ -87,9 +91,10 @@ func sendTGPhoto(token, chatID, threadID, photoURL, caption string) (string, err
 // editTGMessage редактирует текст существующего сообщения (parse_mode=HTML).
 func editTGMessage(token, chatID, messageID, text string) error {
 	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/editMessageText", token)
+	msgIDInt, _ := strconv.Atoi(messageID)
 	payload := map[string]interface{}{
 		"chat_id":    chatID,
-		"message_id": messageID,
+		"message_id": msgIDInt,
 		"text":       text,
 		"parse_mode": "HTML",
 	}
@@ -108,9 +113,10 @@ func editTGMessage(token, chatID, messageID, text string) error {
 // editTGCaption редактирует подпись (caption) существующего медиа-сообщения.
 func editTGCaption(token, chatID, messageID, caption string) error {
 	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/editMessageCaption", token)
+	msgIDInt, _ := strconv.Atoi(messageID)
 	payload := map[string]interface{}{
 		"chat_id":    chatID,
-		"message_id": messageID,
+		"message_id": msgIDInt,
 		"caption":    caption,
 		"parse_mode": "HTML",
 	}
