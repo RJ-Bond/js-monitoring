@@ -555,7 +555,11 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 		}
 	}
 
+	// Title priority: user-set Title → server-reported ServerName → IP:Port fallback.
 	title := srv.Title
+	if title == "" && srv.Status != nil && srv.Status.ServerName != "" {
+		title = srv.Status.ServerName
+	}
 	if title == "" {
 		title = fmt.Sprintf("%s:%d", displayIP, srv.Port)
 	}
@@ -573,8 +577,10 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 			Name: siteName,
 			URL:  strings.TrimRight(b.appURL, "/") + "/",
 		},
-		Title:  title,
-		Color:  color,
+		// Title links to steam://connect so clicking the server name opens the connect dialog.
+		Title: title,
+		URL:   fmt.Sprintf("steam://connect/%s:%d", displayIP, srv.Port),
+		Color: color,
 		Fields: fields,
 		Footer: &discordgo.MessageEmbedFooter{
 			Text: fmt.Sprintf("JS Monitor %s • 🕐 %s", botVersion, now.Format("2006-01-02 15:04:05")),
@@ -583,7 +589,6 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 
 	if b.appURL != "" {
 		base := strings.TrimRight(b.appURL, "/")
-		embed.URL = base + "/"
 		embed.Image = &discordgo.MessageEmbedImage{
 			URL: fmt.Sprintf("%s/api/v1/chart/%d?period=%s&_t=%d", base, srv.ID, period, now.Unix()),
 		}
