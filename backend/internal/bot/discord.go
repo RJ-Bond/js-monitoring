@@ -700,37 +700,35 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 }
 
 // buildComponents builds the action rows of buttons for a server embed.
-// serverID, activePeriod — for chart period buttons.
-// displayIP, port — for the steam:// connect link button.
+// The period selector is a single cycle button: 24h → 7d → 30d → 24h.
+// Clicking it switches to the next period; the label shows the current period.
 func (b *DiscordBot) buildComponents(serverID uint, activePeriod, displayIP string, port uint16) []discordgo.MessageComponent {
-	periods := []struct {
-		label  string
-		period string
-	}{
-		{"24ч", "24h"},
-		{"7д", "7d"},
-		{"30д", "30d"},
+	// Cycle order: 24h → 7d → 30d → 24h
+	nextPeriod := map[string]string{"24h": "7d", "7d": "30d", "30d": "24h"}
+	periodLabel := map[string]string{"24h": "📊 24ч", "7d": "📊 7д", "30d": "📊 30д"}
+
+	next := nextPeriod[activePeriod]
+	if next == "" {
+		next = "7d"
+	}
+	label := periodLabel[activePeriod]
+	if label == "" {
+		label = "📊 24ч"
 	}
 
-	// Row 1: period buttons + connect link button.
-	// Discord allows steam:// only in button URLs (not in embed.URL).
-	row1 := make([]discordgo.MessageComponent, 0, 4)
-	for _, p := range periods {
-		style := discordgo.SecondaryButton
-		if p.period == activePeriod {
-			style = discordgo.PrimaryButton
-		}
-		row1 = append(row1, discordgo.Button{
-			Label:    p.label,
-			Style:    style,
-			CustomID: fmt.Sprintf("chart_%d_%s", serverID, p.period),
-		})
+	// Row 1: cycle period button + connect link button.
+	row1 := []discordgo.MessageComponent{
+		discordgo.Button{
+			Label:    label,
+			Style:    discordgo.PrimaryButton,
+			CustomID: fmt.Sprintf("chart_%d_%s", serverID, next),
+		},
+		discordgo.Button{
+			Label: "🔗 Подключиться",
+			Style: discordgo.LinkButton,
+			URL:   fmt.Sprintf("steam://connect/%s:%d", displayIP, port),
+		},
 	}
-	row1 = append(row1, discordgo.Button{
-		Label: "🔗 Подключиться",
-		Style: discordgo.LinkButton,
-		URL:   fmt.Sprintf("steam://connect/%s:%d", displayIP, port),
-	})
 
 	// Row 2: admin panel button.
 	row2 := discordgo.ActionsRow{
