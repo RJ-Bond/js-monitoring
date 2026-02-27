@@ -89,7 +89,13 @@ func (b *DiscordBot) handleInteraction(s *discordgo.Session, i *discordgo.Intera
 }
 
 // handleServerCommand handles the /server slash command.
+// Sends a deferred ACK immediately so the 3-second Discord deadline is met even through a proxy.
 func (b *DiscordBot) handleServerCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	// ACK immediately — Discord allows up to 15 minutes to edit the deferred response.
+	_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+	})
+
 	opts := i.ApplicationCommandData().Options
 	if len(opts) == 0 || opts[0].StringValue() == "" {
 		b.replyServerList(s, i)
@@ -98,43 +104,33 @@ func (b *DiscordBot) handleServerCommand(s *discordgo.Session, i *discordgo.Inte
 
 	serverID, err := strconv.Atoi(opts[0].StringValue())
 	if err != nil {
-		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: "❌ Неверный ID сервера.",
-				Flags:   discordgo.MessageFlagsEphemeral,
-			},
-		})
+		content := "❌ Неверный ID сервера."
+		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
 		return
 	}
 
 	var srv models.Server
 	if b.db.Preload("Status").First(&srv, serverID).Error != nil {
-		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: "❌ Сервер не найден.",
-				Flags:   discordgo.MessageFlagsEphemeral,
-			},
-		})
+		content := "❌ Сервер не найден."
+		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
 		return
 	}
 
 	embed := b.buildServerEmbed(&srv, "24h")
-	components := b.buildComponents(uint(serverID), "24h", srv.IP, srv.Port)
-
-	_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Embeds:     []*discordgo.MessageEmbed{embed},
-			Components: components,
-		},
+	comps := b.buildComponents(uint(serverID), "24h", srv.IP, srv.Port)
+	_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+		Embeds:     &[]*discordgo.MessageEmbed{embed},
+		Components: &comps,
 	})
 }
 
 // handleChartButton handles period-switch button clicks: chart_{serverID}_{period}
+// Sends a deferred update ACK immediately to avoid the 3-second timeout.
 func (b *DiscordBot) handleChartButton(s *discordgo.Session, i *discordgo.InteractionCreate, customID string) {
-	// custom_id format: chart_{serverID}_{period}
+	_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseDeferredMessageUpdate,
+	})
+
 	parts := strings.SplitN(strings.TrimPrefix(customID, "chart_"), "_", 2)
 	if len(parts) != 2 {
 		return
@@ -151,44 +147,29 @@ func (b *DiscordBot) handleChartButton(s *discordgo.Session, i *discordgo.Intera
 	}
 
 	embed := b.buildServerEmbed(&srv, period)
-	components := b.buildComponents(uint(serverID), period, srv.IP, srv.Port)
-
-	_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseUpdateMessage,
-		Data: &discordgo.InteractionResponseData{
-			Embeds:     []*discordgo.MessageEmbed{embed},
-			Components: components,
-		},
+	comps := b.buildComponents(uint(serverID), period, srv.IP, srv.Port)
+	_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+		Embeds:     &[]*discordgo.MessageEmbed{embed},
+		Components: &comps,
 	})
 }
 
-// replyServerList replies with a list of configured servers.
+// replyServerList edits the deferred response with a list of configured servers.
 func (b *DiscordBot) replyServerList(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	var servers []models.Server
 	b.db.Limit(10).Find(&servers)
 
+	var content string
 	if len(servers) == 0 {
-		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: "Нет настроенных серверов.",
-				Flags:   discordgo.MessageFlagsEphemeral,
-			},
-		})
-		return
+		content = "Нет настроенных серверов."
+	} else {
+		var lines []string
+		for _, srv := range servers {
+			lines = append(lines, fmt.Sprintf("`%d` — **%s** (%s:%d)", srv.ID, srv.Title, srv.IP, srv.Port))
+		}
+		content = "**Серверы:**\n" + strings.Join(lines, "\n") + "\n\nИспользуй `/server id:<номер>`"
 	}
-
-	var lines []string
-	for _, srv := range servers {
-		lines = append(lines, fmt.Sprintf("`%d` — **%s** (%s:%d)", srv.ID, srv.Title, srv.IP, srv.Port))
-	}
-	_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Content: "**Серверы:**\n" + strings.Join(lines, "\n") + "\n\nИспользуй `/server id:<номер>`",
-			Flags:   discordgo.MessageFlagsEphemeral,
-		},
-	})
+	_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
 }
 
 // buildServerEmbed creates a Discord embed for a server status card.
