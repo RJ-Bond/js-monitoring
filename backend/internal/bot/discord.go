@@ -18,7 +18,7 @@ import (
 	"github.com/RJ-Bond/js-monitoring/internal/models"
 )
 
-const botVersion = "v2.3.0"
+const botVersion = "v2.4.0"
 
 // DiscordBot manages the Discord Gateway connection and slash command interactions.
 type DiscordBot struct {
