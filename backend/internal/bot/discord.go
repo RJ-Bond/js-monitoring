@@ -357,15 +357,15 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 		}
 	}
 
-	// 3×2 inline grid + players row below (matches DiscordGSM layout)
+	// 3×2 inline grid + players row below
 	fields := []*discordgo.MessageEmbedField{
-		{Name: "Статус",              Value: statusText,                                   Inline: true},
-		{Name: "Адрес:Порт (запрос)", Value: fmt.Sprintf("`%s:%d`", displayIP, srv.Port),  Inline: true},
-		{Name: "Страна",              Value: countryVal,                                   Inline: true},
-		{Name: "Игра",                Value: gameVal,                                      Inline: true},
-		{Name: "Текущая карта",       Value: mapVal,                                       Inline: true},
-		{Name: "Пинг",                Value: pingVal,                                      Inline: true},
-		{Name: "Игроков",             Value: playersVal,                                   Inline: false},
+		{Name: "📊 Статус",    Value: statusText,                                   Inline: true},
+		{Name: "🌐 Адрес",     Value: fmt.Sprintf("`%s:%d`", displayIP, srv.Port),  Inline: true},
+		{Name: "🌍 Страна",    Value: countryVal,                                   Inline: true},
+		{Name: "🎮 Игра",      Value: gameVal,                                      Inline: true},
+		{Name: "🗺️ Карта",    Value: mapVal,                                       Inline: true},
+		{Name: "⚡ Пинг",      Value: pingVal,                                      Inline: true},
+		{Name: "👥 Игроков",   Value: playersVal,                                   Inline: false},
 	}
 
 	// Player list from active sessions (ended_at IS NULL)
@@ -381,7 +381,7 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 				names[idx] = s.PlayerName
 			}
 			fields = append(fields, &discordgo.MessageEmbedField{
-				Name:   "Список игроков",
+				Name:   "📋 Список игроков",
 				Value:  strings.Join(names, "   "),
 				Inline: false,
 			})
@@ -394,7 +394,7 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 		Color:  color,
 		Fields: fields,
 		Footer: &discordgo.MessageEmbedFooter{
-			Text: fmt.Sprintf("JS Monitor | Последнее обновление: %s", now.Format("2006-01-02 15:04:05")),
+			Text: fmt.Sprintf("JS Monitor • 🕐 %s", now.Format("2006-01-02 15:04:05")),
 		},
 	}
 
