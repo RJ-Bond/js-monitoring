@@ -338,6 +338,28 @@ func countryFlag(code string) string {
 	return string(r0) + string(r1)
 }
 
+// gameDisplayName maps internal game type identifiers to human-readable names.
+func gameDisplayName(gameType string) string {
+	names := map[string]string{
+		"source":            "Source",
+		"samp":              "SA:MP",
+		"minecraft":         "Minecraft",
+		"minecraft_bedrock": "Minecraft Bedrock",
+		"fivem":             "FiveM",
+		"gmod":              "Garry's Mod",
+		"valheim":           "Valheim",
+		"dayz":              "DayZ",
+		"squad":             "Squad",
+		"vrising":           "V Rising",
+		"terraria":          "Terraria",
+		"icarus":            "Icarus",
+	}
+	if name, ok := names[gameType]; ok {
+		return name
+	}
+	return gameType
+}
+
 // playerBar returns a 10-segment Unicode progress bar, e.g. "██████░░░░".
 func playerBar(now, max int) string {
 	if max <= 0 {
@@ -349,6 +371,24 @@ func playerBar(now, max int) string {
 		filled = segments
 	}
 	return strings.Repeat("█", filled) + strings.Repeat("░", segments-filled)
+}
+
+// formatSessionDuration formats elapsed seconds as a human-readable duration.
+// Examples: "< 1 мин", "5 мин", "1ч 20мин", "3ч".
+func formatSessionDuration(secs int) string {
+	if secs < 60 {
+		return "< 1 мин"
+	}
+	mins := secs / 60
+	hours := mins / 60
+	mins = mins % 60
+	if hours > 0 {
+		if mins == 0 {
+			return fmt.Sprintf("%dч", hours)
+		}
+		return fmt.Sprintf("%dч %dмин", hours, mins)
+	}
+	return fmt.Sprintf("%dмин", mins)
 }
 
 // buildServerEmbed creates a Discord embed styled after DiscordGSM.
@@ -377,7 +417,7 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 		countryVal = "—"
 	}
 
-	gameVal := srv.GameType
+	gameVal := gameDisplayName(srv.GameType)
 	if gameVal == "" {
 		gameVal = "—"
 	}
@@ -395,7 +435,7 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 		if srv.Status.PlayersMax > 0 {
 			pct := srv.Status.PlayersNow * 100 / srv.Status.PlayersMax
 			bar := playerBar(srv.Status.PlayersNow, srv.Status.PlayersMax)
-			playersVal = fmt.Sprintf("%s %d/%d (%d%%)", bar, srv.Status.PlayersNow, srv.Status.PlayersMax, pct)
+			playersVal = fmt.Sprintf("%d/%d (%d%%)\n%s", srv.Status.PlayersNow, srv.Status.PlayersMax, pct, bar)
 		} else {
 			playersVal = fmt.Sprintf("%d", srv.Status.PlayersNow)
 		}
@@ -420,13 +460,14 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 			Limit(20).
 			Find(&sessions)
 		if len(sessions) > 0 {
-			names := make([]string, len(sessions))
-			for idx, s := range sessions {
-				names[idx] = s.PlayerName
+			lines := make([]string, len(sessions))
+			for idx, sess := range sessions {
+				elapsed := int(time.Since(sess.StartedAt).Seconds())
+				lines[idx] = fmt.Sprintf("%s — %s", sess.PlayerName, formatSessionDuration(elapsed))
 			}
 			fields = append(fields, &discordgo.MessageEmbedField{
 				Name:   "📋 Список игроков",
-				Value:  strings.Join(names, "   "),
+				Value:  strings.Join(lines, "\n"),
 				Inline: false,
 			})
 		}
