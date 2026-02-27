@@ -63,5 +63,6 @@ func AutoMigrate() error {
 		&models.AuditLog{},
 		&models.DiscordConfig{},
 		&models.UserSession{},
+		&models.DiscordEmbed{},
 	)
 }

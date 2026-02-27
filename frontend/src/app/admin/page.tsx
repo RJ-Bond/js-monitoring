@@ -150,6 +150,8 @@ interface SettingsTabProps {
   onDiscordAppIDChange: (v: string) => void;
   discordProxy: string;
   onDiscordProxyChange: (v: string) => void;
+  discordAlertChannelID: string;
+  onDiscordAlertChannelIDChange: (v: string) => void;
   discordEmbedCfg: Record<string, boolean>;
   onDiscordEmbedCfgChange: (key: string, val: boolean) => void;
   sslStatus: SSLStatus | null;
@@ -191,6 +193,7 @@ function SettingsTab({
   discordBotTokenSet, discordNewBotToken, discordBotClear, discordAppID,
   onDiscordNewBotTokenChange, onDiscordBotClear, onDiscordAppIDChange,
   discordProxy, onDiscordProxyChange,
+  discordAlertChannelID, onDiscordAlertChannelIDChange,
   discordEmbedCfg, onDiscordEmbedCfgChange,
   sslStatus, sslStatusLoading, forceHttps, onForceHttpsChange, onRefreshSsl,
   onSave, t,
@@ -560,6 +563,17 @@ function SettingsTab({
           <p className="text-xs text-muted-foreground mt-1">{t.adminSettingsDiscordProxyHint}</p>
         </div>
 
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">{t.adminSettingsDiscordAlertChannel}</label>
+          <input
+            className={inputCls}
+            value={discordAlertChannelID}
+            onChange={(e) => onDiscordAlertChannelIDChange(e.target.value)}
+            placeholder="1234567890123456789"
+          />
+          <p className="text-xs text-muted-foreground mt-1">{t.adminSettingsDiscordAlertChannelHint}</p>
+        </div>
+
         {discordAppID && (
           <div className="space-y-1.5">
             <a
@@ -768,6 +782,7 @@ export default function AdminPage() {
   const [discordBotClear, setDiscordBotClear] = useState(false);
   const [discordAppID, setDiscordAppID] = useState("");
   const [discordProxy, setDiscordProxy] = useState("");
+  const [discordAlertChannelID, setDiscordAlertChannelID] = useState("");
   const defaultEmbedCfg = { status: true, address: true, country: true, game: true, map: true, ping: true, players: true, peak_24h: true, uptime_24h: true, average_24h: true, unique_today: true, player_list: true };
   const [discordEmbedCfg, setDiscordEmbedCfg] = useState<Record<string, boolean>>(defaultEmbedCfg);
   const [settingsForceHttps, setSettingsForceHttps] = useState(false);
@@ -864,6 +879,7 @@ export default function AdminPage() {
         setDiscordBotTokenSet(s.discord_bot_token_set ?? false);
         setDiscordAppID(s.discord_app_id ?? "");
         setDiscordProxy(s.discord_proxy ?? "");
+        setDiscordAlertChannelID(s.discord_alert_channel_id ?? "");
         setDiscordNewBotToken("");
         setDiscordBotClear(false);
         if (s.discord_embed_config) {
@@ -1924,6 +1940,8 @@ export default function AdminPage() {
             onDiscordAppIDChange={setDiscordAppID}
             discordProxy={discordProxy}
             onDiscordProxyChange={setDiscordProxy}
+            discordAlertChannelID={discordAlertChannelID}
+            onDiscordAlertChannelIDChange={setDiscordAlertChannelID}
             discordEmbedCfg={discordEmbedCfg}
             onDiscordEmbedCfgChange={(key, val) => setDiscordEmbedCfg((prev) => ({ ...prev, [key]: val }))}
             sslStatus={sslStatus}
@@ -1960,6 +1978,7 @@ export default function AdminPage() {
                   discord_bot_token: discordBotToken,
                   discord_app_id: discordAppID,
                   discord_proxy: discordProxy,
+                  discord_alert_channel_id: discordAlertChannelID,
                   discord_embed_config: JSON.stringify(discordEmbedCfg),
                 });
                 await refreshSettings();
@@ -1973,6 +1992,7 @@ export default function AdminPage() {
                 setDiscordBotTokenSet(updated.discord_bot_token_set ?? false);
                 setDiscordAppID(updated.discord_app_id ?? "");
                 setDiscordProxy(updated.discord_proxy ?? "");
+                setDiscordAlertChannelID(updated.discord_alert_channel_id ?? "");
                 setDiscordNewBotToken("");
                 setDiscordBotClear(false);
                 setSettingsSaved(true);

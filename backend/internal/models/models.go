@@ -127,7 +127,17 @@ type SiteSettings struct {
 	DiscordBotToken     string `gorm:"type:varchar(200)"                      json:"-"`             // не раскрывается через API
 	DiscordAppID        string `gorm:"type:varchar(50)"                       json:"discord_app_id"`
 	DiscordProxy        string `gorm:"type:varchar(500)"                      json:"discord_proxy"`
-	DiscordEmbedConfig  string `gorm:"type:text"                              json:"discord_embed_config"` // JSON: EmbedFieldConfig
+	DiscordEmbedConfig      string `gorm:"type:text"                              json:"discord_embed_config"`      // JSON: EmbedFieldConfig
+	DiscordAlertChannelID   string `gorm:"type:varchar(32)"                       json:"discord_alert_channel_id"`  // канал для алертов оффлайн/онлайн
+}
+
+// DiscordEmbed — хранит активные embed-сообщения бота для восстановления после перезапуска.
+type DiscordEmbed struct {
+	ID        uint   `gorm:"primaryKey;autoIncrement"`
+	ChannelID string `gorm:"uniqueIndex:idx_discord_embed;type:varchar(32);not null"`
+	ServerID  uint   `gorm:"uniqueIndex:idx_discord_embed;not null"`
+	MessageID string `gorm:"type:varchar(32);not null"`
+	Period    string `gorm:"type:varchar(8);default:'24h'"`
 }
 
 // EmbedFieldConfig controls which fields are shown in the Discord server embed.

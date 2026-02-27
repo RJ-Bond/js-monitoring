@@ -59,7 +59,9 @@ func (b *DiscordBot) Start(ctx context.Context) {
 	// Wait for Ready so we have the application ID.
 	time.Sleep(2 * time.Second)
 	b.registerCommands()
+	b.restoreEmbeds()
 	b.startPresenceUpdater(ctx)
+	b.startAlertChecker(ctx)
 
 	log.Println("[discord-bot] started")
 	<-ctx.Done()
@@ -73,6 +75,8 @@ func (b *DiscordBot) registerCommands() {
 
 	current := map[string]bool{
 		"addserver": true,
+		"stats":     true,
+		"top":       true,
 	}
 
 	// Delete commands that are registered in Discord but no longer used.
@@ -105,22 +109,41 @@ func (b *DiscordBot) registerCommands() {
 	} else {
 		log.Println("[discord-bot] /addserver command registered")
 	}
+
+	statsCmd := &discordgo.ApplicationCommand{
+		Name:        "stats",
+		Description: "Показать глобальную статистику мониторинга",
+	}
+	if _, err := b.session.ApplicationCommandCreate(appID, "", statsCmd); err != nil {
+		log.Printf("[discord-bot] command register error /stats: %v", err)
+	} else {
+		log.Println("[discord-bot] /stats command registered")
+	}
+
+	topCmd := &discordgo.ApplicationCommand{
+		Name:        "top",
+		Description: "Топ-10 игроков за сегодня по времени в игре",
+	}
+	if _, err := b.session.ApplicationCommandCreate(appID, "", topCmd); err != nil {
+		log.Printf("[discord-bot] command register error /top: %v", err)
+	} else {
+		log.Println("[discord-bot] /top command registered")
+	}
 }
 
-// startPresenceUpdater sets and periodically refreshes the bot's activity status.
-// Discord shows: "Наблюдает за 5 серверами | 42 игрока"
+// startPresenceUpdater rotates the bot's activity status every 60 s through 3 slides:
+//  0. "за N серверами | M игроков"
+//  1. "топ: [player] — Xч Yмин"  (top player by session time today)
+//  2. "аптайм серверов: X%"       (average uptime across all servers, last 24 h)
 func (b *DiscordBot) startPresenceUpdater(ctx context.Context) {
+	slide := 0
 	update := func() {
-		var onlineServers int64
-		var totalPlayers int64
-		b.db.Model(&models.ServerStatus{}).Where("online_status = true").Count(&onlineServers)
-		b.db.Model(&models.ServerStatus{}).Select("COALESCE(SUM(players_now), 0)").Scan(&totalPlayers)
-
-		statusText := fmt.Sprintf("за %d серверами | %d игроков", onlineServers, totalPlayers)
+		text := b.presenceSlide(slide % 3)
+		slide++
 		if err := b.session.UpdateStatusComplex(discordgo.UpdateStatusData{
 			Status: "online",
 			Activities: []*discordgo.Activity{
-				{Name: statusText, Type: discordgo.ActivityTypeWatching},
+				{Name: text, Type: discordgo.ActivityTypeWatching},
 			},
 		}); err != nil {
 			log.Printf("[discord-bot] presence update error: %v", err)
@@ -129,7 +152,7 @@ func (b *DiscordBot) startPresenceUpdater(ctx context.Context) {
 
 	update()
 	go func() {
-		ticker := time.NewTicker(5 * time.Minute)
+		ticker := time.NewTicker(60 * time.Second)
 		defer ticker.Stop()
 		for {
 			select {
@@ -142,12 +165,56 @@ func (b *DiscordBot) startPresenceUpdater(ctx context.Context) {
 	}()
 }
 
+// presenceSlide returns the status text for the given slide index (0-2).
+func (b *DiscordBot) presenceSlide(n int) string {
+	switch n {
+	case 0:
+		var onlineServers, totalPlayers int64
+		b.db.Model(&models.ServerStatus{}).Where("online_status = true").Count(&onlineServers)
+		b.db.Model(&models.ServerStatus{}).Select("COALESCE(SUM(players_now), 0)").Scan(&totalPlayers)
+		return fmt.Sprintf("за %d серверами | %d игроков", onlineServers, totalPlayers)
+	case 1:
+		now := time.Now()
+		today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+		var row struct {
+			PlayerName string
+			TotalSecs  int
+		}
+		b.db.Model(&models.PlayerSession{}).
+			Select("player_name, COALESCE(SUM(duration), 0) as total_secs").
+			Where("started_at >= ?", today).
+			Group("player_name").
+			Order("total_secs DESC").
+			Limit(1).
+			Scan(&row)
+		if row.PlayerName == "" {
+			return "нет активных игроков сегодня"
+		}
+		return fmt.Sprintf("топ: %s — %s", row.PlayerName, formatSessionDuration(row.TotalSecs))
+	default: // case 2
+		now := time.Now()
+		since24h := now.Add(-24 * time.Hour)
+		var totalH, onlineH int64
+		b.db.Model(&models.PlayerHistory{}).Where("timestamp > ?", since24h).Count(&totalH)
+		b.db.Model(&models.PlayerHistory{}).Where("timestamp > ? AND is_online = true", since24h).Count(&onlineH)
+		if totalH == 0 {
+			return "аптайм серверов: —"
+		}
+		return fmt.Sprintf("аптайм серверов: %d%%", onlineH*100/totalH)
+	}
+}
+
 // handleInteraction dispatches incoming Discord interactions.
 func (b *DiscordBot) handleInteraction(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	switch i.Type {
 	case discordgo.InteractionApplicationCommand:
-		if i.ApplicationCommandData().Name == "addserver" {
+		switch i.ApplicationCommandData().Name {
+		case "addserver":
 			b.handleServerCommand(s, i)
+		case "stats":
+			b.handleStatsCommand(s, i)
+		case "top":
+			b.handleTopCommand(s, i)
 		}
 	case discordgo.InteractionMessageComponent:
 		cid := i.MessageComponentData().CustomID
@@ -239,6 +306,15 @@ func (b *DiscordBot) handleServerCommand(s *discordgo.Session, i *discordgo.Inte
 
 		// Track the posted message so duplicate /addserver calls are detected.
 		b.activeMessages.Store(key, msg.ID)
+
+		// Persist embed to DB so it can be restored after bot restart.
+		var de models.DiscordEmbed
+		b.db.Where("channel_id = ? AND server_id = ?", i.ChannelID, serverID).FirstOrInit(&de)
+		de.ChannelID = i.ChannelID
+		de.ServerID = uint(serverID)
+		de.MessageID = msg.ID
+		de.Period = period
+		b.db.Save(&de)
 
 		// Remove the ephemeral "thinking..." placeholder.
 		_ = s.InteractionResponseDelete(i.Interaction)
@@ -342,6 +418,7 @@ func (b *DiscordBot) replyServerList(s *discordgo.Session, i *discordgo.Interact
 func (b *DiscordBot) startChannelAutoRefresh(s *discordgo.Session, channelID, messageID string, serverID int, period, key string) {
 	go func() {
 		defer b.activeMessages.Delete(key)
+		defer b.db.Where("channel_id = ? AND server_id = ?", channelID, serverID).Delete(&models.DiscordEmbed{})
 		ticker := time.NewTicker(60 * time.Second)
 		defer ticker.Stop()
 		for range ticker.C {
@@ -490,6 +567,281 @@ func formatSessionDuration(secs int) string {
 		return fmt.Sprintf("%s %d %s", hourStr, mins, pluralRu(mins, "минута", "минуты", "минут"))
 	}
 	return fmt.Sprintf("%d %s", mins, pluralRu(mins, "минута", "минуты", "минут"))
+}
+
+// handleStatsCommand handles /stats — global monitoring statistics embed.
+func (b *DiscordBot) handleStatsCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+	})
+	go func() {
+		now := time.Now()
+		since24h := now.Add(-24 * time.Hour)
+
+		var totalServers, onlineServers int64
+		b.db.Model(&models.Server{}).Count(&totalServers)
+		b.db.Model(&models.ServerStatus{}).Where("online_status = true").Count(&onlineServers)
+
+		var totalPlayers int64
+		b.db.Model(&models.ServerStatus{}).Select("COALESCE(SUM(players_now), 0)").Scan(&totalPlayers)
+
+		// Global peak players over last 24h (sum across all servers per timestamp tick).
+		var peakRow struct{ Peak int }
+		b.db.Raw(`
+			SELECT COALESCE(MAX(sum_count), 0) AS peak
+			FROM (
+				SELECT SUM(count) AS sum_count
+				FROM player_history
+				WHERE timestamp > ? AND is_online = true
+				GROUP BY timestamp
+			) t`, since24h).Scan(&peakRow)
+
+		// Average uptime across all servers.
+		var totalH, onlineH int64
+		b.db.Model(&models.PlayerHistory{}).Where("timestamp > ?", since24h).Count(&totalH)
+		b.db.Model(&models.PlayerHistory{}).Where("timestamp > ? AND is_online = true", since24h).Count(&onlineH)
+		uptimeStr := "—"
+		if totalH > 0 {
+			uptimeStr = fmt.Sprintf("%d%%", onlineH*100/totalH)
+		}
+
+		// Top server by current player count.
+		var topSrv models.Server
+		topName := "—"
+		topPlayers := 0
+		if b.db.Preload("Status").
+			Joins("LEFT JOIN server_statuses ON server_statuses.server_id = servers.id").
+			Where("server_statuses.online_status = true").
+			Order("server_statuses.players_now DESC").
+			First(&topSrv).Error == nil {
+			topName = topSrv.Title
+			if topName == "" && topSrv.Status != nil && topSrv.Status.ServerName != "" {
+				topName = topSrv.Status.ServerName
+			}
+			if topName == "" {
+				addr := topSrv.IP
+				if topSrv.DisplayIP != "" {
+					addr = topSrv.DisplayIP
+				}
+				topName = fmt.Sprintf("%s:%d", addr, topSrv.Port)
+			}
+			if topSrv.Status != nil {
+				topPlayers = topSrv.Status.PlayersNow
+			}
+		}
+
+		var settings models.SiteSettings
+		b.db.First(&settings)
+		siteName := settings.SiteName
+		if siteName == "" {
+			siteName = "JS Monitor"
+		}
+
+		embed := &discordgo.MessageEmbed{
+			Title: "📊 Статистика мониторинга",
+			Color: 0x5865F2,
+			Author: &discordgo.MessageEmbedAuthor{
+				Name: siteName,
+				URL:  strings.TrimRight(b.appURL, "/") + "/",
+			},
+			Fields: []*discordgo.MessageEmbedField{
+				{Name: "🖥️ Серверов всего", Value: fmt.Sprintf("%d", totalServers), Inline: true},
+				{Name: "🟢 Онлайн", Value: fmt.Sprintf("%d", onlineServers), Inline: true},
+				{Name: "👥 Игроков сейчас", Value: fmt.Sprintf("%d", totalPlayers), Inline: true},
+				{Name: "📈 Пик 24ч", Value: fmt.Sprintf("%d", peakRow.Peak), Inline: true},
+				{Name: "⏱️ Средний аптайм 24ч", Value: uptimeStr, Inline: true},
+				{Name: "🏆 Топ сервер", Value: fmt.Sprintf("%s (%d игр.)", topName, topPlayers), Inline: false},
+			},
+			Footer: &discordgo.MessageEmbedFooter{
+				Text: fmt.Sprintf("JS Monitor %s • 🕐 %s", botVersion, now.Format("02-01-2006 15:04:05")),
+			},
+		}
+
+		embeds := []*discordgo.MessageEmbed{embed}
+		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &embeds})
+	}()
+}
+
+// handleTopCommand handles /top — top 10 players by session time today.
+func (b *DiscordBot) handleTopCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+	})
+	go func() {
+		now := time.Now()
+		today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+
+		var rows []struct {
+			PlayerName string
+			TotalSecs  int
+		}
+		b.db.Model(&models.PlayerSession{}).
+			Select("player_name, COALESCE(SUM(duration), 0) as total_secs").
+			Where("started_at >= ?", today).
+			Group("player_name").
+			Order("total_secs DESC").
+			Limit(10).
+			Scan(&rows)
+
+		var lines []string
+		medals := []string{"🥇", "🥈", "🥉"}
+		for idx, row := range rows {
+			medal := "▫️"
+			if idx < len(medals) {
+				medal = medals[idx]
+			}
+			lines = append(lines, fmt.Sprintf("%s **%s** — %s", medal, row.PlayerName, formatSessionDuration(row.TotalSecs)))
+		}
+
+		var settings models.SiteSettings
+		b.db.First(&settings)
+		siteName := settings.SiteName
+		if siteName == "" {
+			siteName = "JS Monitor"
+		}
+
+		description := "Нет данных за сегодня."
+		if len(lines) > 0 {
+			description = strings.Join(lines, "\n")
+		}
+
+		embed := &discordgo.MessageEmbed{
+			Title:       fmt.Sprintf("🏆 Топ игроков — %s", now.Format("02.01.2006")),
+			Description: description,
+			Color:       0xF0B132,
+			Author: &discordgo.MessageEmbedAuthor{
+				Name: siteName,
+				URL:  strings.TrimRight(b.appURL, "/") + "/",
+			},
+			Footer: &discordgo.MessageEmbedFooter{
+				Text: fmt.Sprintf("JS Monitor %s • 🕐 %s", botVersion, now.Format("02-01-2006 15:04:05")),
+			},
+		}
+
+		embeds := []*discordgo.MessageEmbed{embed}
+		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &embeds})
+	}()
+}
+
+// startAlertChecker polls server statuses every 60 s and sends an embed to
+// DiscordAlertChannelID when a server transitions online↔offline.
+func (b *DiscordBot) startAlertChecker(ctx context.Context) {
+	type serverState struct {
+		online bool
+		name   string
+	}
+
+	prevStatus := make(map[uint]serverState)
+
+	// Initialise from current DB state so we don't spam alerts on startup.
+	var statuses []models.ServerStatus
+	b.db.Find(&statuses)
+	for _, st := range statuses {
+		var srv models.Server
+		name := ""
+		if b.db.First(&srv, st.ServerID).Error == nil {
+			name = srv.Title
+			if name == "" && st.ServerName != "" {
+				name = st.ServerName
+			}
+		}
+		prevStatus[st.ServerID] = serverState{online: st.OnlineStatus, name: name}
+	}
+
+	go func() {
+		ticker := time.NewTicker(60 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				var settings models.SiteSettings
+				b.db.First(&settings)
+				alertCh := settings.DiscordAlertChannelID
+				if alertCh == "" {
+					continue
+				}
+
+				var currentStatuses []models.ServerStatus
+				b.db.Find(&currentStatuses)
+
+				for _, st := range currentStatuses {
+					prev, known := prevStatus[st.ServerID]
+					if !known {
+						prevStatus[st.ServerID] = serverState{online: st.OnlineStatus}
+						continue
+					}
+					if prev.online == st.OnlineStatus {
+						continue
+					}
+					// Status changed — send alert.
+					name := prev.name
+					if name == "" {
+						var srv models.Server
+						if b.db.First(&srv, st.ServerID).Error == nil {
+							name = srv.Title
+							if name == "" && st.ServerName != "" {
+								name = st.ServerName
+							}
+							if name == "" {
+								name = fmt.Sprintf("Сервер #%d", st.ServerID)
+							}
+						}
+					}
+					if st.ServerName != "" && name == "" {
+						name = st.ServerName
+					}
+
+					now := time.Now()
+					var color int
+					var titleEmoji, statusWord string
+					if st.OnlineStatus {
+						color = 0x57F287
+						titleEmoji = "🟢"
+						statusWord = "вернулся онлайн"
+					} else {
+						color = 0xED4245
+						titleEmoji = "🔴"
+						statusWord = "ушёл оффлайн"
+					}
+
+					embed := &discordgo.MessageEmbed{
+						Title:       fmt.Sprintf("%s %s", titleEmoji, name),
+						Description: fmt.Sprintf("Сервер **%s** %s.", name, statusWord),
+						Color:       color,
+						Footer: &discordgo.MessageEmbedFooter{
+							Text: fmt.Sprintf("JS Monitor %s • 🕐 %s", botVersion, now.Format("02-01-2006 15:04:05")),
+						},
+					}
+
+					if _, err := b.session.ChannelMessageSendComplex(alertCh, &discordgo.MessageSend{
+						Embeds: []*discordgo.MessageEmbed{embed},
+					}); err != nil {
+						log.Printf("[discord-bot] alert send failed for server %d: %v", st.ServerID, err)
+					}
+
+					prevStatus[st.ServerID] = serverState{online: st.OnlineStatus, name: name}
+				}
+			}
+		}
+	}()
+}
+
+// restoreEmbeds loads all persisted DiscordEmbed records from DB and restarts
+// their auto-refresh goroutines so embeds stay live after a bot restart.
+func (b *DiscordBot) restoreEmbeds() {
+	var embeds []models.DiscordEmbed
+	b.db.Find(&embeds)
+	for _, e := range embeds {
+		key := fmt.Sprintf("%s:%d", e.ChannelID, e.ServerID)
+		b.activeMessages.Store(key, e.MessageID)
+		go b.startChannelAutoRefresh(b.session, e.ChannelID, e.MessageID, int(e.ServerID), e.Period, key)
+		log.Printf("[discord-bot] restored embed: channel=%s server=%d msg=%s period=%s", e.ChannelID, e.ServerID, e.MessageID, e.Period)
+	}
+	if len(embeds) > 0 {
+		log.Printf("[discord-bot] restored %d embed(s) from DB", len(embeds))
+	}
 }
 
 // buildServerEmbed creates a Discord embed styled after DiscordGSM.
