@@ -396,6 +396,7 @@ export const translations = {
     adminSettingsDiscordAppIDHint: "Application ID from the \"General Information\" page of your Discord Application.",
     adminSettingsDiscordRestartHint: "Token changes take effect after restarting the service.",
     adminSettingsDiscordInvite: "Add bot to Discord server",
+    adminSettingsDiscordInviteHint: "Required permissions: View Channels, Send Messages, Embed Links.",
     // SSL / HTTPS
     adminSslSection: "Security & SSL",
     adminSslMode: "SSL Mode",
@@ -873,6 +874,7 @@ export const translations = {
     adminSettingsDiscordAppIDHint: "Application ID со страницы \"General Information\" вашего Discord-приложения.",
     adminSettingsDiscordRestartHint: "Изменение токена вступит в силу после перезапуска сервиса.",
     adminSettingsDiscordInvite: "Добавить бота на сервер Discord",
+    adminSettingsDiscordInviteHint: "Необходимые права: View Channels, Send Messages, Embed Links.",
     // SSL / HTTPS
     adminSslSection: "Безопасность и SSL",
     adminSslMode: "Режим SSL",

@@ -544,15 +544,18 @@ function SettingsTab({
         </div>
 
         {discordAppID && (
-          <a
-            href={`https://discord.com/oauth2/authorize?client_id=${discordAppID}&permissions=18432&scope=bot+applications.commands`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-[#5865F2]/15 text-[#7289da] border border-[#5865F2]/30 hover:bg-[#5865F2]/25 transition-all"
-          >
-            <DiscordIcon size={14} />
-            {t.adminSettingsDiscordInvite}
-          </a>
+          <div className="space-y-1.5">
+            <a
+              href={`https://discord.com/oauth2/authorize?client_id=${discordAppID}&permissions=19456&scope=bot+applications.commands`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-[#5865F2]/15 text-[#7289da] border border-[#5865F2]/30 hover:bg-[#5865F2]/25 transition-all"
+            >
+              <DiscordIcon size={14} />
+              {t.adminSettingsDiscordInvite}
+            </a>
+            <p className="text-xs text-muted-foreground">{t.adminSettingsDiscordInviteHint}</p>
+          </div>
         )}
 
         <p className="text-xs text-amber-400/70">{t.adminSettingsDiscordRestartHint}</p>
