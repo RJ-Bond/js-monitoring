@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -29,6 +30,14 @@ func NewDiscordBot(token, appURL string) (*DiscordBot, error) {
 		return nil, fmt.Errorf("discordgo: %w", err)
 	}
 	dg.Identify.Intents = discordgo.IntentsGuilds
+	// Set explicit timeout so REST calls don't hang indefinitely through a slow proxy.
+	dg.Client = &http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &http.Transport{
+			Proxy:               http.ProxyFromEnvironment,
+			MaxIdleConnsPerHost: 10,
+		},
+	}
 	b := &DiscordBot{session: dg, db: database.DB, appURL: appURL}
 	dg.AddHandler(b.handleInteraction)
 	return b, nil
@@ -89,69 +98,71 @@ func (b *DiscordBot) handleInteraction(s *discordgo.Session, i *discordgo.Intera
 }
 
 // handleServerCommand handles the /server slash command.
-// Sends a deferred ACK immediately so the 3-second Discord deadline is met even through a proxy.
+// Defers immediately, then fills the response in a goroutine.
 func (b *DiscordBot) handleServerCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	// ACK immediately — Discord allows up to 15 minutes to edit the deferred response.
 	_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
 	})
 
-	opts := i.ApplicationCommandData().Options
-	if len(opts) == 0 || opts[0].StringValue() == "" {
-		b.replyServerList(s, i)
-		return
-	}
+	go func() {
+		opts := i.ApplicationCommandData().Options
+		if len(opts) == 0 || opts[0].StringValue() == "" {
+			b.replyServerList(s, i)
+			return
+		}
 
-	serverID, err := strconv.Atoi(opts[0].StringValue())
-	if err != nil {
-		content := "❌ Неверный ID сервера."
-		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
-		return
-	}
+		serverID, err := strconv.Atoi(opts[0].StringValue())
+		if err != nil {
+			content := "❌ Неверный ID сервера."
+			b.retryEdit(s, i, &discordgo.WebhookEdit{Content: &content})
+			return
+		}
 
-	var srv models.Server
-	if b.db.Preload("Status").First(&srv, serverID).Error != nil {
-		content := "❌ Сервер не найден."
-		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
-		return
-	}
+		var srv models.Server
+		if b.db.Preload("Status").First(&srv, serverID).Error != nil {
+			content := "❌ Сервер не найден."
+			b.retryEdit(s, i, &discordgo.WebhookEdit{Content: &content})
+			return
+		}
 
-	embed := b.buildServerEmbed(&srv, "24h")
-	comps := b.buildComponents(uint(serverID), "24h", srv.IP, srv.Port)
-	_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
-		Embeds:     &[]*discordgo.MessageEmbed{embed},
-		Components: &comps,
-	})
+		embed := b.buildServerEmbed(&srv, "24h")
+		comps := b.buildComponents(uint(serverID), "24h", srv.IP, srv.Port)
+		b.retryEdit(s, i, &discordgo.WebhookEdit{
+			Embeds:     &[]*discordgo.MessageEmbed{embed},
+			Components: &comps,
+		})
+	}()
 }
 
 // handleChartButton handles period-switch button clicks: chart_{serverID}_{period}
-// Sends a deferred update ACK immediately to avoid the 3-second timeout.
 func (b *DiscordBot) handleChartButton(s *discordgo.Session, i *discordgo.InteractionCreate, customID string) {
 	_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseDeferredMessageUpdate,
 	})
 
-	parts := strings.SplitN(strings.TrimPrefix(customID, "chart_"), "_", 2)
-	if len(parts) != 2 {
-		return
-	}
-	serverID, err := strconv.Atoi(parts[0])
-	if err != nil {
-		return
-	}
-	period := parts[1]
+	go func() {
+		parts := strings.SplitN(strings.TrimPrefix(customID, "chart_"), "_", 2)
+		if len(parts) != 2 {
+			return
+		}
+		serverID, err := strconv.Atoi(parts[0])
+		if err != nil {
+			return
+		}
+		period := parts[1]
 
-	var srv models.Server
-	if b.db.Preload("Status").First(&srv, serverID).Error != nil {
-		return
-	}
+		var srv models.Server
+		if b.db.Preload("Status").First(&srv, serverID).Error != nil {
+			return
+		}
 
-	embed := b.buildServerEmbed(&srv, period)
-	comps := b.buildComponents(uint(serverID), period, srv.IP, srv.Port)
-	_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
-		Embeds:     &[]*discordgo.MessageEmbed{embed},
-		Components: &comps,
-	})
+		embed := b.buildServerEmbed(&srv, period)
+		comps := b.buildComponents(uint(serverID), period, srv.IP, srv.Port)
+		b.retryEdit(s, i, &discordgo.WebhookEdit{
+			Embeds:     &[]*discordgo.MessageEmbed{embed},
+			Components: &comps,
+		})
+	}()
 }
 
 // replyServerList edits the deferred response with a list of configured servers.
@@ -169,7 +180,21 @@ func (b *DiscordBot) replyServerList(s *discordgo.Session, i *discordgo.Interact
 		}
 		content = "**Серверы:**\n" + strings.Join(lines, "\n") + "\n\nИспользуй `/server id:<номер>`"
 	}
-	_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &content})
+	b.retryEdit(s, i, &discordgo.WebhookEdit{Content: &content})
+}
+
+// retryEdit attempts InteractionResponseEdit up to 3 times with backoff.
+// With a 10-second HTTP timeout, total worst-case time is ~35 seconds.
+func (b *DiscordBot) retryEdit(s *discordgo.Session, i *discordgo.InteractionCreate, data *discordgo.WebhookEdit) {
+	for attempt := 1; attempt <= 3; attempt++ {
+		if _, err := s.InteractionResponseEdit(i.Interaction, data); err == nil {
+			return
+		} else if attempt < 3 {
+			log.Printf("[discord-bot] edit attempt %d/3 failed: %v", attempt, err)
+			time.Sleep(time.Duration(attempt) * 3 * time.Second)
+		}
+	}
+	log.Printf("[discord-bot] all edit attempts exhausted for interaction %s", i.ID)
 }
 
 // buildServerEmbed creates a Discord embed for a server status card.
