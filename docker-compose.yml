@@ -49,6 +49,7 @@ services:
       TELEGRAM_DEFAULT_CHAT_ID: ${TELEGRAM_DEFAULT_CHAT_ID:-}
       HTTPS_PROXY: ${HTTPS_PROXY:-}
       NO_PROXY: ${NO_PROXY:-mysql,localhost,127.0.0.1}
+      TZ: ${TIMEZONE:-Europe/Moscow}
     volumes:
       - /etc/letsencrypt:/etc/letsencrypt:ro
       - /var/log/letsencrypt:/var/log/letsencrypt:ro
