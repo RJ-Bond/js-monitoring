@@ -1163,21 +1163,22 @@ export default function AdminPage() {
             </a>
             <a
               href="/"
-              className="px-3 py-2 rounded-xl text-xs font-medium border border-white/10 hover:border-white/20 text-muted-foreground hover:text-foreground transition-all"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border border-white/10 hover:border-white/20 text-muted-foreground hover:text-foreground transition-all"
             >
-              {t.adminBackToPanel}
+              <span className="sm:hidden">←</span>
+              <span className="hidden sm:inline">{t.adminBackToPanel}</span>
             </a>
           </div>
         </div>
 
         {/* Tab bar */}
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-2">
-          <div className="flex gap-1 bg-white/[0.04] rounded-2xl p-1 w-fit">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-2 overflow-x-auto">
+          <div className="flex gap-1 bg-white/[0.04] rounded-2xl p-1 w-full sm:w-fit min-w-fit">
             {tabs.map((tb) => (
               <button
                 key={tb.key}
                 onClick={() => setTab(tb.key)}
-                className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl transition-all ${
+                className={`flex items-center justify-center gap-1.5 flex-1 sm:flex-none px-3 sm:px-3.5 py-2 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${
                   tab === tb.key
                     ? "bg-white/15 text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground hover:bg-white/[0.06]"

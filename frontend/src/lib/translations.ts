@@ -50,6 +50,7 @@ export const translations = {
     footerBuiltWith: "Built with",
     // Auth
     authLogin: "Sign In",
+    authLogout: "Sign Out",
     authRegister: "Sign Up",
     authUsername: "Username",
     authUsernamePlaceholder: "player123",
@@ -564,6 +565,7 @@ export const translations = {
     footerBuiltWith: "Создано с",
     // Auth
     authLogin: "Войти",
+    authLogout: "Выйти",
     authRegister: "Регистрация",
     authUsername: "Имя пользователя",
     authUsernamePlaceholder: "player123",

@@ -355,7 +355,7 @@ export default function Home() {
             )}
             {isAuthenticated ? (
               <button onClick={() => { logout(); setMobileMenuOpen(false); }} className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-red-400 hover:bg-red-400/10 transition-colors text-left">
-                <LogOut className="w-4 h-4" />Logout
+                <LogOut className="w-4 h-4" />{t.authLogout}
               </button>
             ) : (
               <a href="/login" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
@@ -634,7 +634,7 @@ export default function Home() {
         </div>
 
         {/* Sort bar + export */}
-        <div className="flex items-center justify-between gap-3 -mt-4">
+        <div className="flex items-center justify-between gap-3 sm:-mt-4">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs text-muted-foreground hidden sm:block">{t.sortBy}</span>
             <div className="flex gap-1 bg-white/5 rounded-xl p-1">
@@ -709,7 +709,7 @@ export default function Home() {
                       className={`absolute top-3 right-3 p-1.5 rounded-lg border transition-all z-10 ${
                         inCompare
                           ? "bg-neon-blue/20 border-neon-blue/40 text-neon-blue"
-                          : "bg-black/40 border-white/10 text-muted-foreground hover:text-neon-blue hover:border-neon-blue/30 opacity-0 group-hover:opacity-100"
+                          : "bg-black/40 border-white/10 text-muted-foreground hover:text-neon-blue hover:border-neon-blue/30 sm:opacity-0 sm:group-hover:opacity-100"
                       }`}
                     >
                       <GitCompare className="w-3.5 h-3.5" />

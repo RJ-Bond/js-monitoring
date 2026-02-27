@@ -17,19 +17,19 @@ interface StatCardProps {
 
 function StatCard({ icon, value, label, iconBg, iconRing, progress, gradient }: StatCardProps) {
   return (
-    <div className="glass-card rounded-2xl px-5 py-4 flex flex-col gap-3">
-      <div className="flex items-center gap-4">
-        <div className={cn("p-3 rounded-2xl flex-shrink-0 ring-1", iconBg, iconRing)}>
+    <div className="glass-card rounded-2xl px-3 py-3 sm:px-5 sm:py-4 flex flex-col gap-2 sm:gap-3">
+      <div className="flex items-center gap-2 sm:gap-4">
+        <div className={cn("p-2 sm:p-3 rounded-xl sm:rounded-2xl flex-shrink-0 ring-1", iconBg, iconRing)}>
           {icon}
         </div>
         <div className="min-w-0">
           <div
-            className="text-3xl font-black tabular-nums leading-none"
+            className="text-xl sm:text-3xl font-black tabular-nums leading-none"
             style={gradient ? { background: gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" } : undefined}
           >
             {value}
           </div>
-          <div className="text-xs text-muted-foreground uppercase tracking-widest mt-1">{label}</div>
+          <div className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-widest mt-0.5 sm:mt-1 truncate">{label}</div>
         </div>
       </div>
       {progress && progress.max > 0 && (
@@ -58,7 +58,7 @@ export default function StatsOverview() {
   const { t } = useLanguage();
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div className="grid grid-cols-3 gap-3 sm:gap-4">
       <StatCard
         icon={<Server className="w-5 h-5 text-neon-blue" />}
         value={data?.total_servers ?? "—"}
