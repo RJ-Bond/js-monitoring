@@ -223,11 +223,7 @@ func (b *DiscordBot) handleServerCommand(s *discordgo.Session, i *discordgo.Inte
 
 		period := "24h"
 		embed := b.buildServerEmbed(&srv, period)
-		dip := srv.IP
-		if srv.DisplayIP != "" {
-			dip = srv.DisplayIP
-		}
-		comps := b.buildComponents(uint(serverID), period, dip, srv.Port)
+		comps := b.buildComponents(uint(serverID), period)
 
 		// Post as a plain channel message — no attribution header.
 		msg, err := s.ChannelMessageSendComplex(i.ChannelID, &discordgo.MessageSend{
@@ -275,11 +271,7 @@ func (b *DiscordBot) handleChartButton(s *discordgo.Session, i *discordgo.Intera
 		}
 
 		embed := b.buildServerEmbed(&srv, period)
-		dip := srv.IP
-		if srv.DisplayIP != "" {
-			dip = srv.DisplayIP
-		}
-		comps := b.buildComponents(uint(serverID), period, dip, srv.Port)
+		comps := b.buildComponents(uint(serverID), period)
 
 		// Edit the message directly by ID — works even after interaction token expiry.
 		if _, err := s.ChannelMessageEditComplex(&discordgo.MessageEdit{
@@ -358,11 +350,7 @@ func (b *DiscordBot) startChannelAutoRefresh(s *discordgo.Session, channelID, me
 				return
 			}
 			embed := b.buildServerEmbed(&srv, period)
-			dip := srv.IP
-			if srv.DisplayIP != "" {
-				dip = srv.DisplayIP
-			}
-			comps := b.buildComponents(uint(serverID), period, dip, srv.Port)
+			comps := b.buildComponents(uint(serverID), period)
 			if _, err := s.ChannelMessageEditComplex(&discordgo.MessageEdit{
 				Channel:    channelID,
 				ID:         messageID,
@@ -702,7 +690,7 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 // buildComponents builds the action rows of buttons for a server embed.
 // The period selector is a single cycle button: 24h → 7d → 30d → 24h.
 // Clicking it switches to the next period; the label shows the current period.
-func (b *DiscordBot) buildComponents(serverID uint, activePeriod, displayIP string, port uint16) []discordgo.MessageComponent {
+func (b *DiscordBot) buildComponents(serverID uint, activePeriod string) []discordgo.MessageComponent {
 	// Cycle order: 24h → 7d → 30d → 24h
 	nextPeriod := map[string]string{"24h": "7d", "7d": "30d", "30d": "24h"}
 	periodLabel := map[string]string{"24h": "📊 24ч", "7d": "📊 7д", "30d": "📊 30д"}
@@ -716,17 +704,14 @@ func (b *DiscordBot) buildComponents(serverID uint, activePeriod, displayIP stri
 		label = "📊 24ч"
 	}
 
-	// Row 1: cycle period button + connect link button.
+	// Row 1: cycle period button.
+	// Note: Discord only allows http/https/discord schemes in button URLs,
+	// so steam:// connect links are not possible here.
 	row1 := []discordgo.MessageComponent{
 		discordgo.Button{
 			Label:    label,
 			Style:    discordgo.PrimaryButton,
 			CustomID: fmt.Sprintf("chart_%d_%s", serverID, next),
-		},
-		discordgo.Button{
-			Label: "🔗 Подключиться",
-			Style: discordgo.LinkButton,
-			URL:   fmt.Sprintf("steam://connect/%s:%d", displayIP, port),
 		},
 	}
 
