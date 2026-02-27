@@ -665,8 +665,9 @@ func (b *DiscordBot) handleStatsCommand(s *discordgo.Session, i *discordgo.Inter
 				{Name: "🏆 Топ сервер", Value: fmt.Sprintf("%s (%d игр.)", topName, topPlayers), Inline: false},
 			},
 			Footer: &discordgo.MessageEmbedFooter{
-				Text: fmt.Sprintf("JS Monitor %s • 🕐 %s", botVersion, now.Format("02-01-2006 15:04:05")),
+				Text: fmt.Sprintf("JS Monitor %s • обновлено", botVersion),
 			},
+			Timestamp: now.Format(time.RFC3339),
 		}
 
 		embeds := []*discordgo.MessageEmbed{embed}
@@ -726,8 +727,9 @@ func (b *DiscordBot) handleTopCommand(s *discordgo.Session, i *discordgo.Interac
 				URL:  strings.TrimRight(b.appURL, "/") + "/",
 			},
 			Footer: &discordgo.MessageEmbedFooter{
-				Text: fmt.Sprintf("JS Monitor %s • 🕐 %s", botVersion, now.Format("02-01-2006 15:04:05")),
+				Text: fmt.Sprintf("JS Monitor %s • обновлено", botVersion),
 			},
+			Timestamp: now.Format(time.RFC3339),
 		}
 
 		embeds := []*discordgo.MessageEmbed{embed}
@@ -823,8 +825,9 @@ func (b *DiscordBot) startAlertChecker(ctx context.Context) {
 						Description: fmt.Sprintf("Сервер **%s** %s.", name, statusWord),
 						Color:       color,
 						Footer: &discordgo.MessageEmbedFooter{
-							Text: fmt.Sprintf("JS Monitor %s • 🕐 %s", botVersion, now.Format("02-01-2006 15:04:05")),
+							Text: fmt.Sprintf("JS Monitor %s • обновлено", botVersion),
 						},
+						Timestamp: now.Format(time.RFC3339),
 					}
 
 					if _, err := b.session.ChannelMessageSendComplex(alertCh, &discordgo.MessageSend{
@@ -1037,8 +1040,9 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 		Color: color,
 		Fields: fields,
 		Footer: &discordgo.MessageEmbedFooter{
-			Text: fmt.Sprintf("JS Monitor %s • 🕐 %s", botVersion, now.Format("02-01-2006 15:04:05")),
+			Text: fmt.Sprintf("JS Monitor %s • обновлено", botVersion),
 		},
+		Timestamp: now.Format(time.RFC3339),
 	}
 
 	if b.appURL != "" {
