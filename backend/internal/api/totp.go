@@ -1,9 +1,11 @@
 package api
 
 import (
+	"bytes"
+	"encoding/base64"
 	"fmt"
+	"image/png"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -38,14 +40,21 @@ func GenerateTOTP(c echo.Context) error {
 	// Сохраняем секрет временно (до подтверждения — EnableTOTP его закрепит)
 	database.DB.Model(&models.User{}).Where("id = ?", uid).Update("totp_secret", key.Secret())
 
-	// QR-код через Google Charts
-	otpURL := key.URL()
-	qrURL := fmt.Sprintf("https://chart.googleapis.com/chart?cht=qr&chs=256x256&chl=%s", url.QueryEscape(otpURL))
+	// QR-код генерируется локально через pquerna/otp, возвращается как data URL
+	img, err := key.Image(256, 256)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "failed to generate QR image"})
+	}
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "failed to encode QR image"})
+	}
+	qrDataURL := fmt.Sprintf("data:image/png;base64,%s", base64.StdEncoding.EncodeToString(buf.Bytes()))
 
 	return c.JSON(http.StatusOK, echo.Map{
 		"secret":  key.Secret(),
-		"qr_url":  qrURL,
-		"otp_url": otpURL,
+		"qr_url":  qrDataURL,
+		"otp_url": key.URL(),
 	})
 }
 

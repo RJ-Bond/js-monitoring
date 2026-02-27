@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, Shield, Copy } from "lucide-react";
 import { api } from "@/lib/api";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -20,13 +20,13 @@ export default function TOTPSetupModal({ onClose, onEnabled }: TOTPSetupModalPro
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
-  useState(() => {
+  useEffect(() => {
     api.generateTOTP().then((data) => {
       setQrUrl(data.qr_url);
       setSecret(data.secret);
       setStep("qr");
     }).catch(() => setStep("qr"));
-  });
+  }, []);
 
   const confirm = async () => {
     setError(""); setSaving(true);
