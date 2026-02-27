@@ -284,64 +284,104 @@ func (b *DiscordBot) retryEdit(s *discordgo.Session, i *discordgo.InteractionCre
 	}
 }
 
-// buildServerEmbed creates a Discord embed for a server status card.
+// countryFlag converts an ISO 3166-1 alpha-2 code (e.g. "RU") to a flag emoji (e.g. 🇷🇺).
+func countryFlag(code string) string {
+	if len(code) != 2 {
+		return ""
+	}
+	r0 := rune(0x1F1E6 + int32(code[0]-'A'))
+	r1 := rune(0x1F1E6 + int32(code[1]-'A'))
+	return string(r0) + string(r1)
+}
+
+// buildServerEmbed creates a Discord embed styled after DiscordGSM.
 func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discordgo.MessageEmbed {
 	online := srv.Status != nil && srv.Status.OnlineStatus
-	statusEmoji := "🔴"
-	color := 0xED4245 // red
+	statusText := "🔴 Не в сети"
+	color := 0xED4245
 	if online {
-		statusEmoji = "🟢"
-		color = 0x57F287 // green
+		statusText = "🟢 В сети"
+		color = 0x57F287
 	}
-
-	title := fmt.Sprintf("%s %s", statusEmoji, srv.Title)
 
 	displayIP := srv.IP
 	if srv.DisplayIP != "" {
 		displayIP = srv.DisplayIP
 	}
-	desc := fmt.Sprintf("`%s:%d`", displayIP, srv.Port)
-	if srv.GameType != "" {
-		desc += " | " + srv.GameType
+
+	// Country: flag emoji + name (or code as fallback)
+	countryVal := countryFlag(srv.CountryCode)
+	if srv.CountryName != "" {
+		countryVal += " " + srv.CountryName
+	} else if srv.CountryCode != "" {
+		countryVal += " " + srv.CountryCode
+	}
+	if countryVal == "" {
+		countryVal = "—"
 	}
 
-	var fields []*discordgo.MessageEmbedField
+	gameVal := srv.GameType
+	if gameVal == "" {
+		gameVal = "—"
+	}
+
+	mapVal := "—"
+	playersVal := "—"
 	if online && srv.Status != nil {
-		fields = append(fields, &discordgo.MessageEmbedField{
-			Name:   "👥 Игроки",
-			Value:  fmt.Sprintf("%d / %d", srv.Status.PlayersNow, srv.Status.PlayersMax),
-			Inline: true,
-		})
-		if srv.Status.PingMS > 0 {
-			fields = append(fields, &discordgo.MessageEmbedField{
-				Name:   "⚡ Пинг",
-				Value:  fmt.Sprintf("%d мс", srv.Status.PingMS),
-				Inline: true,
-			})
-		}
 		if srv.Status.CurrentMap != "" {
+			mapVal = srv.Status.CurrentMap
+		}
+		if srv.Status.PlayersMax > 0 {
+			pct := srv.Status.PlayersNow * 100 / srv.Status.PlayersMax
+			playersVal = fmt.Sprintf("%d/%d (%d%%)", srv.Status.PlayersNow, srv.Status.PlayersMax, pct)
+		} else {
+			playersVal = fmt.Sprintf("%d", srv.Status.PlayersNow)
+		}
+	}
+
+	// 3×2 grid of inline fields (matches DiscordGSM layout)
+	fields := []*discordgo.MessageEmbedField{
+		{Name: "Статус",              Value: statusText,                                Inline: true},
+		{Name: "Адрес:Порт (запрос)", Value: fmt.Sprintf("`%s:%d`", displayIP, srv.Port), Inline: true},
+		{Name: "Страна",              Value: countryVal,                                Inline: true},
+		{Name: "Игра",                Value: gameVal,                                   Inline: true},
+		{Name: "Текущая карта",       Value: mapVal,                                    Inline: true},
+		{Name: "Игроков",             Value: playersVal,                                Inline: true},
+	}
+
+	// Player list from active sessions (ended_at IS NULL)
+	if online && srv.Status != nil && srv.Status.PlayersNow > 0 {
+		var sessions []models.PlayerSession
+		b.db.Where("server_id = ? AND ended_at IS NULL", srv.ID).
+			Order("started_at ASC").
+			Limit(20).
+			Find(&sessions)
+		if len(sessions) > 0 {
+			names := make([]string, len(sessions))
+			for idx, s := range sessions {
+				names[idx] = s.PlayerName
+			}
 			fields = append(fields, &discordgo.MessageEmbedField{
-				Name:   "🗺️ Карта",
-				Value:  srv.Status.CurrentMap,
-				Inline: true,
+				Name:   "Список игроков",
+				Value:  strings.Join(names, "   "),
+				Inline: false,
 			})
 		}
 	}
 
+	now := time.Now().UTC()
 	embed := &discordgo.MessageEmbed{
-		Title:       title,
-		Description: desc,
-		Color:       color,
-		Fields:      fields,
+		Title:  srv.Title,
+		Color:  color,
+		Fields: fields,
 		Footer: &discordgo.MessageEmbedFooter{
-			Text: "JS Monitor",
+			Text: fmt.Sprintf("JS Monitor | Последнее обновление: %s", now.Format("2006-01-02 15:04:05")),
 		},
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	}
 
 	if b.appURL != "" {
 		chartURL := fmt.Sprintf("%s/api/v1/chart/%d?period=%s&_t=%d",
-			strings.TrimRight(b.appURL, "/"), srv.ID, period, time.Now().Unix())
+			strings.TrimRight(b.appURL, "/"), srv.ID, period, now.Unix())
 		embed.Image = &discordgo.MessageEmbedImage{URL: chartURL}
 	}
 
