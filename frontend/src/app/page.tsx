@@ -303,7 +303,7 @@ export default function Home() {
                 </a>
                 <a href="/admin" className="hidden sm:flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-medium border border-yellow-400/20 hover:border-yellow-400/40 text-yellow-400 hover:text-yellow-300 transition-all">
                   <Shield className="w-3.5 h-3.5" />
-                  Admin
+                  {t.adminBtn}
                 </a>
               </>
             )}
@@ -349,7 +349,7 @@ export default function Home() {
                   <Newspaper className="w-4 h-4" />{t.newsAdminLink}
                 </a>
                 <a href="/admin" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-yellow-400 hover:bg-yellow-400/10 transition-colors">
-                  <Shield className="w-4 h-4" />Admin
+                  <Shield className="w-4 h-4" />{t.adminBtn}
                 </a>
               </>
             )}

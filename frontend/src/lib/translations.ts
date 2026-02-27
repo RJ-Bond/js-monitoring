@@ -66,6 +66,7 @@ export const translations = {
     authLoginWithSteam: "Sign in with Steam",
     // Admin
     adminPanel: "Admin Panel",
+    adminBtn: "Admin",
     adminUsers: "Users",
     adminUsername: "Username",
     adminEmail: "Email",
@@ -579,6 +580,7 @@ export const translations = {
     authLoginWithSteam: "Войти через Steam",
     // Admin
     adminPanel: "Панель администратора",
+    adminBtn: "Админка",
     adminUsers: "Пользователи",
     adminUsername: "Пользователь",
     adminEmail: "Email",
