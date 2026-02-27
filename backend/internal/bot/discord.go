@@ -523,7 +523,7 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 		gameVal = "—"
 	}
 
-	mapVal := "—"
+	mapVal := "Неизвестна"
 	pingVal := "—"
 	playersVal := "—"
 	if online && srv.Status != nil {
