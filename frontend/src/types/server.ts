@@ -46,6 +46,7 @@ export interface Server {
   country_code?: string;
   country_name?: string;
   owner_id?: number;
+  discord_color?: string;
   created_at: string;
   updated_at: string;
   status?: ServerStatus;

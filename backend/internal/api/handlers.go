@@ -97,23 +97,25 @@ func UpdateServer(c echo.Context) error {
 
 	// Use a dedicated payload struct so json:"-" on Server fields doesn't block binding
 	var payload struct {
-		Title      string `json:"title"`
-		IP         string `json:"ip"`
-		DisplayIP  string `json:"display_ip"`
-		Port       uint16 `json:"port"`
-		GameType   string `json:"game_type"`
-		SecretRCON string `json:"secret_rcon_key"`
+		Title        string `json:"title"`
+		IP           string `json:"ip"`
+		DisplayIP    string `json:"display_ip"`
+		Port         uint16 `json:"port"`
+		GameType     string `json:"game_type"`
+		SecretRCON   string `json:"secret_rcon_key"`
+		DiscordColor string `json:"discord_color"`
 	}
 	if err := c.Bind(&payload); err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()})
 	}
 
 	updates := map[string]interface{}{
-		"title":      payload.Title,
-		"ip":         payload.IP,
-		"display_ip": payload.DisplayIP,
-		"port":       payload.Port,
-		"game_type":  payload.GameType,
+		"title":         payload.Title,
+		"ip":            payload.IP,
+		"display_ip":    payload.DisplayIP,
+		"port":          payload.Port,
+		"game_type":     payload.GameType,
+		"discord_color": payload.DiscordColor,
 	}
 	if payload.SecretRCON != "" {
 		updates["secret_rcon"] = payload.SecretRCON

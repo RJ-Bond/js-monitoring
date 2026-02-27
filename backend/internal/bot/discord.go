@@ -905,6 +905,13 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 		statusText = "🟢 В сети"
 		color = 0x57F287
 	}
+	// Override with per-server custom color if set (e.g. "#FF5500" or "FF5500")
+	if srv.DiscordColor != "" {
+		hexStr := strings.TrimPrefix(srv.DiscordColor, "#")
+		if v, err := strconv.ParseInt(hexStr, 16, 64); err == nil && v >= 0 {
+			color = int(v)
+		}
+	}
 
 	displayIP := srv.IP
 	if srv.DisplayIP != "" {

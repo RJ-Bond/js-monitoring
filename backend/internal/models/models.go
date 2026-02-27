@@ -38,9 +38,10 @@ type Server struct {
 	SecretRCON  string    `gorm:"type:varchar(255)"                     json:"-"`
 	CountryCode string    `gorm:"type:varchar(2)"                       json:"country_code"`
 	CountryName string    `gorm:"type:varchar(100)"                     json:"country_name"`
-	OwnerID     uint      `gorm:"index"                                 json:"owner_id"`
-	CreatedAt   time.Time `                                             json:"created_at"`
-	UpdatedAt   time.Time `                                             json:"updated_at"`
+	OwnerID      uint      `gorm:"index"                                 json:"owner_id"`
+	DiscordColor string    `gorm:"type:varchar(7)"                       json:"discord_color"`
+	CreatedAt    time.Time `                                              json:"created_at"`
+	UpdatedAt    time.Time `                                              json:"updated_at"`
 
 	Status      *ServerStatus `gorm:"foreignKey:ServerID" json:"status,omitempty"`
 	AlertConfig *AlertsConfig `gorm:"foreignKey:ServerID" json:"alert_config,omitempty"`

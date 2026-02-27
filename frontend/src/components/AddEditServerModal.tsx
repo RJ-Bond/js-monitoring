@@ -32,6 +32,7 @@ export default function AddEditServerModal({ onClose, editServer, onUpdate }: Ad
     port: String(editServer?.port ?? 27015),
     game_type: (editServer?.game_type ?? "source") as GameType,
     secret_rcon_key: "",
+    discord_color: editServer?.discord_color ?? "",
   });
   const [error, setError] = useState("");
 
@@ -104,6 +105,34 @@ export default function AddEditServerModal({ onClose, editServer, onUpdate }: Ad
           <div className="flex flex-col gap-1">
             <label className="text-xs text-muted-foreground uppercase tracking-wide">{t.fieldRcon}</label>
             <input className={field} placeholder="••••••••" type="password" value={form.secret_rcon_key} onChange={(e) => setForm({ ...form, secret_rcon_key: e.target.value })} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-muted-foreground uppercase tracking-wide">{t.fieldDiscordColor}</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                className="w-9 h-9 rounded-lg border border-white/10 bg-transparent cursor-pointer flex-shrink-0 p-0.5"
+                value={form.discord_color || "#57F287"}
+                onChange={(e) => setForm({ ...form, discord_color: e.target.value })}
+              />
+              <input
+                className={`${field} flex-1`}
+                placeholder="#57F287"
+                value={form.discord_color}
+                onChange={(e) => setForm({ ...form, discord_color: e.target.value })}
+                maxLength={7}
+              />
+              {form.discord_color && (
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, discord_color: "" })}
+                  className="text-xs text-muted-foreground hover:text-foreground border border-white/10 rounded-lg px-2 py-1.5 flex-shrink-0 transition-colors"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground/60 leading-relaxed">{t.fieldDiscordColorHint}</p>
           </div>
           {error && <p className="text-red-400 text-xs bg-red-400/10 rounded-lg px-3 py-2">{error}</p>}
           <div className="flex gap-2 pt-2">
