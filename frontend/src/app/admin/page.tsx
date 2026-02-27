@@ -150,6 +150,8 @@ interface SettingsTabProps {
   onDiscordAppIDChange: (v: string) => void;
   discordProxy: string;
   onDiscordProxyChange: (v: string) => void;
+  discordEmbedCfg: Record<string, boolean>;
+  onDiscordEmbedCfgChange: (key: string, val: boolean) => void;
   sslStatus: SSLStatus | null;
   sslStatusLoading: boolean;
   forceHttps: boolean;
@@ -189,6 +191,7 @@ function SettingsTab({
   discordBotTokenSet, discordNewBotToken, discordBotClear, discordAppID,
   onDiscordNewBotTokenChange, onDiscordBotClear, onDiscordAppIDChange,
   discordProxy, onDiscordProxyChange,
+  discordEmbedCfg, onDiscordEmbedCfgChange,
   sslStatus, sslStatusLoading, forceHttps, onForceHttpsChange, onRefreshSsl,
   onSave, t,
 }: SettingsTabProps) {
@@ -575,6 +578,42 @@ function SettingsTab({
         <p className="text-xs text-amber-400/70">{t.adminSettingsDiscordRestartHint}</p>
       </div>
 
+      {/* Discord Embed Fields */}
+      <div className="glass-card rounded-2xl p-5 space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground/80 flex items-center gap-2">
+          <span className="w-0.5 h-3.5 rounded-full bg-[#5865F2]/70 flex-shrink-0" />
+          <DiscordIcon size={14} />
+          {t.adminSettingsDiscordEmbed}
+        </h2>
+        <p className="text-xs text-muted-foreground">{t.adminSettingsDiscordEmbedHint}</p>
+        <div className="grid grid-cols-2 gap-2">
+          {([
+            ["status",       t.adminEmbedFieldStatus],
+            ["address",      t.adminEmbedFieldAddress],
+            ["country",      t.adminEmbedFieldCountry],
+            ["game",         t.adminEmbedFieldGame],
+            ["map",          t.adminEmbedFieldMap],
+            ["ping",         t.adminEmbedFieldPing],
+            ["players",      t.adminEmbedFieldPlayers],
+            ["peak_24h",     t.adminEmbedFieldPeak24h],
+            ["uptime_24h",   t.adminEmbedFieldUptime24h],
+            ["average_24h",  t.adminEmbedFieldAverage24h],
+            ["unique_today", t.adminEmbedFieldUniqueToday],
+            ["player_list",  t.adminEmbedFieldPlayerList],
+          ] as [string, string][]).map(([key, label]) => (
+            <label key={key} className="flex items-center gap-2 cursor-pointer select-none text-sm text-foreground/80 hover:text-foreground transition-colors">
+              <input
+                type="checkbox"
+                checked={discordEmbedCfg[key] ?? true}
+                onChange={(e) => onDiscordEmbedCfgChange(key, e.target.checked)}
+                className="w-4 h-4 rounded accent-neon-green cursor-pointer"
+              />
+              {label}
+            </label>
+          ))}
+        </div>
+      </div>
+
       {/* SSL / HTTPS */}
       <div className="glass-card p-4 flex flex-col gap-3">
         <div className="flex items-center justify-between">
@@ -729,6 +768,8 @@ export default function AdminPage() {
   const [discordBotClear, setDiscordBotClear] = useState(false);
   const [discordAppID, setDiscordAppID] = useState("");
   const [discordProxy, setDiscordProxy] = useState("");
+  const defaultEmbedCfg = { status: true, address: true, country: true, game: true, map: true, ping: true, players: true, peak_24h: true, uptime_24h: true, average_24h: true, unique_today: true, player_list: true };
+  const [discordEmbedCfg, setDiscordEmbedCfg] = useState<Record<string, boolean>>(defaultEmbedCfg);
   const [settingsForceHttps, setSettingsForceHttps] = useState(false);
   const [backupDownloading, setBackupDownloading] = useState(false);
   const [backupFile, setBackupFile] = useState<File | null>(null);
@@ -825,6 +866,11 @@ export default function AdminPage() {
         setDiscordProxy(s.discord_proxy ?? "");
         setDiscordNewBotToken("");
         setDiscordBotClear(false);
+        if (s.discord_embed_config) {
+          try { setDiscordEmbedCfg({ ...defaultEmbedCfg, ...JSON.parse(s.discord_embed_config) }); } catch { /* use defaults */ }
+        } else {
+          setDiscordEmbedCfg(defaultEmbedCfg);
+        }
         setSettingsForceHttps(s.force_https ?? false);
         setSteamNewKey("");
         setSteamClear(false);
@@ -1878,6 +1924,8 @@ export default function AdminPage() {
             onDiscordAppIDChange={setDiscordAppID}
             discordProxy={discordProxy}
             onDiscordProxyChange={setDiscordProxy}
+            discordEmbedCfg={discordEmbedCfg}
+            onDiscordEmbedCfgChange={(key, val) => setDiscordEmbedCfg((prev) => ({ ...prev, [key]: val }))}
             sslStatus={sslStatus}
             sslStatusLoading={sslStatusLoading}
             forceHttps={settingsForceHttps}
@@ -1912,6 +1960,7 @@ export default function AdminPage() {
                   discord_bot_token: discordBotToken,
                   discord_app_id: discordAppID,
                   discord_proxy: discordProxy,
+                  discord_embed_config: JSON.stringify(discordEmbedCfg),
                 });
                 await refreshSettings();
                 // Refresh Steam key info

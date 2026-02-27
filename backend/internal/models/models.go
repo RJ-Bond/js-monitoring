@@ -127,6 +127,33 @@ type SiteSettings struct {
 	DiscordBotToken     string `gorm:"type:varchar(200)"                      json:"-"`             // не раскрывается через API
 	DiscordAppID        string `gorm:"type:varchar(50)"                       json:"discord_app_id"`
 	DiscordProxy        string `gorm:"type:varchar(500)"                      json:"discord_proxy"`
+	DiscordEmbedConfig  string `gorm:"type:text"                              json:"discord_embed_config"` // JSON: EmbedFieldConfig
+}
+
+// EmbedFieldConfig controls which fields are shown in the Discord server embed.
+// All fields default to true when the config is empty/missing.
+type EmbedFieldConfig struct {
+	Status      bool `json:"status"`
+	Address     bool `json:"address"`
+	Country     bool `json:"country"`
+	Game        bool `json:"game"`
+	Map         bool `json:"map"`
+	Ping        bool `json:"ping"`
+	Players     bool `json:"players"`
+	Peak24h     bool `json:"peak_24h"`
+	Uptime24h   bool `json:"uptime_24h"`
+	Average24h  bool `json:"average_24h"`
+	UniqueToday bool `json:"unique_today"`
+	PlayerList  bool `json:"player_list"`
+}
+
+// DefaultEmbedFieldConfig returns a config with all fields enabled.
+func DefaultEmbedFieldConfig() EmbedFieldConfig {
+	return EmbedFieldConfig{
+		Status: true, Address: true, Country: true, Game: true,
+		Map: true, Ping: true, Players: true, Peak24h: true,
+		Uptime24h: true, Average24h: true, UniqueToday: true, PlayerList: true,
+	}
 }
 
 // PasswordReset — токен для сброса пароля (генерируется администратором)

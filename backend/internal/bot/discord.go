@@ -2,6 +2,7 @@ package bot
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -152,6 +153,8 @@ func (b *DiscordBot) handleInteraction(s *discordgo.Session, i *discordgo.Intera
 		cid := i.MessageComponentData().CustomID
 		if strings.HasPrefix(cid, "chart_") {
 			b.handleChartButton(s, i, cid)
+		} else if cid == "admin_panel" {
+			b.handleAdminButton(s, i)
 		}
 	}
 }
@@ -267,6 +270,31 @@ func (b *DiscordBot) handleChartButton(s *discordgo.Session, i *discordgo.Intera
 			log.Printf("[discord-bot] chart button edit failed: %v", err)
 		}
 	}()
+}
+
+// handleAdminButton handles the "⚙️ Админка" button click.
+// Only Discord server administrators can use it; others get an ephemeral denial.
+func (b *DiscordBot) handleAdminButton(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	if i.Member == nil || i.Member.Permissions&discordgo.PermissionAdministrator == 0 {
+		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "❌ Кнопка доступна только для администраторов сервера.",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+		return
+	}
+
+	adminURL := strings.TrimRight(b.appURL, "/") + "/admin?tab=settings"
+	content := fmt.Sprintf("⚙️ **Панель управления:**\n%s", adminURL)
+	_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: content,
+			Flags:   discordgo.MessageFlagsEphemeral,
+		},
+	})
 }
 
 // replyServerList edits the deferred response with a list of configured servers.
@@ -540,23 +568,61 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 	avgVal := fmt.Sprintf("%d", int(avgOnline))
 	uniqueVal := fmt.Sprintf("%d", uniqueToday)
 
-	// 3×2 inline grid + players row + stats rows below
-	fields := []*discordgo.MessageEmbedField{
-		{Name: "📊 Статус",       Value: statusText,                                   Inline: true},
-		{Name: "🌐 Адрес",        Value: fmt.Sprintf("`%s:%d`", displayIP, srv.Port),  Inline: true},
-		{Name: "🌍 Страна",       Value: countryVal,                                   Inline: true},
-		{Name: "🎮 Игра",         Value: gameVal,                                      Inline: true},
-		{Name: "🗺️ Карта",       Value: mapVal,                                       Inline: true},
-		{Name: "⚡ Пинг",         Value: pingVal,                                      Inline: true},
-		{Name: "👥 Игроков",      Value: playersVal,                                   Inline: false},
-		{Name: "📈 Пик 24ч",      Value: peakVal,                                      Inline: true},
-		{Name: "⏱️ Аптайм 24ч",  Value: uptimeVal,                                    Inline: true},
-		{Name: "📊 Среднее 24ч",  Value: avgVal,                                       Inline: true},
-		{Name: "👤 Игроков сегодня", Value: uniqueVal,                                 Inline: false},
+	// Load site settings (used for site name + embed field config).
+	var settings models.SiteSettings
+	b.db.First(&settings)
+	siteName := settings.SiteName
+	if siteName == "" {
+		siteName = "JS Monitor"
+	}
+
+	// Parse embed field visibility config (all fields shown by default).
+	embedCfg := models.DefaultEmbedFieldConfig()
+	if settings.DiscordEmbedConfig != "" {
+		var c models.EmbedFieldConfig
+		if err := json.Unmarshal([]byte(settings.DiscordEmbedConfig), &c); err == nil {
+			embedCfg = c
+		}
+	}
+
+	// Build fields conditionally based on admin-configured visibility.
+	var fields []*discordgo.MessageEmbedField
+	if embedCfg.Status {
+		fields = append(fields, &discordgo.MessageEmbedField{Name: "📊 Статус", Value: statusText, Inline: true})
+	}
+	if embedCfg.Address {
+		fields = append(fields, &discordgo.MessageEmbedField{Name: "🌐 Адрес", Value: fmt.Sprintf("`%s:%d`", displayIP, srv.Port), Inline: true})
+	}
+	if embedCfg.Country {
+		fields = append(fields, &discordgo.MessageEmbedField{Name: "🌍 Страна", Value: countryVal, Inline: true})
+	}
+	if embedCfg.Game {
+		fields = append(fields, &discordgo.MessageEmbedField{Name: "🎮 Игра", Value: gameVal, Inline: true})
+	}
+	if embedCfg.Map {
+		fields = append(fields, &discordgo.MessageEmbedField{Name: "🗺️ Карта", Value: mapVal, Inline: true})
+	}
+	if embedCfg.Ping {
+		fields = append(fields, &discordgo.MessageEmbedField{Name: "⚡ Пинг", Value: pingVal, Inline: true})
+	}
+	if embedCfg.Players {
+		fields = append(fields, &discordgo.MessageEmbedField{Name: "👥 Игроков", Value: playersVal, Inline: false})
+	}
+	if embedCfg.Peak24h {
+		fields = append(fields, &discordgo.MessageEmbedField{Name: "📈 Пик 24ч", Value: peakVal, Inline: true})
+	}
+	if embedCfg.Uptime24h {
+		fields = append(fields, &discordgo.MessageEmbedField{Name: "⏱️ Аптайм 24ч", Value: uptimeVal, Inline: true})
+	}
+	if embedCfg.Average24h {
+		fields = append(fields, &discordgo.MessageEmbedField{Name: "📊 Среднее 24ч", Value: avgVal, Inline: true})
+	}
+	if embedCfg.UniqueToday {
+		fields = append(fields, &discordgo.MessageEmbedField{Name: "👤 Игроков сегодня", Value: uniqueVal, Inline: false})
 	}
 
 	// Player list from active sessions (ended_at IS NULL)
-	if online && srv.Status != nil && srv.Status.PlayersNow > 0 {
+	if embedCfg.PlayerList && online && srv.Status != nil && srv.Status.PlayersNow > 0 {
 		var sessions []models.PlayerSession
 		b.db.Where("server_id = ? AND ended_at IS NULL", srv.ID).
 			Order("started_at ASC").
@@ -583,14 +649,6 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 	}
 	if title == "" {
 		title = fmt.Sprintf("%s:%d", displayIP, srv.Port)
-	}
-
-	// Site name for author line (branding above the embed title).
-	var settings models.SiteSettings
-	b.db.First(&settings)
-	siteName := settings.SiteName
-	if siteName == "" {
-		siteName = "JS Monitor"
 	}
 
 	embed := &discordgo.MessageEmbed{
@@ -642,7 +700,18 @@ func (b *DiscordBot) buildComponents(serverID uint, activePeriod string) []disco
 		})
 	}
 
+	adminRow := discordgo.ActionsRow{
+		Components: []discordgo.MessageComponent{
+			discordgo.Button{
+				Label:    "⚙️ Админка",
+				Style:    discordgo.SecondaryButton,
+				CustomID: "admin_panel",
+			},
+		},
+	}
+
 	return []discordgo.MessageComponent{
 		discordgo.ActionsRow{Components: btns},
+		adminRow,
 	}
 }

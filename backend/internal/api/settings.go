@@ -101,6 +101,7 @@ func GetAdminSettings(c echo.Context) error {
 		"discord_app_id":        s.DiscordAppID,
 		"discord_bot_token_set": s.DiscordBotToken != "",
 		"discord_proxy":         s.DiscordProxy,
+		"discord_embed_config":  s.DiscordEmbedConfig,
 	})
 }
 
@@ -122,6 +123,7 @@ func UpdateSettings(c echo.Context) error {
 		DiscordBotToken     string `json:"discord_bot_token"` // "" = no change, "__CLEAR__" = delete
 		DiscordAppID        string `json:"discord_app_id"`
 		DiscordProxy        string `json:"discord_proxy"`
+		DiscordEmbedConfig  string `json:"discord_embed_config"`
 	}
 	if err := c.Bind(&payload); err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid payload"})
@@ -176,6 +178,9 @@ func UpdateSettings(c echo.Context) error {
 	}
 	s.DiscordAppID = payload.DiscordAppID
 	s.DiscordProxy = payload.DiscordProxy
+	if payload.DiscordEmbedConfig != "" {
+		s.DiscordEmbedConfig = payload.DiscordEmbedConfig
+	}
 
 	database.DB.Save(&s)
 	{
