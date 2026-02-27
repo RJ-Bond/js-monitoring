@@ -129,6 +129,7 @@ type SiteSettings struct {
 	DiscordProxy        string `gorm:"type:varchar(500)"                      json:"discord_proxy"`
 	DiscordEmbedConfig      string `gorm:"type:text"                              json:"discord_embed_config"`      // JSON: EmbedFieldConfig
 	DiscordAlertChannelID   string `gorm:"type:varchar(32)"                       json:"discord_alert_channel_id"`  // канал для алертов оффлайн/онлайн
+	DiscordRefreshInterval  int    `gorm:"default:60"                             json:"discord_refresh_interval"`  // интервал авто-обновления embed, секунды
 }
 
 // DiscordEmbed — хранит активные embed-сообщения бота для восстановления после перезапуска.

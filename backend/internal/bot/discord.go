@@ -22,10 +22,11 @@ const botVersion = "v2.3.0"
 
 // DiscordBot manages the Discord Gateway connection and slash command interactions.
 type DiscordBot struct {
-	session        *discordgo.Session
-	db             *gorm.DB
-	appURL         string
-	activeMessages sync.Map // key: "channelID:serverID" → messageID; tracks posted embeds per channel
+	session         *discordgo.Session
+	db              *gorm.DB
+	appURL          string
+	activeMessages  sync.Map      // key: "channelID:serverID" → messageID; tracks posted embeds per channel
+	refreshInterval time.Duration // embed auto-refresh interval, read from SiteSettings on startup
 }
 
 // NewDiscordBot creates a new DiscordBot with the given bot token.
@@ -58,6 +59,17 @@ func (b *DiscordBot) Start(ctx context.Context) {
 
 	// Wait for Ready so we have the application ID.
 	time.Sleep(2 * time.Second)
+
+	// Read refresh interval from settings (default 60 s, minimum 10 s).
+	var settings models.SiteSettings
+	b.db.First(&settings)
+	interval := time.Duration(settings.DiscordRefreshInterval) * time.Second
+	if interval < 10*time.Second {
+		interval = 60 * time.Second
+	}
+	b.refreshInterval = interval
+	log.Printf("[discord-bot] embed refresh interval: %v", b.refreshInterval)
+
 	b.registerCommands()
 	b.restoreEmbeds()
 	b.startPresenceUpdater(ctx)
@@ -419,7 +431,7 @@ func (b *DiscordBot) startChannelAutoRefresh(s *discordgo.Session, channelID, me
 	go func() {
 		defer b.activeMessages.Delete(key)
 		defer b.db.Where("channel_id = ? AND server_id = ?", channelID, serverID).Delete(&models.DiscordEmbed{})
-		ticker := time.NewTicker(60 * time.Second)
+		ticker := time.NewTicker(b.refreshInterval)
 		defer ticker.Stop()
 		for range ticker.C {
 			var srv models.Server

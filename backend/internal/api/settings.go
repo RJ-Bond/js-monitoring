@@ -103,6 +103,7 @@ func GetAdminSettings(c echo.Context) error {
 		"discord_proxy":         s.DiscordProxy,
 		"discord_embed_config":        s.DiscordEmbedConfig,
 		"discord_alert_channel_id":    s.DiscordAlertChannelID,
+		"discord_refresh_interval":    s.DiscordRefreshInterval,
 	})
 }
 
@@ -126,6 +127,7 @@ func UpdateSettings(c echo.Context) error {
 		DiscordProxy        string `json:"discord_proxy"`
 		DiscordEmbedConfig      string `json:"discord_embed_config"`
 		DiscordAlertChannelID   string `json:"discord_alert_channel_id"`
+		DiscordRefreshInterval  int    `json:"discord_refresh_interval"`
 	}
 	if err := c.Bind(&payload); err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid payload"})
@@ -184,6 +186,11 @@ func UpdateSettings(c echo.Context) error {
 		s.DiscordEmbedConfig = payload.DiscordEmbedConfig
 	}
 	s.DiscordAlertChannelID = payload.DiscordAlertChannelID
+	if payload.DiscordRefreshInterval >= 10 {
+		s.DiscordRefreshInterval = payload.DiscordRefreshInterval
+	} else if payload.DiscordRefreshInterval == 0 && s.DiscordRefreshInterval == 0 {
+		s.DiscordRefreshInterval = 60
+	}
 
 	database.DB.Save(&s)
 	{

@@ -152,6 +152,8 @@ interface SettingsTabProps {
   onDiscordProxyChange: (v: string) => void;
   discordAlertChannelID: string;
   onDiscordAlertChannelIDChange: (v: string) => void;
+  discordRefreshInterval: number;
+  onDiscordRefreshIntervalChange: (v: number) => void;
   discordEmbedCfg: Record<string, boolean>;
   onDiscordEmbedCfgChange: (key: string, val: boolean) => void;
   sslStatus: SSLStatus | null;
@@ -194,6 +196,7 @@ function SettingsTab({
   onDiscordNewBotTokenChange, onDiscordBotClear, onDiscordAppIDChange,
   discordProxy, onDiscordProxyChange,
   discordAlertChannelID, onDiscordAlertChannelIDChange,
+  discordRefreshInterval, onDiscordRefreshIntervalChange,
   discordEmbedCfg, onDiscordEmbedCfgChange,
   sslStatus, sslStatusLoading, forceHttps, onForceHttpsChange, onRefreshSsl,
   onSave, t,
@@ -574,6 +577,19 @@ function SettingsTab({
           <p className="text-xs text-muted-foreground mt-1">{t.adminSettingsDiscordAlertChannelHint}</p>
         </div>
 
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">{t.adminSettingsDiscordRefreshInterval}</label>
+          <input
+            className={inputCls}
+            type="number"
+            min={10}
+            max={3600}
+            value={discordRefreshInterval || 60}
+            onChange={(e) => onDiscordRefreshIntervalChange(Math.max(10, parseInt(e.target.value) || 60))}
+          />
+          <p className="text-xs text-muted-foreground mt-1">{t.adminSettingsDiscordRefreshIntervalHint}</p>
+        </div>
+
         {discordAppID && (
           <div className="space-y-1.5">
             <a
@@ -783,6 +799,7 @@ export default function AdminPage() {
   const [discordAppID, setDiscordAppID] = useState("");
   const [discordProxy, setDiscordProxy] = useState("");
   const [discordAlertChannelID, setDiscordAlertChannelID] = useState("");
+  const [discordRefreshInterval, setDiscordRefreshInterval] = useState(60);
   const defaultEmbedCfg = { status: true, address: true, country: true, game: true, map: true, ping: true, players: true, peak_24h: true, uptime_24h: true, average_24h: true, unique_today: true, player_list: true };
   const [discordEmbedCfg, setDiscordEmbedCfg] = useState<Record<string, boolean>>(defaultEmbedCfg);
   const [settingsForceHttps, setSettingsForceHttps] = useState(false);
@@ -880,6 +897,7 @@ export default function AdminPage() {
         setDiscordAppID(s.discord_app_id ?? "");
         setDiscordProxy(s.discord_proxy ?? "");
         setDiscordAlertChannelID(s.discord_alert_channel_id ?? "");
+        setDiscordRefreshInterval(s.discord_refresh_interval ?? 60);
         setDiscordNewBotToken("");
         setDiscordBotClear(false);
         if (s.discord_embed_config) {
@@ -1942,6 +1960,8 @@ export default function AdminPage() {
             onDiscordProxyChange={setDiscordProxy}
             discordAlertChannelID={discordAlertChannelID}
             onDiscordAlertChannelIDChange={setDiscordAlertChannelID}
+            discordRefreshInterval={discordRefreshInterval}
+            onDiscordRefreshIntervalChange={setDiscordRefreshInterval}
             discordEmbedCfg={discordEmbedCfg}
             onDiscordEmbedCfgChange={(key, val) => setDiscordEmbedCfg((prev) => ({ ...prev, [key]: val }))}
             sslStatus={sslStatus}
@@ -1979,6 +1999,7 @@ export default function AdminPage() {
                   discord_app_id: discordAppID,
                   discord_proxy: discordProxy,
                   discord_alert_channel_id: discordAlertChannelID,
+                  discord_refresh_interval: discordRefreshInterval,
                   discord_embed_config: JSON.stringify(discordEmbedCfg),
                 });
                 await refreshSettings();
@@ -1993,6 +2014,7 @@ export default function AdminPage() {
                 setDiscordAppID(updated.discord_app_id ?? "");
                 setDiscordProxy(updated.discord_proxy ?? "");
                 setDiscordAlertChannelID(updated.discord_alert_channel_id ?? "");
+                setDiscordRefreshInterval(updated.discord_refresh_interval ?? 60);
                 setDiscordNewBotToken("");
                 setDiscordBotClear(false);
                 setSettingsSaved(true);
