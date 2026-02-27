@@ -1056,30 +1056,23 @@ func (b *DiscordBot) buildComponents(serverID uint, activePeriod string) []disco
 		label = "📊 24ч"
 	}
 
-	// Row 1: cycle period button.
+	// Single row: period cycle button + admin panel button side by side.
 	// Note: Discord only allows http/https/discord schemes in button URLs,
 	// so steam:// connect links are not possible here.
-	row1 := []discordgo.MessageComponent{
-		discordgo.Button{
-			Label:    label,
-			Style:    discordgo.PrimaryButton,
-			CustomID: fmt.Sprintf("chart_%d_%s", serverID, next),
-		},
-	}
-
-	// Row 2: admin panel button.
-	row2 := discordgo.ActionsRow{
+	row := discordgo.ActionsRow{
 		Components: []discordgo.MessageComponent{
 			discordgo.Button{
+				Label:    label,
+				Style:    discordgo.PrimaryButton,
+				CustomID: fmt.Sprintf("chart_%d_%s", serverID, next),
+			},
+			discordgo.Button{
 				Label:    "⚙️ Админка",
-				Style:    discordgo.SecondaryButton,
+				Style:    discordgo.DangerButton,
 				CustomID: "admin_panel",
 			},
 		},
 	}
 
-	return []discordgo.MessageComponent{
-		discordgo.ActionsRow{Components: row1},
-		row2,
-	}
+	return []discordgo.MessageComponent{row}
 }
