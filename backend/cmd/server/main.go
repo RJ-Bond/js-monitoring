@@ -108,6 +108,7 @@ func main() {
 	v1.GET("/news.rss", api.GetNewsRSS)
 	v1.POST("/news/:id/view", api.TrackView)
 	v1.GET("/settings", api.GetSettings)
+	v1.GET("/logo", api.GetLogo)
 	v1.GET("/users/:username", api.GetPublicProfile)
 	v1.GET("/leaderboard", api.GetGlobalLeaderboard)
 	v1.GET("/players/:name", api.GetPlayerProfile)

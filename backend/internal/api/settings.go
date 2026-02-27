@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/base64"
 	"net/http"
 	"os"
 	"strings"
@@ -215,4 +216,34 @@ func UpdateSettings(c echo.Context) error {
 		"news_tg_chat_id":      s.NewsTGChatID,
 		"news_tg_thread_id":    s.NewsTGThreadID,
 	})
+}
+
+// GetLogo GET /api/v1/logo — public
+// Serves the site logo stored as base64 data URL. Used as Discord embed footer icon.
+func GetLogo(c echo.Context) error {
+	var s models.SiteSettings
+	if database.DB.First(&s, 1).Error != nil || s.LogoData == "" {
+		return c.NoContent(http.StatusNotFound)
+	}
+
+	// Expected format: "data:<mime>;base64,<data>"
+	comma := strings.Index(s.LogoData, ",")
+	if comma < 0 {
+		return c.NoContent(http.StatusNotFound)
+	}
+	header := s.LogoData[:comma]    // "data:image/webp;base64"
+	encoded := s.LogoData[comma+1:] // base64 payload
+
+	mime := "image/png"
+	if semi := strings.Index(header, ";"); semi > 5 {
+		mime = header[5:semi] // strip "data:"
+	}
+
+	data, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	c.Response().Header().Set("Cache-Control", "public, max-age=300")
+	return c.Blob(http.StatusOK, mime, data)
 }

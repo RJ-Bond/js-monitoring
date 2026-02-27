@@ -518,6 +518,15 @@ func (b *DiscordBot) retryEdit(s *discordgo.Session, i *discordgo.InteractionCre
 	}
 }
 
+// logoURL returns the public URL for the site logo, used as Discord embed footer icon.
+// Returns empty string if appURL is not configured.
+func (b *DiscordBot) logoURL() string {
+	if b.appURL == "" {
+		return ""
+	}
+	return strings.TrimRight(b.appURL, "/") + "/api/v1/logo"
+}
+
 // countryFlag converts an ISO 3166-1 alpha-2 code (e.g. "RU") to a flag emoji (e.g. 🇷🇺).
 func countryFlag(code string) string {
 	if len(code) != 2 {
@@ -689,7 +698,8 @@ func (b *DiscordBot) handleStatsCommand(s *discordgo.Session, i *discordgo.Inter
 				{Name: "🏆 Топ сервер", Value: fmt.Sprintf("%s (%d игр.)", topName, topPlayers), Inline: false},
 			},
 			Footer: &discordgo.MessageEmbedFooter{
-				Text: fmt.Sprintf("JS Monitor %s", botVersion),
+				Text:    fmt.Sprintf("JS Monitor %s", botVersion),
+				IconURL: b.logoURL(),
 			},
 			Timestamp: now.Format(time.RFC3339),
 		}
@@ -751,7 +761,8 @@ func (b *DiscordBot) handleTopCommand(s *discordgo.Session, i *discordgo.Interac
 				URL:  strings.TrimRight(b.appURL, "/") + "/",
 			},
 			Footer: &discordgo.MessageEmbedFooter{
-				Text: fmt.Sprintf("JS Monitor %s", botVersion),
+				Text:    fmt.Sprintf("JS Monitor %s", botVersion),
+				IconURL: b.logoURL(),
 			},
 			Timestamp: now.Format(time.RFC3339),
 		}
@@ -849,7 +860,8 @@ func (b *DiscordBot) startAlertChecker(ctx context.Context) {
 						Description: fmt.Sprintf("Сервер **%s** %s.", name, statusWord),
 						Color:       color,
 						Footer: &discordgo.MessageEmbedFooter{
-							Text: fmt.Sprintf("JS Monitor %s", botVersion),
+							Text:    fmt.Sprintf("JS Monitor %s", botVersion),
+							IconURL: b.logoURL(),
 						},
 						Timestamp: now.Format(time.RFC3339),
 					}
@@ -1065,7 +1077,8 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 		Color: color,
 		Fields: fields,
 		Footer: &discordgo.MessageEmbedFooter{
-			Text: fmt.Sprintf("JS Monitor %s", botVersion),
+			Text:    fmt.Sprintf("JS Monitor %s", botVersion),
+			IconURL: b.logoURL(),
 		},
 		Timestamp: now.Format(time.RFC3339),
 	}
