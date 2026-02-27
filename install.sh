@@ -339,6 +339,13 @@ if [[ ! -f .env ]]; then
 else
   ok "$T_ENV_EXISTS"
   SSL_MODE_VAL=$(grep "^SSL_MODE=" .env 2>/dev/null | cut -d= -f2 || echo "none")
+  # On update: regenerate nginx.conf from the correct template so git pull
+  # doesn't leave a stale HTTP-only config when SSL is configured.
+  SSL_DOMAIN_VAL=$(grep "^SSL_DOMAIN=" .env 2>/dev/null | cut -d= -f2 || echo "")
+  case "$SSL_MODE_VAL" in
+    letsencrypt) [[ -n "$SSL_DOMAIN_VAL" ]] && sed "s|{DOMAIN}|${SSL_DOMAIN_VAL}|g" nginx/nginx-ssl.conf > nginx/nginx.conf ;;
+    custom)      cp nginx/nginx-ssl-custom.conf nginx/nginx.conf ;;
+  esac
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
