@@ -60,8 +60,28 @@ func (b *DiscordBot) Start(ctx context.Context) {
 	log.Println("[discord-bot] shutting down")
 }
 
-// registerCommands registers the /addserver slash command globally.
+// registerCommands registers the /addserver slash command globally
+// and removes any stale commands that are no longer used.
 func (b *DiscordBot) registerCommands() {
+	appID := b.session.State.User.ID
+
+	current := map[string]bool{
+		"addserver": true,
+	}
+
+	// Delete commands that are registered in Discord but no longer used.
+	if existing, err := b.session.ApplicationCommands(appID, ""); err == nil {
+		for _, c := range existing {
+			if !current[c.Name] {
+				if err := b.session.ApplicationCommandDelete(appID, "", c.ID); err != nil {
+					log.Printf("[discord-bot] failed to delete stale command /%s: %v", c.Name, err)
+				} else {
+					log.Printf("[discord-bot] deleted stale command: /%s", c.Name)
+				}
+			}
+		}
+	}
+
 	cmd := &discordgo.ApplicationCommand{
 		Name:        "addserver",
 		Description: "Показать статус игрового сервера",
@@ -74,7 +94,6 @@ func (b *DiscordBot) registerCommands() {
 			},
 		},
 	}
-	appID := b.session.State.User.ID
 	if _, err := b.session.ApplicationCommandCreate(appID, "", cmd); err != nil {
 		log.Printf("[discord-bot] command register error: %v", err)
 	} else {
