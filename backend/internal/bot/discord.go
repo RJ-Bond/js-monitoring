@@ -412,22 +412,43 @@ func loadLabel(pct int) string {
 	}
 }
 
-// formatSessionDuration formats elapsed seconds as a human-readable duration.
-// Examples: "< 1 мин", "5 мин", "1ч 20мин", "3ч".
+// pluralRu returns the correct Russian plural form for n.
+// form1 — 1, 21, 31… (минута, час)
+// form2 — 2-4, 22-24… (минуты, часа)
+// form5 — 5-20, 25-30… (минут, часов)
+func pluralRu(n int, form1, form2, form5 string) string {
+	mod100 := n % 100
+	mod10 := n % 10
+	if mod100 >= 11 && mod100 <= 20 {
+		return form5
+	}
+	switch mod10 {
+	case 1:
+		return form1
+	case 2, 3, 4:
+		return form2
+	default:
+		return form5
+	}
+}
+
+// formatSessionDuration formats elapsed seconds using full Russian words with correct plural forms.
+// Examples: "< 1 минуты", "1 минута", "5 минут", "1 час", "2 часа", "1 час 20 минут".
 func formatSessionDuration(secs int) string {
 	if secs < 60 {
-		return "< 1 мин"
+		return "< 1 минуты"
 	}
 	mins := secs / 60
 	hours := mins / 60
 	mins = mins % 60
 	if hours > 0 {
+		hourStr := fmt.Sprintf("%d %s", hours, pluralRu(hours, "час", "часа", "часов"))
 		if mins == 0 {
-			return fmt.Sprintf("%dч", hours)
+			return hourStr
 		}
-		return fmt.Sprintf("%dч %dмин", hours, mins)
+		return fmt.Sprintf("%s %d %s", hourStr, mins, pluralRu(mins, "минута", "минуты", "минут"))
 	}
-	return fmt.Sprintf("%dмин", mins)
+	return fmt.Sprintf("%d %s", mins, pluralRu(mins, "минута", "минуты", "минут"))
 }
 
 // buildServerEmbed creates a Discord embed styled after DiscordGSM.
