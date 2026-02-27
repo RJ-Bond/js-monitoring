@@ -117,10 +117,15 @@ func (b *DiscordBot) handleInteraction(s *discordgo.Session, i *discordgo.Intera
 }
 
 // handleServerCommand handles the /addserver slash command.
-// Defers immediately, then fills the response in a goroutine.
+// Responds ephemerally (hidden) so "X uses /addserver" never appears in the channel,
+// then posts the embed as a plain channel message for compact spacing.
 func (b *DiscordBot) handleServerCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	// Ephemeral ACK — only the caller sees "thinking", channel stays clean.
 	_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Flags: discordgo.MessageFlagsEphemeral,
+		},
 	})
 
 	go func() {
@@ -147,13 +152,24 @@ func (b *DiscordBot) handleServerCommand(s *discordgo.Session, i *discordgo.Inte
 		period := "24h"
 		embed := b.buildServerEmbed(&srv, period)
 		comps := b.buildComponents(uint(serverID), period)
-		b.retryEdit(s, i, &discordgo.WebhookEdit{
-			Embeds:     &[]*discordgo.MessageEmbed{embed},
-			Components: &comps,
-		})
 
-		// Auto-refresh every minute while the interaction token is valid (~14 min).
-		b.startAutoRefresh(s, i, serverID, period)
+		// Post as a plain channel message — no attribution header.
+		msg, err := s.ChannelMessageSendComplex(i.ChannelID, &discordgo.MessageSend{
+			Embeds:     []*discordgo.MessageEmbed{embed},
+			Components: comps,
+		})
+		if err != nil {
+			log.Printf("[discord-bot] channel send failed: %v", err)
+			content := "❌ Не удалось отправить сообщение."
+			b.retryEdit(s, i, &discordgo.WebhookEdit{Content: &content})
+			return
+		}
+
+		// Remove the ephemeral "thinking..." placeholder.
+		_ = s.InteractionResponseDelete(i.Interaction)
+
+		// Auto-refresh: edit the channel message every minute (no 15-min limit).
+		b.startChannelAutoRefresh(s, i.ChannelID, msg.ID, serverID, period)
 	}()
 }
 
@@ -181,10 +197,16 @@ func (b *DiscordBot) handleChartButton(s *discordgo.Session, i *discordgo.Intera
 
 		embed := b.buildServerEmbed(&srv, period)
 		comps := b.buildComponents(uint(serverID), period)
-		b.retryEdit(s, i, &discordgo.WebhookEdit{
+
+		// Edit the message directly by ID — works even after interaction token expiry.
+		if _, err := s.ChannelMessageEditComplex(&discordgo.MessageEdit{
+			Channel:    i.ChannelID,
+			ID:         i.Message.ID,
 			Embeds:     &[]*discordgo.MessageEmbed{embed},
 			Components: &comps,
-		})
+		}); err != nil {
+			log.Printf("[discord-bot] chart button edit failed: %v", err)
+		}
 	}()
 }
 
@@ -214,29 +236,26 @@ func (b *DiscordBot) replyServerList(s *discordgo.Session, i *discordgo.Interact
 	b.retryEdit(s, i, &discordgo.WebhookEdit{Content: &content})
 }
 
-// startAutoRefresh re-edits the interaction message every minute for up to 14 minutes.
-func (b *DiscordBot) startAutoRefresh(s *discordgo.Session, i *discordgo.InteractionCreate, serverID int, period string) {
+// startChannelAutoRefresh edits a plain channel message every minute until it fails
+// (e.g. message was deleted). No 15-minute token expiry constraint.
+func (b *DiscordBot) startChannelAutoRefresh(s *discordgo.Session, channelID, messageID string, serverID int, period string) {
 	go func() {
 		ticker := time.NewTicker(60 * time.Second)
 		defer ticker.Stop()
-		deadline := time.After(14 * time.Minute)
-		for {
-			select {
-			case <-ticker.C:
-				var srv models.Server
-				if b.db.Preload("Status").First(&srv, serverID).Error != nil {
-					return
-				}
-				embed := b.buildServerEmbed(&srv, period)
-				comps := b.buildComponents(uint(serverID), period)
-				if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
-					Embeds:     &[]*discordgo.MessageEmbed{embed},
-					Components: &comps,
-				}); err != nil {
-					log.Printf("[discord-bot] auto-refresh stopped: %v", err)
-					return
-				}
-			case <-deadline:
+		for range ticker.C {
+			var srv models.Server
+			if b.db.Preload("Status").First(&srv, serverID).Error != nil {
+				return
+			}
+			embed := b.buildServerEmbed(&srv, period)
+			comps := b.buildComponents(uint(serverID), period)
+			if _, err := s.ChannelMessageEditComplex(&discordgo.MessageEdit{
+				Channel:    channelID,
+				ID:         messageID,
+				Embeds:     &[]*discordgo.MessageEmbed{embed},
+				Components: &comps,
+			}); err != nil {
+				log.Printf("[discord-bot] auto-refresh stopped for %s: %v", messageID, err)
 				return
 			}
 		}
