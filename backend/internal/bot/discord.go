@@ -58,6 +58,7 @@ func (b *DiscordBot) Start(ctx context.Context) {
 	// Wait for Ready so we have the application ID.
 	time.Sleep(2 * time.Second)
 	b.registerCommands()
+	b.startPresenceUpdater(ctx)
 
 	log.Println("[discord-bot] started")
 	<-ctx.Done()
@@ -103,6 +104,41 @@ func (b *DiscordBot) registerCommands() {
 	} else {
 		log.Println("[discord-bot] /addserver command registered")
 	}
+}
+
+// startPresenceUpdater sets and periodically refreshes the bot's activity status.
+// Discord shows: "Наблюдает за 5 серверами | 42 игрока"
+func (b *DiscordBot) startPresenceUpdater(ctx context.Context) {
+	update := func() {
+		var onlineServers int64
+		var totalPlayers int64
+		b.db.Model(&models.ServerStatus{}).Where("online_status = true").Count(&onlineServers)
+		b.db.Model(&models.ServerStatus{}).Select("COALESCE(SUM(players_now), 0)").Scan(&totalPlayers)
+
+		statusText := fmt.Sprintf("за %d серверами | %d игроков", onlineServers, totalPlayers)
+		if err := b.session.UpdateStatusComplex(discordgo.UpdateStatusData{
+			Status: "online",
+			Activities: []*discordgo.Activity{
+				{Name: statusText, Type: discordgo.ActivityTypeWatching},
+			},
+		}); err != nil {
+			log.Printf("[discord-bot] presence update error: %v", err)
+		}
+	}
+
+	update()
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				update()
+			}
+		}
+	}()
 }
 
 // handleInteraction dispatches incoming Discord interactions.
