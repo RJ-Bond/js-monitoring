@@ -388,7 +388,7 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 		}
 	}
 
-	now := time.Now().UTC()
+	now := time.Now()
 	embed := &discordgo.MessageEmbed{
 		Title:  srv.Title,
 		Color:  color,
