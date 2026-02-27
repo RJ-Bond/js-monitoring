@@ -887,7 +887,7 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 		}
 		if srv.Status.PlayersMax > 0 {
 			pct := srv.Status.PlayersNow * 100 / srv.Status.PlayersMax
-			playersVal = fmt.Sprintf("%d/%d (%d%%) • %s", srv.Status.PlayersNow, srv.Status.PlayersMax, pct, loadLabel(pct))
+			playersVal = fmt.Sprintf("%d/%d • %s", srv.Status.PlayersNow, srv.Status.PlayersMax, loadLabel(pct))
 		} else {
 			playersVal = fmt.Sprintf("%d", srv.Status.PlayersNow)
 		}
