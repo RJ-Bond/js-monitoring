@@ -260,4 +260,22 @@ export const api = {
   testNewsWebhook: () => fetchJSON<{ ok: boolean }>("/api/v1/admin/news/webhook/test", { method: "POST" }),
   testTelegramWebhook: () => fetchJSON<{ ok: boolean }>("/api/v1/admin/news/telegram/test", { method: "POST" }),
   getSSLStatus: () => fetchJSON<SSLStatus>("/api/v1/admin/ssl/status"),
+
+  downloadBackup: async (): Promise<Blob> => {
+    const token = typeof window !== "undefined"
+      ? (localStorage.getItem("jsmon-token") ?? sessionStorage.getItem("jsmon-token") ?? "")
+      : "";
+    const res = await fetch(`${BASE}/api/v1/admin/backup`, {
+      cache: "no-store",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.blob();
+  },
+
+  restoreBackup: (data: unknown) =>
+    fetchJSON<{ message: string; users: number; servers: number; news: number }>(
+      "/api/v1/admin/restore",
+      { method: "POST", body: JSON.stringify(data) }
+    ),
 };

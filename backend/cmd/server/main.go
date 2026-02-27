@@ -168,6 +168,8 @@ func main() {
 	admin.POST("/news/webhook/test", api.TestNewsWebhook)
 	admin.POST("/news/telegram/test", api.TestTelegramNewsWebhook)
 	admin.GET("/ssl/status", api.GetSSLStatus)
+	admin.GET("/backup", api.GetBackup)
+	admin.POST("/restore", api.RestoreBackup)
 
 	// ── Graceful shutdown context ─────────────────────────────────────────────
 	ctx, cancel := context.WithCancel(context.Background())

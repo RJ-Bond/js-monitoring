@@ -8,7 +8,7 @@ import {
   Search, ChevronUp, ChevronDown, ChevronsUpDown,
   Trash2, AlertTriangle, Settings, Eye, EyeOff, ExternalLink, Tag,
   Bell, KeyRound, ClipboardList, Copy, X, MessageSquare, Download, CheckSquare, Square,
-  CalendarDays, Mail, UserCheck, Lock,
+  CalendarDays, Mail, UserCheck, Lock, Database, Upload,
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -730,6 +730,10 @@ export default function AdminPage() {
   const [discordAppID, setDiscordAppID] = useState("");
   const [discordProxy, setDiscordProxy] = useState("");
   const [settingsForceHttps, setSettingsForceHttps] = useState(false);
+  const [backupDownloading, setBackupDownloading] = useState(false);
+  const [backupFile, setBackupFile] = useState<File | null>(null);
+  const [backupRestoring, setBackupRestoring] = useState(false);
+  const [backupRestoreResult, setBackupRestoreResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [sslStatus, setSslStatus] = useState<SSLStatus | null>(null);
   const [sslStatusLoading, setSslStatusLoading] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
@@ -1818,6 +1822,7 @@ export default function AdminPage() {
 
         {/* ── SETTINGS TAB ── */}
         {tab === "settings" && (
+          <>
           <SettingsTab
             name={settingsName}
             logo={settingsLogo}
@@ -1931,6 +1936,94 @@ export default function AdminPage() {
             }}
             t={t}
           />
+
+          {/* ── Backup & Restore ── */}
+          <div className="glass-card rounded-2xl p-5 space-y-4 mt-4">
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground/80 flex items-center gap-2">
+              <span className="w-0.5 h-3.5 rounded-full bg-neon-green/60 flex-shrink-0" />
+              <Database size={14} />
+              {t.adminBackup}
+            </h2>
+            <p className="text-xs text-muted-foreground">{t.adminBackupHint}</p>
+
+            {/* Download */}
+            <button
+              type="button"
+              disabled={backupDownloading}
+              onClick={async () => {
+                setBackupDownloading(true);
+                try {
+                  const blob = await api.downloadBackup();
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `jsmon-backup-${new Date().toISOString().slice(0, 10)}.json`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                } catch {
+                  toast(t.adminBackupRestoreError, "error");
+                } finally {
+                  setBackupDownloading(false);
+                }
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-neon-green/10 text-neon-green border border-neon-green/20 hover:bg-neon-green/20 transition-all disabled:opacity-50"
+            >
+              <Download size={14} />
+              {backupDownloading ? t.adminBackupDownloading : t.adminBackupDownload}
+            </button>
+
+            {/* Restore */}
+            <div className="border-t border-white/5 pt-4 space-y-3">
+              <p className="text-xs font-medium text-muted-foreground">{t.adminBackupRestore}</p>
+              <p className="text-xs text-red-400/80">{t.adminBackupRestoreHint}</p>
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-white/5 border border-white/10 hover:bg-white/10 cursor-pointer transition-all">
+                  <Upload size={14} />
+                  {backupFile ? backupFile.name : t.adminBackupRestoreSelect}
+                  <input
+                    type="file"
+                    accept=".json,application/json"
+                    className="hidden"
+                    onChange={(e) => {
+                      setBackupFile(e.target.files?.[0] ?? null);
+                      setBackupRestoreResult(null);
+                    }}
+                  />
+                </label>
+                {backupFile && (
+                  <button
+                    type="button"
+                    disabled={backupRestoring}
+                    onClick={async () => {
+                      if (!backupFile) return;
+                      setBackupRestoring(true);
+                      setBackupRestoreResult(null);
+                      try {
+                        const text = await backupFile.text();
+                        const data = JSON.parse(text);
+                        const res = await api.restoreBackup(data);
+                        setBackupRestoreResult({ ok: true, msg: `${t.adminBackupRestoreSuccess} (${res.users} users, ${res.servers} servers, ${res.news} news)` });
+                        setBackupFile(null);
+                      } catch (e: unknown) {
+                        setBackupRestoreResult({ ok: false, msg: `${t.adminBackupRestoreError}: ${e instanceof Error ? e.message : String(e)}` });
+                      } finally {
+                        setBackupRestoring(false);
+                      }
+                    }}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-all disabled:opacity-50"
+                  >
+                    {backupRestoring ? t.adminBackupRestoreConfirming : t.adminBackupRestoreConfirm}
+                  </button>
+                )}
+              </div>
+              {backupRestoreResult && (
+                <p className={`text-xs ${backupRestoreResult.ok ? "text-neon-green" : "text-red-400"}`}>
+                  {backupRestoreResult.msg}
+                </p>
+              )}
+            </div>
+          </div>
+          </>
         )}
       </main>
 
