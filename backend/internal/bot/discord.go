@@ -51,7 +51,7 @@ func (b *DiscordBot) Start(ctx context.Context) {
 	}
 	defer b.session.Close()
 
-	// Wait for Ready so we have the application ID
+	// Wait for Ready so we have the application ID.
 	time.Sleep(2 * time.Second)
 	b.registerCommands()
 
@@ -60,10 +60,10 @@ func (b *DiscordBot) Start(ctx context.Context) {
 	log.Println("[discord-bot] shutting down")
 }
 
-// registerCommands registers the /server slash command globally.
+// registerCommands registers the /addserver slash command globally.
 func (b *DiscordBot) registerCommands() {
 	cmd := &discordgo.ApplicationCommand{
-		Name:        "server",
+		Name:        "addserver",
 		Description: "Показать статус игрового сервера",
 		Options: []*discordgo.ApplicationCommandOption{
 			{
@@ -78,7 +78,7 @@ func (b *DiscordBot) registerCommands() {
 	if _, err := b.session.ApplicationCommandCreate(appID, "", cmd); err != nil {
 		log.Printf("[discord-bot] command register error: %v", err)
 	} else {
-		log.Println("[discord-bot] /server command registered")
+		log.Println("[discord-bot] /addserver command registered")
 	}
 }
 
@@ -86,7 +86,7 @@ func (b *DiscordBot) registerCommands() {
 func (b *DiscordBot) handleInteraction(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	switch i.Type {
 	case discordgo.InteractionApplicationCommand:
-		if i.ApplicationCommandData().Name == "server" {
+		if i.ApplicationCommandData().Name == "addserver" {
 			b.handleServerCommand(s, i)
 		}
 	case discordgo.InteractionMessageComponent:
@@ -97,7 +97,7 @@ func (b *DiscordBot) handleInteraction(s *discordgo.Session, i *discordgo.Intera
 	}
 }
 
-// handleServerCommand handles the /server slash command.
+// handleServerCommand handles the /addserver slash command.
 // Defers immediately, then fills the response in a goroutine.
 func (b *DiscordBot) handleServerCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -125,12 +125,16 @@ func (b *DiscordBot) handleServerCommand(s *discordgo.Session, i *discordgo.Inte
 			return
 		}
 
-		embed := b.buildServerEmbed(&srv, "24h")
-		comps := b.buildComponents(uint(serverID), "24h", srv.IP, srv.Port)
+		period := "24h"
+		embed := b.buildServerEmbed(&srv, period)
+		comps := b.buildComponents(uint(serverID), period)
 		b.retryEdit(s, i, &discordgo.WebhookEdit{
 			Embeds:     &[]*discordgo.MessageEmbed{embed},
 			Components: &comps,
 		})
+
+		// Auto-refresh every minute while the interaction token is valid (~14 min).
+		b.startAutoRefresh(s, i, serverID, period)
 	}()
 }
 
@@ -157,7 +161,7 @@ func (b *DiscordBot) handleChartButton(s *discordgo.Session, i *discordgo.Intera
 		}
 
 		embed := b.buildServerEmbed(&srv, period)
-		comps := b.buildComponents(uint(serverID), period, srv.IP, srv.Port)
+		comps := b.buildComponents(uint(serverID), period)
 		b.retryEdit(s, i, &discordgo.WebhookEdit{
 			Embeds:     &[]*discordgo.MessageEmbed{embed},
 			Components: &comps,
@@ -176,11 +180,48 @@ func (b *DiscordBot) replyServerList(s *discordgo.Session, i *discordgo.Interact
 	} else {
 		var lines []string
 		for _, srv := range servers {
-			lines = append(lines, fmt.Sprintf("`%d` — **%s** (%s:%d)", srv.ID, srv.Title, srv.IP, srv.Port))
+			name := srv.Title
+			if name == "" {
+				name = fmt.Sprintf("%s:%d", srv.IP, srv.Port)
+			}
+			addr := srv.IP
+			if srv.DisplayIP != "" {
+				addr = srv.DisplayIP
+			}
+			lines = append(lines, fmt.Sprintf("`%d` — **%s** (`%s:%d`)", srv.ID, name, addr, srv.Port))
 		}
-		content = "**Серверы:**\n" + strings.Join(lines, "\n") + "\n\nИспользуй `/server id:<номер>`"
+		content = "**Серверы:**\n" + strings.Join(lines, "\n") + "\n\nИспользуй `/addserver id:<номер>`"
 	}
 	b.retryEdit(s, i, &discordgo.WebhookEdit{Content: &content})
+}
+
+// startAutoRefresh re-edits the interaction message every minute for up to 14 minutes.
+func (b *DiscordBot) startAutoRefresh(s *discordgo.Session, i *discordgo.InteractionCreate, serverID int, period string) {
+	go func() {
+		ticker := time.NewTicker(60 * time.Second)
+		defer ticker.Stop()
+		deadline := time.After(14 * time.Minute)
+		for {
+			select {
+			case <-ticker.C:
+				var srv models.Server
+				if b.db.Preload("Status").First(&srv, serverID).Error != nil {
+					return
+				}
+				embed := b.buildServerEmbed(&srv, period)
+				comps := b.buildComponents(uint(serverID), period)
+				if _, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+					Embeds:     &[]*discordgo.MessageEmbed{embed},
+					Components: &comps,
+				}); err != nil {
+					log.Printf("[discord-bot] auto-refresh stopped: %v", err)
+					return
+				}
+			case <-deadline:
+				return
+			}
+		}
+	}()
 }
 
 // retryEdit attempts InteractionResponseEdit up to 3 times with backoff.
@@ -214,6 +255,9 @@ func (b *DiscordBot) retryEdit(s *discordgo.Session, i *discordgo.InteractionCre
 	if data.Embeds != nil {
 		params.Embeds = *data.Embeds
 	}
+	if data.Components != nil {
+		params.Components = *data.Components
+	}
 	if _, err := s.FollowupMessageCreate(i.Interaction, true, params); err != nil {
 		log.Printf("[discord-bot] followup also failed: %v", err)
 	} else {
@@ -233,7 +277,11 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 
 	title := fmt.Sprintf("%s %s", statusEmoji, srv.Title)
 
-	desc := fmt.Sprintf("`%s:%d`", srv.IP, srv.Port)
+	displayIP := srv.IP
+	if srv.DisplayIP != "" {
+		displayIP = srv.DisplayIP
+	}
+	desc := fmt.Sprintf("`%s:%d`", displayIP, srv.Port)
 	if srv.GameType != "" {
 		desc += " | " + srv.GameType
 	}
@@ -281,8 +329,8 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 	return embed
 }
 
-// buildComponents builds the row of period buttons + Connect button.
-func (b *DiscordBot) buildComponents(serverID uint, activePeriod, ip string, port uint16) []discordgo.MessageComponent {
+// buildComponents builds the row of period-switch buttons.
+func (b *DiscordBot) buildComponents(serverID uint, activePeriod string) []discordgo.MessageComponent {
 	periods := []struct {
 		label  string
 		period string
@@ -292,27 +340,20 @@ func (b *DiscordBot) buildComponents(serverID uint, activePeriod, ip string, por
 		{"30д", "30d"},
 	}
 
-	var periodBtns []discordgo.MessageComponent
+	var btns []discordgo.MessageComponent
 	for _, p := range periods {
 		style := discordgo.SecondaryButton
 		if p.period == activePeriod {
 			style = discordgo.PrimaryButton
 		}
-		periodBtns = append(periodBtns, discordgo.Button{
+		btns = append(btns, discordgo.Button{
 			Label:    p.label,
 			Style:    style,
 			CustomID: fmt.Sprintf("chart_%d_%s", serverID, p.period),
 		})
 	}
 
-	connectBtn := discordgo.Button{
-		Label: "🔗 Connect",
-		Style: discordgo.LinkButton,
-		URL:   fmt.Sprintf("steam://connect/%s:%d", ip, port),
-	}
-	periodBtns = append(periodBtns, connectBtn)
-
 	return []discordgo.MessageComponent{
-		discordgo.ActionsRow{Components: periodBtns},
+		discordgo.ActionsRow{Components: btns},
 	}
 }
