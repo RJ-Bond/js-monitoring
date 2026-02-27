@@ -25,7 +25,8 @@ type DiscordBot struct {
 	session         *discordgo.Session
 	db              *gorm.DB
 	appURL          string
-	activeMessages  sync.Map      // key: "channelID:serverID" → messageID; tracks posted embeds per channel
+	activeMessages  sync.Map      // key: "channelID:serverID" → messageID
+	activePeriods   sync.Map      // key: "channelID:serverID" → current period string
 	refreshInterval time.Duration // embed auto-refresh interval, read from SiteSettings on startup
 }
 
@@ -316,8 +317,9 @@ func (b *DiscordBot) handleServerCommand(s *discordgo.Session, i *discordgo.Inte
 			return
 		}
 
-		// Track the posted message so duplicate /addserver calls are detected.
+		// Track the posted message and its current period.
 		b.activeMessages.Store(key, msg.ID)
+		b.activePeriods.Store(key, period)
 
 		// Persist embed to DB so it can be restored after bot restart.
 		var de models.DiscordEmbed
@@ -360,6 +362,10 @@ func (b *DiscordBot) handleChartButton(s *discordgo.Session, i *discordgo.Intera
 
 		embed := b.buildServerEmbed(&srv, period)
 		comps := b.buildComponents(uint(serverID), period)
+
+		// Update tracked period so auto-refresh uses the newly selected period.
+		key := fmt.Sprintf("%s:%d", i.ChannelID, serverID)
+		b.activePeriods.Store(key, period)
 
 		// Edit the message directly by ID — works even after interaction token expiry.
 		if _, err := s.ChannelMessageEditComplex(&discordgo.MessageEdit{
@@ -427,27 +433,45 @@ func (b *DiscordBot) replyServerList(s *discordgo.Session, i *discordgo.Interact
 // startChannelAutoRefresh edits a plain channel message every minute until it fails
 // (e.g. message was deleted). No 15-minute token expiry constraint.
 // key is the activeMessages entry; it is removed when the refresh loop exits.
-func (b *DiscordBot) startChannelAutoRefresh(s *discordgo.Session, channelID, messageID string, serverID int, period, key string) {
+func (b *DiscordBot) startChannelAutoRefresh(s *discordgo.Session, channelID, messageID string, serverID int, initialPeriod, key string) {
+	// Ensure a safe interval — guard against zero value if called before Start() sets it.
+	interval := b.refreshInterval
+	if interval < 10*time.Second {
+		interval = 60 * time.Second
+	}
 	go func() {
 		defer b.activeMessages.Delete(key)
+		defer b.activePeriods.Delete(key)
 		defer b.db.Where("channel_id = ? AND server_id = ?", channelID, serverID).Delete(&models.DiscordEmbed{})
-		ticker := time.NewTicker(b.refreshInterval)
+		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
+		failCount := 0
 		for range ticker.C {
+			// Use the most recently selected period (updated by handleChartButton).
+			currentPeriod := initialPeriod
+			if p, ok := b.activePeriods.Load(key); ok {
+				currentPeriod = p.(string)
+			}
 			var srv models.Server
 			if b.db.Preload("Status").First(&srv, serverID).Error != nil {
 				return
 			}
-			embed := b.buildServerEmbed(&srv, period)
-			comps := b.buildComponents(uint(serverID), period)
+			embed := b.buildServerEmbed(&srv, currentPeriod)
+			comps := b.buildComponents(uint(serverID), currentPeriod)
 			if _, err := s.ChannelMessageEditComplex(&discordgo.MessageEdit{
 				Channel:    channelID,
 				ID:         messageID,
 				Embeds:     &[]*discordgo.MessageEmbed{embed},
 				Components: &comps,
 			}); err != nil {
-				log.Printf("[discord-bot] auto-refresh stopped for %s: %v", messageID, err)
-				return
+				failCount++
+				log.Printf("[discord-bot] auto-refresh error (%d/3) for %s: %v", failCount, messageID, err)
+				if failCount >= 3 {
+					log.Printf("[discord-bot] auto-refresh stopped after 3 errors for %s", messageID)
+					return
+				}
+			} else {
+				failCount = 0
 			}
 		}
 	}()
@@ -665,7 +689,7 @@ func (b *DiscordBot) handleStatsCommand(s *discordgo.Session, i *discordgo.Inter
 				{Name: "🏆 Топ сервер", Value: fmt.Sprintf("%s (%d игр.)", topName, topPlayers), Inline: false},
 			},
 			Footer: &discordgo.MessageEmbedFooter{
-				Text: fmt.Sprintf("JS Monitor %s • обновлено", botVersion),
+				Text: fmt.Sprintf("JS Monitor %s", botVersion),
 			},
 			Timestamp: now.Format(time.RFC3339),
 		}
@@ -727,7 +751,7 @@ func (b *DiscordBot) handleTopCommand(s *discordgo.Session, i *discordgo.Interac
 				URL:  strings.TrimRight(b.appURL, "/") + "/",
 			},
 			Footer: &discordgo.MessageEmbedFooter{
-				Text: fmt.Sprintf("JS Monitor %s • обновлено", botVersion),
+				Text: fmt.Sprintf("JS Monitor %s", botVersion),
 			},
 			Timestamp: now.Format(time.RFC3339),
 		}
@@ -825,7 +849,7 @@ func (b *DiscordBot) startAlertChecker(ctx context.Context) {
 						Description: fmt.Sprintf("Сервер **%s** %s.", name, statusWord),
 						Color:       color,
 						Footer: &discordgo.MessageEmbedFooter{
-							Text: fmt.Sprintf("JS Monitor %s • обновлено", botVersion),
+							Text: fmt.Sprintf("JS Monitor %s", botVersion),
 						},
 						Timestamp: now.Format(time.RFC3339),
 					}
@@ -851,7 +875,8 @@ func (b *DiscordBot) restoreEmbeds() {
 	for _, e := range embeds {
 		key := fmt.Sprintf("%s:%d", e.ChannelID, e.ServerID)
 		b.activeMessages.Store(key, e.MessageID)
-		go b.startChannelAutoRefresh(b.session, e.ChannelID, e.MessageID, int(e.ServerID), e.Period, key)
+		b.activePeriods.Store(key, e.Period)
+		b.startChannelAutoRefresh(b.session, e.ChannelID, e.MessageID, int(e.ServerID), e.Period, key)
 		log.Printf("[discord-bot] restored embed: channel=%s server=%d msg=%s period=%s", e.ChannelID, e.ServerID, e.MessageID, e.Period)
 	}
 	if len(embeds) > 0 {
@@ -1040,7 +1065,7 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 		Color: color,
 		Fields: fields,
 		Footer: &discordgo.MessageEmbedFooter{
-			Text: fmt.Sprintf("JS Monitor %s • обновлено", botVersion),
+			Text: fmt.Sprintf("JS Monitor %s", botVersion),
 		},
 		Timestamp: now.Format(time.RFC3339),
 	}
