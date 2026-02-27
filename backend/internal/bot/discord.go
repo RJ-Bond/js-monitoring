@@ -479,8 +479,10 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 		}
 	}
 
-	// Peak players and uptime over last 24 hours from PlayerHistory.
-	since24h := time.Now().Add(-24 * time.Hour)
+	// Stats over last 24 hours from PlayerHistory.
+	now := time.Now()
+	since24h := now.Add(-24 * time.Hour)
+
 	var peak int
 	b.db.Model(&models.PlayerHistory{}).
 		Select("COALESCE(MAX(count), 0)").
@@ -494,23 +496,42 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 	b.db.Model(&models.PlayerHistory{}).
 		Where("server_id = ? AND timestamp > ? AND is_online = true", srv.ID, since24h).
 		Count(&onlineH)
+
+	var avgOnline float64
+	b.db.Model(&models.PlayerHistory{}).
+		Select("COALESCE(AVG(count), 0)").
+		Where("server_id = ? AND timestamp > ? AND is_online = true", srv.ID, since24h).
+		Scan(&avgOnline)
+
+	// Unique players today (midnight to now) from PlayerSession.
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	var uniqueToday int64
+	b.db.Model(&models.PlayerSession{}).
+		Select("COUNT(DISTINCT player_name)").
+		Where("server_id = ? AND started_at >= ?", srv.ID, today).
+		Scan(&uniqueToday)
+
 	uptimeVal := "—"
 	if totalH > 0 {
 		uptimeVal = fmt.Sprintf("%d%%", onlineH*100/totalH)
 	}
 	peakVal := fmt.Sprintf("%d", peak)
+	avgVal := fmt.Sprintf("%d", int(avgOnline))
+	uniqueVal := fmt.Sprintf("%d", uniqueToday)
 
-	// 3×2 inline grid + players row + stats row below
+	// 3×2 inline grid + players row + stats rows below
 	fields := []*discordgo.MessageEmbedField{
-		{Name: "📊 Статус",    Value: statusText,                                   Inline: true},
-		{Name: "🌐 Адрес",     Value: fmt.Sprintf("`%s:%d`", displayIP, srv.Port),  Inline: true},
-		{Name: "🌍 Страна",    Value: countryVal,                                   Inline: true},
-		{Name: "🎮 Игра",      Value: gameVal,                                      Inline: true},
-		{Name: "🗺️ Карта",    Value: mapVal,                                       Inline: true},
-		{Name: "⚡ Пинг",      Value: pingVal,                                      Inline: true},
-		{Name: "👥 Игроков",   Value: playersVal,                                   Inline: false},
-		{Name: "📈 Пик 24ч",   Value: peakVal,                                      Inline: true},
-		{Name: "⏱️ Аптайм 24ч", Value: uptimeVal,                                  Inline: true},
+		{Name: "📊 Статус",       Value: statusText,                                   Inline: true},
+		{Name: "🌐 Адрес",        Value: fmt.Sprintf("`%s:%d`", displayIP, srv.Port),  Inline: true},
+		{Name: "🌍 Страна",       Value: countryVal,                                   Inline: true},
+		{Name: "🎮 Игра",         Value: gameVal,                                      Inline: true},
+		{Name: "🗺️ Карта",       Value: mapVal,                                       Inline: true},
+		{Name: "⚡ Пинг",         Value: pingVal,                                      Inline: true},
+		{Name: "👥 Игроков",      Value: playersVal,                                   Inline: false},
+		{Name: "📈 Пик 24ч",      Value: peakVal,                                      Inline: true},
+		{Name: "⏱️ Аптайм 24ч",  Value: uptimeVal,                                    Inline: true},
+		{Name: "📊 Среднее 24ч",  Value: avgVal,                                       Inline: true},
+		{Name: "👤 Игроков сегодня", Value: uniqueVal,                                 Inline: false},
 	}
 
 	// Player list from active sessions (ended_at IS NULL)
@@ -539,8 +560,19 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 		title = fmt.Sprintf("%s:%d", displayIP, srv.Port)
 	}
 
-	now := time.Now()
+	// Site name for author line (branding above the embed title).
+	var settings models.SiteSettings
+	b.db.First(&settings)
+	siteName := settings.SiteName
+	if siteName == "" {
+		siteName = "JS Monitor"
+	}
+
 	embed := &discordgo.MessageEmbed{
+		Author: &discordgo.MessageEmbedAuthor{
+			Name: siteName,
+			URL:  strings.TrimRight(b.appURL, "/") + "/",
+		},
 		Title:  title,
 		Color:  color,
 		Fields: fields,
