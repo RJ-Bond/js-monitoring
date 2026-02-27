@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -16,11 +17,14 @@ import (
 	"github.com/RJ-Bond/js-monitoring/internal/models"
 )
 
+const botVersion = "v2.2.0"
+
 // DiscordBot manages the Discord Gateway connection and slash command interactions.
 type DiscordBot struct {
-	session *discordgo.Session
-	db      *gorm.DB
-	appURL  string
+	session        *discordgo.Session
+	db             *gorm.DB
+	appURL         string
+	activeMessages sync.Map // key: "channelID:serverID" → messageID; tracks posted embeds per channel
 }
 
 // NewDiscordBot creates a new DiscordBot with the given bot token.
@@ -149,6 +153,22 @@ func (b *DiscordBot) handleServerCommand(s *discordgo.Session, i *discordgo.Inte
 			return
 		}
 
+		// Check if this server is already posted in this channel.
+		key := fmt.Sprintf("%s:%d", i.ChannelID, serverID)
+		if _, exists := b.activeMessages.Load(key); exists {
+			name := srv.Title
+			if name == "" {
+				addr := srv.DisplayIP
+				if addr == "" {
+					addr = srv.IP
+				}
+				name = fmt.Sprintf("%s:%d", addr, srv.Port)
+			}
+			content := fmt.Sprintf("ℹ️ Сервер **%s** уже добавлен в этот канал.", name)
+			b.retryEdit(s, i, &discordgo.WebhookEdit{Content: &content})
+			return
+		}
+
 		period := "24h"
 		embed := b.buildServerEmbed(&srv, period)
 		comps := b.buildComponents(uint(serverID), period)
@@ -165,11 +185,14 @@ func (b *DiscordBot) handleServerCommand(s *discordgo.Session, i *discordgo.Inte
 			return
 		}
 
+		// Track the posted message so duplicate /addserver calls are detected.
+		b.activeMessages.Store(key, msg.ID)
+
 		// Remove the ephemeral "thinking..." placeholder.
 		_ = s.InteractionResponseDelete(i.Interaction)
 
 		// Auto-refresh: edit the channel message every minute (no 15-min limit).
-		b.startChannelAutoRefresh(s, i.ChannelID, msg.ID, serverID, period)
+		b.startChannelAutoRefresh(s, i.ChannelID, msg.ID, serverID, period, key)
 	}()
 }
 
@@ -238,8 +261,10 @@ func (b *DiscordBot) replyServerList(s *discordgo.Session, i *discordgo.Interact
 
 // startChannelAutoRefresh edits a plain channel message every minute until it fails
 // (e.g. message was deleted). No 15-minute token expiry constraint.
-func (b *DiscordBot) startChannelAutoRefresh(s *discordgo.Session, channelID, messageID string, serverID int, period string) {
+// key is the activeMessages entry; it is removed when the refresh loop exits.
+func (b *DiscordBot) startChannelAutoRefresh(s *discordgo.Session, channelID, messageID string, serverID int, period, key string) {
 	go func() {
+		defer b.activeMessages.Delete(key)
 		ticker := time.NewTicker(60 * time.Second)
 		defer ticker.Stop()
 		for range ticker.C {
@@ -407,13 +432,18 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 		}
 	}
 
+	title := srv.Title
+	if title == "" {
+		title = fmt.Sprintf("%s:%d", displayIP, srv.Port)
+	}
+
 	now := time.Now()
 	embed := &discordgo.MessageEmbed{
-		Title:  srv.Title,
+		Title:  title,
 		Color:  color,
 		Fields: fields,
 		Footer: &discordgo.MessageEmbedFooter{
-			Text: fmt.Sprintf("JS Monitor • 🕐 %s", now.Format("2006-01-02 15:04:05")),
+			Text: fmt.Sprintf("JS Monitor %s • 🕐 %s", botVersion, now.Format("2006-01-02 15:04:05")),
 		},
 	}
 
