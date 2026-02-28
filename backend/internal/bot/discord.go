@@ -1186,9 +1186,18 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 
 	if b.appURL != "" {
 		base := strings.TrimRight(b.appURL, "/")
-		embed.Image = &discordgo.MessageEmbedImage{
-			URL: fmt.Sprintf("%s/api/v1/chart/%d?period=%s&_t=%d", base, srv.ID, period, now.Unix()),
+		imageURL := fmt.Sprintf("%s/api/v1/chart/%d?period=%s&_t=%d", base, srv.ID, period, now.Unix())
+
+		// For V Rising servers: show live map render instead of chart (if fresh data exists)
+		if srv.GameType == "vrising" {
+			var mapData models.VRisingMapData
+			if database.DB.Where("server_id = ?", srv.ID).First(&mapData).Error == nil &&
+				time.Since(mapData.UpdatedAt) < 10*time.Minute {
+				imageURL = fmt.Sprintf("%s/api/v1/servers/%d/vrising/map-render?_t=%d", base, srv.ID, now.Unix())
+			}
 		}
+
+		embed.Image = &discordgo.MessageEmbedImage{URL: imageURL}
 	}
 
 	return embed
