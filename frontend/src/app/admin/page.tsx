@@ -1551,6 +1551,7 @@ export default function AdminPage() {
                               : <Square className="w-4 h-4" />}
                           </button>
                         </th>
+                        <th className="text-left px-3 py-3 hidden sm:table-cell text-muted-foreground/50">ID</th>
                         <th className="text-left px-5 py-3">{t.adminUsername}</th>
                         <th className="text-left px-5 py-3 hidden sm:table-cell">{t.adminServerGame}</th>
                         <th className="text-left px-5 py-3">{t.adminServerIP}</th>
@@ -1576,6 +1577,9 @@ export default function AdminPage() {
                                 ? <CheckSquare className="w-4 h-4 text-neon-blue" />
                                 : <Square className="w-4 h-4" />}
                             </button>
+                          </td>
+                          <td className="px-3 py-3 hidden sm:table-cell text-xs font-mono text-muted-foreground/50 select-all">
+                            {s.id}
                           </td>
                           <td className="px-5 py-3">
                             <span className="font-medium truncate max-w-[160px] block">
