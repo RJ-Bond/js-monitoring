@@ -13,11 +13,12 @@ import (
 
 // VRisingPlayer — онлайн-игрок в мире V Rising
 type VRisingPlayer struct {
-	Name   string  `json:"name"`
-	Clan   string  `json:"clan,omitempty"`
-	X      float32 `json:"x"`
-	Z      float32 `json:"z"`
-	Health float32 `json:"health,omitempty"`
+	Name    string  `json:"name"`
+	Clan    string  `json:"clan,omitempty"`
+	X       float32 `json:"x"`
+	Z       float32 `json:"z"`
+	Health  float32 `json:"health,omitempty"`
+	IsAdmin bool    `json:"is_admin,omitempty"`
 }
 
 // VRisingCastle — замок игрока/клана
@@ -117,9 +118,23 @@ func GetVRisingMap(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "data parse error"})
 	}
 
+	var s models.SiteSettings
+	database.DB.First(&s, 1)
+
+	players := payload.Players
+	if s.VRisingHideAdmins {
+		filtered := players[:0]
+		for _, p := range players {
+			if !p.IsAdmin {
+				filtered = append(filtered, p)
+			}
+		}
+		players = filtered
+	}
+
 	resp := VRisingMapResponse{
 		ServerID:  payload.ServerID,
-		Players:   payload.Players,
+		Players:   players,
 		Castles:   payload.Castles,
 		FreePlots: payload.FreePlots,
 		UpdatedAt: mapData.UpdatedAt,

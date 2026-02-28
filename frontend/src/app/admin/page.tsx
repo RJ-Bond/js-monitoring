@@ -157,10 +157,12 @@ interface SettingsTabProps {
   discordEmbedCfg: Record<string, boolean>;
   onDiscordEmbedCfgChange: (key: string, val: boolean) => void;
   vRisingMapEnabled: boolean;
+  vRisingHideAdmins: boolean;
   vRisingMapURL: string;
   vRisingMapImageSet: boolean;
   vRisingMapNewImage: string;
   onVRisingMapEnabledChange: (v: boolean) => void;
+  onVRisingHideAdminsChange: (v: boolean) => void;
   onVRisingMapURLChange: (v: string) => void;
   onVRisingMapImageChange: (v: string) => void;
   onVRisingMapImageClear: () => void;
@@ -222,8 +224,8 @@ function SettingsTab({
   discordAlertChannelID, onDiscordAlertChannelIDChange,
   discordRefreshInterval, onDiscordRefreshIntervalChange,
   discordEmbedCfg, onDiscordEmbedCfgChange,
-  vRisingMapEnabled, vRisingMapURL, vRisingMapImageSet, vRisingMapNewImage,
-  onVRisingMapEnabledChange, onVRisingMapURLChange, onVRisingMapImageChange, onVRisingMapImageClear,
+  vRisingMapEnabled, vRisingHideAdmins, vRisingMapURL, vRisingMapImageSet, vRisingMapNewImage,
+  onVRisingMapEnabledChange, onVRisingHideAdminsChange, onVRisingMapURLChange, onVRisingMapImageChange, onVRisingMapImageClear,
   vRisingWorldXMin, vRisingWorldXMax, vRisingWorldZMin, vRisingWorldZMax,
   onVRisingWorldXMinChange, onVRisingWorldXMaxChange, onVRisingWorldZMinChange, onVRisingWorldZMaxChange,
   vRisingCastleIconSet, vRisingPlayerIconSet, vRisingCastleIconNew, vRisingPlayerIconNew,
@@ -785,6 +787,19 @@ function SettingsTab({
           </div>
         </label>
 
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={vRisingHideAdmins}
+            onChange={(e) => onVRisingHideAdminsChange(e.target.checked)}
+            className="w-4 h-4 rounded accent-neon-green"
+          />
+          <div>
+            <span className="text-sm">{t.adminSettingsVRisingHideAdmins}</span>
+            <p className="text-xs text-muted-foreground">{t.adminSettingsVRisingHideAdminsHint}</p>
+          </div>
+        </label>
+
         {/* Upload */}
         <div className="space-y-2">
           <label className="text-xs text-muted-foreground block">{t.adminSettingsVRisingMapUpload}</label>
@@ -1029,6 +1044,7 @@ export default function AdminPage() {
   const defaultEmbedCfg = { status: true, address: true, country: true, game: true, map: true, ping: true, players: true, peak_24h: true, uptime_24h: true, average_24h: true, unique_today: true, player_list: true };
   const [discordEmbedCfg, setDiscordEmbedCfg] = useState<Record<string, boolean>>(defaultEmbedCfg);
   const [settingsVRisingMapEnabled, setSettingsVRisingMapEnabled] = useState(true);
+  const [settingsVRisingHideAdmins, setSettingsVRisingHideAdmins] = useState(false);
   const [settingsVRisingMapURL, setSettingsVRisingMapURL] = useState("");
   const [settingsVRisingMapImageSet, setSettingsVRisingMapImageSet] = useState(false);
   const [settingsVRisingMapNewImage, setSettingsVRisingMapNewImage] = useState("");
@@ -1145,6 +1161,7 @@ export default function AdminPage() {
         }
         setSettingsForceHttps(s.force_https ?? false);
         setSettingsVRisingMapEnabled(s.vrising_map_enabled ?? true);
+        setSettingsVRisingHideAdmins(s.vrising_hide_admins ?? false);
         setSettingsVRisingMapURL(s.vrising_map_url ?? "");
         setSettingsVRisingMapImageSet(s.vrising_map_image_set ?? false);
         setSettingsVRisingMapNewImage("");
@@ -2220,10 +2237,12 @@ export default function AdminPage() {
             discordEmbedCfg={discordEmbedCfg}
             onDiscordEmbedCfgChange={(key, val) => setDiscordEmbedCfg((prev) => ({ ...prev, [key]: val }))}
             vRisingMapEnabled={settingsVRisingMapEnabled}
+            vRisingHideAdmins={settingsVRisingHideAdmins}
             vRisingMapURL={settingsVRisingMapURL}
             vRisingMapImageSet={settingsVRisingMapImageSet}
             vRisingMapNewImage={settingsVRisingMapNewImage}
             onVRisingMapEnabledChange={setSettingsVRisingMapEnabled}
+            onVRisingHideAdminsChange={setSettingsVRisingHideAdmins}
             onVRisingMapURLChange={setSettingsVRisingMapURL}
             onVRisingMapImageChange={setSettingsVRisingMapNewImage}
             onVRisingMapImageClear={() => {
@@ -2296,6 +2315,7 @@ export default function AdminPage() {
                   discord_refresh_interval: discordRefreshInterval,
                   discord_embed_config: JSON.stringify(discordEmbedCfg),
                   vrising_map_enabled: settingsVRisingMapEnabled,
+                  vrising_hide_admins: settingsVRisingHideAdmins,
                   vrising_map_url: settingsVRisingMapURL,
                   vrising_map_image: settingsVRisingMapNewImage === "__CLEAR__"
                     ? "__CLEAR__"

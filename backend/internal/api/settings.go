@@ -62,6 +62,7 @@ func GetSettings(c echo.Context) error {
 		"vrising_world_z_max":      effectiveWorldBound(s.VRisingWorldZMax, 640),
 		"vrising_castle_icon_url":  effectiveIconURL(s.VRisingCastleIcon, "/api/v1/vrising/castle-icon"),
 		"vrising_player_icon_url":  effectiveIconURL(s.VRisingPlayerIcon, "/api/v1/vrising/player-icon"),
+		"vrising_hide_admins":      s.VRisingHideAdmins,
 	})
 }
 
@@ -124,6 +125,7 @@ func GetAdminSettings(c echo.Context) error {
 		"vrising_world_z_max":         effectiveWorldBound(s.VRisingWorldZMax, 640),
 		"vrising_castle_icon_set":     s.VRisingCastleIcon != "",
 		"vrising_player_icon_set":     s.VRisingPlayerIcon != "",
+		"vrising_hide_admins":         s.VRisingHideAdmins,
 	})
 }
 
@@ -149,6 +151,7 @@ func UpdateSettings(c echo.Context) error {
 		DiscordAlertChannelID   string `json:"discord_alert_channel_id"`
 		DiscordRefreshInterval  int    `json:"discord_refresh_interval"`
 		VRisingMapEnabled       *bool  `json:"vrising_map_enabled"`
+		VRisingHideAdmins       *bool  `json:"vrising_hide_admins"`
 		VRisingMapURL           string `json:"vrising_map_url"`
 		VRisingMapImage         string `json:"vrising_map_image"` // "" = no change, "__CLEAR__" = delete, "data:..." = save
 		VRisingWorldXMin        *int   `json:"vrising_world_x_min"`
@@ -218,6 +221,9 @@ func UpdateSettings(c echo.Context) error {
 	s.VRisingMapURL = payload.VRisingMapURL
 	if payload.VRisingMapEnabled != nil {
 		s.VRisingMapEnabled = *payload.VRisingMapEnabled
+	}
+	if payload.VRisingHideAdmins != nil {
+		s.VRisingHideAdmins = *payload.VRisingHideAdmins
 	}
 	if payload.VRisingWorldXMin != nil { s.VRisingWorldXMin = *payload.VRisingWorldXMin }
 	if payload.VRisingWorldXMax != nil { s.VRisingWorldXMax = *payload.VRisingWorldXMax }
