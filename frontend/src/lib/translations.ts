@@ -253,6 +253,9 @@ export const translations = {
     vRisingMapPlayer: "Player",
     vRisingMapCastle: "Castle",
     vRisingMapTier: "Tier",
+    vRisingMapImageMissing: "Map image not found",
+    vRisingMapImageHint: "Place the Vardoran map texture at:",
+    vRisingMapImageOr: "Or set the env variable",
     leaderboardNoData: "No data yet — stats appear when players join",
     leaderboardSessions: "sessions",
     // Remember me
@@ -779,6 +782,9 @@ export const translations = {
     vRisingMapPlayer: "Игрок",
     vRisingMapCastle: "Замок",
     vRisingMapTier: "Уровень",
+    vRisingMapImageMissing: "Изображение карты не найдено",
+    vRisingMapImageHint: "Поместите текстуру карты Вардорана в:",
+    vRisingMapImageOr: "Или укажите переменную окружения",
     leaderboardNoData: "Нет данных — статистика появится когда игроки зайдут на сервер",
     leaderboardSessions: "сессий",
     // Remember me
