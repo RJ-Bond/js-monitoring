@@ -1,5 +1,30 @@
 import type { Server, ServerPlayer, PlayerHistory, LeaderboardEntry, Stats, AuthResponse, User, NewsItem, AdminServer, UptimeData, GlobalLeaderboardEntry, PlayerProfile, AuditPage, AlertConfig, DiscordConfig, UserSession } from "@/types/server";
 
+export interface VRisingPlayer {
+  name: string;
+  clan?: string;
+  x: number;
+  z: number;
+  health?: number;
+}
+
+export interface VRisingCastle {
+  owner: string;
+  clan?: string;
+  x: number;
+  z: number;
+  tier?: number;
+  name?: string;
+}
+
+export interface VRisingMapData {
+  server_id: number;
+  players: VRisingPlayer[];
+  castles: VRisingCastle[];
+  updated_at: string;
+  stale_data: boolean;
+}
+
 export interface NewsPage {
   items: NewsItem[];
   total: number;
@@ -190,6 +215,10 @@ export const api = {
   // Uptime
   getUptime: (serverID: number) =>
     fetchJSON<UptimeData>(`/api/v1/servers/${serverID}/uptime`),
+
+  // V Rising live map
+  getVRisingMap: (serverID: number) =>
+    fetchJSON<VRisingMapData>(`/api/v1/servers/${serverID}/vrising/map`),
 
   // Global leaderboard
   getGlobalLeaderboard: () =>

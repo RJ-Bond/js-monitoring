@@ -168,6 +168,14 @@ func DefaultEmbedFieldConfig() EmbedFieldConfig {
 	}
 }
 
+// VRisingMapData — кешированные данные карты V Rising от плагина (один ряд на сервер)
+type VRisingMapData struct {
+	ID        uint      `gorm:"primaryKey;autoIncrement" json:"id"`
+	ServerID  uint      `gorm:"uniqueIndex;not null"     json:"server_id"`
+	Data      string    `gorm:"type:longtext"            json:"data"` // JSON payload от плагина
+	UpdatedAt time.Time `                                json:"updated_at"`
+}
+
 // PasswordReset — токен для сброса пароля (генерируется администратором)
 type PasswordReset struct {
 	ID        uint      `gorm:"primaryKey;autoIncrement"`

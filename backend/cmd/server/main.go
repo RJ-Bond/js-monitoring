@@ -113,6 +113,8 @@ func main() {
 	v1.GET("/leaderboard", api.GetGlobalLeaderboard)
 	v1.GET("/players/:name", api.GetPlayerProfile)
 	v1.GET("/chart/:serverID", api.GetServerChart)
+	v1.GET("/servers/:id/vrising/map", api.GetVRisingMap)
+	v1.POST("/vrising/push", api.PushVRisingMap)
 
 	// ── Auth ─────────────────────────────────────────────────────────────────
 	authG := v1.Group("/auth")

@@ -11,6 +11,7 @@ import PlayerChart from "./PlayerChart";
 import PlayerLeaderboard from "./PlayerLeaderboard";
 import RconConsole from "./RconConsole";
 import GameIcon from "./GameIcon";
+import VRisingMap from "./VRisingMap";
 import type { Server } from "@/types/server";
 import { useUptime } from "@/hooks/useUptime";
 
@@ -46,13 +47,14 @@ const PLAYER_SUPPORTED: Server["game_type"][] = [
 export default function ServerCard({ server, onDelete, onEdit, isFavorite, onToggleFavorite }: ServerCardProps) {
   const { t, locale } = useLanguage();
   const [expanded, setExpanded] = useState(false);
-  const [chartTab, setChartTab] = useState<"history" | "leaderboard">("history");
+  const [chartTab, setChartTab] = useState<"history" | "leaderboard" | "vrmap">("history");
   const [rconOpen, setRconOpen] = useState(false);
   const status = server.status;
   const online = status?.online_status ?? false;
 
   const showPlayers = expanded && online && (status?.players_now ?? 0) > 0 && PLAYER_SUPPORTED.includes(server.game_type);
   const showLeaderboard = PLAYER_SUPPORTED.includes(server.game_type);
+  const isVRising = server.game_type === "vrising";
   const { data: players, isLoading: playersLoading } = useServerPlayers(server.id, showPlayers);
   const { data: uptimeData } = useUptime(server.id);
 
@@ -214,7 +216,7 @@ export default function ServerCard({ server, onDelete, onEdit, isFavorite, onTog
         {/* Expanded: chart + player list */}
         {expanded && (
           <>
-            {showLeaderboard && (
+            {(showLeaderboard || isVRising) && (
               <div className="flex gap-1 border-b border-white/5 pb-2">
                 <button
                   onClick={() => setChartTab("history")}
@@ -226,19 +228,35 @@ export default function ServerCard({ server, onDelete, onEdit, isFavorite, onTog
                 >
                   {t.chartTabHistory}
                 </button>
-                <button
-                  onClick={() => setChartTab("leaderboard")}
-                  className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
-                    chartTab === "leaderboard"
-                      ? "text-foreground bg-white/5"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {t.chartTabLeaderboard}
-                </button>
+                {showLeaderboard && (
+                  <button
+                    onClick={() => setChartTab("leaderboard")}
+                    className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
+                      chartTab === "leaderboard"
+                        ? "text-foreground bg-white/5"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {t.chartTabLeaderboard}
+                  </button>
+                )}
+                {isVRising && (
+                  <button
+                    onClick={() => setChartTab("vrmap")}
+                    className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
+                      chartTab === "vrmap"
+                        ? "text-foreground bg-white/5"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    🗺️ {t.chartTabMap}
+                  </button>
+                )}
               </div>
             )}
-            {chartTab === "history" || !showLeaderboard ? (
+            {chartTab === "vrmap" && isVRising ? (
+              <VRisingMap serverId={server.id} />
+            ) : chartTab === "history" || !showLeaderboard ? (
               <PlayerChart serverId={server.id} />
             ) : (
               <PlayerLeaderboard serverId={server.id} />

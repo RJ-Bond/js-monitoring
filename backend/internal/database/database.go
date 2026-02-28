@@ -64,5 +64,6 @@ func AutoMigrate() error {
 		&models.DiscordConfig{},
 		&models.UserSession{},
 		&models.DiscordEmbed{},
+		&models.VRisingMapData{},
 	)
 }
