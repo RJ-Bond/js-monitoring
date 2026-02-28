@@ -446,6 +446,8 @@ export const translations = {
     adminSettingsVRisingMapUploadHint: "Accepts PNG, JPG, WebP — max 7 MB. Stored in the database and served at /api/v1/vrising/map-image.",
     adminSettingsVRisingMapUploaded: "Map image uploaded",
     adminSettingsVRisingMapClear: "Remove uploaded image",
+    adminSettingsVRisingWorldBounds: "World Coordinate Bounds",
+    adminSettingsVRisingWorldBoundsHint: "Defines the world boundaries mapped to the image corners. Default values match the official Vardoran map (ScarletCore: X −2880..160, Z −2400..640).",
     // SSL / HTTPS
     adminSslSection: "Security & SSL",
     adminSslMode: "SSL Mode",
@@ -985,6 +987,8 @@ export const translations = {
     adminSettingsVRisingMapUploadHint: "PNG, JPG, WebP — максимум 7 МБ. Хранится в базе данных и отдаётся по адресу /api/v1/vrising/map-image.",
     adminSettingsVRisingMapUploaded: "Изображение карты загружено",
     adminSettingsVRisingMapClear: "Удалить загруженное изображение",
+    adminSettingsVRisingWorldBounds: "Границы мировых координат",
+    adminSettingsVRisingWorldBoundsHint: "Определяет границы мира, отображаемые на углы текстуры карты. Значения по умолчанию соответствуют официальной карте Вардорана (ScarletCore: X −2880..160, Z −2400..640).",
     // SSL / HTTPS
     adminSslSection: "Безопасность и SSL",
     adminSslMode: "Режим SSL",

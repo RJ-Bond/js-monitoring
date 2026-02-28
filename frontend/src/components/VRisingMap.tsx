@@ -9,24 +9,9 @@ import type { VRisingMapData, VRisingPlayer, VRisingCastle } from "@/lib/api";
 // ── Coordinate calibration ────────────────────────────────────────────────────
 // V Rising world (Vardoran): X increases east, Z increases north.
 // SVG Y increases downward → Z must be inverted.
-// These bounds match the Vardoran minimap texture extracted from game files.
-const WORLD_X_MIN = -3400;
-const WORLD_X_MAX =  3400;
-const WORLD_Z_MIN = -3400; // south
-const WORLD_Z_MAX =  3400; // north
+// Bounds are loaded from admin settings (defaults match ScarletCore MAP_BOUNDS).
 
-const WORLD_X_RANGE = WORLD_X_MAX - WORLD_X_MIN;
-const WORLD_Z_RANGE = WORLD_Z_MAX - WORLD_Z_MIN;
-
-const SVG_SIZE = 600;
-
-/** Convert game world coordinates to SVG pixel coordinates. */
-function gameToSVG(gx: number, gz: number): { x: number; y: number } {
-  const x = ((gx - WORLD_X_MIN) / WORLD_X_RANGE) * SVG_SIZE;
-  // Z is inverted: north (high Z) → top of SVG (low Y)
-  const y = ((WORLD_Z_MAX - gz) / WORLD_Z_RANGE) * SVG_SIZE;
-  return { x, y };
-}
+const SVG_SIZE = 800;
 
 /** Deterministic HSL color from a string (clan/owner). */
 function colorFromString(s: string): string {
@@ -37,9 +22,28 @@ function colorFromString(s: string): string {
 
 interface TooltipState { x: number; y: number; content: string }
 
+/** Convert game world coordinates to SVG pixel coordinates. */
+function gameToSVG(
+  gx: number, gz: number,
+  xMin: number, xMax: number, zMin: number, zMax: number,
+): { x: number; y: number } {
+  const xRange = xMax - xMin;
+  const zRange = zMax - zMin;
+  const x = ((gx - xMin) / xRange) * SVG_SIZE;
+  // Z is inverted: north (high Z) → top of SVG (low Y)
+  const y = ((zMax - gz) / zRange) * SVG_SIZE;
+  return { x, y };
+}
+
 export default function VRisingMap({ serverId }: { serverId: number }) {
   const { t, locale } = useLanguage();
-  const { vRisingMapURL } = useSiteSettings();
+  const {
+    vRisingMapURL,
+    vRisingWorldXMin,
+    vRisingWorldXMax,
+    vRisingWorldZMin,
+    vRisingWorldZMax,
+  } = useSiteSettings();
   const MAP_IMAGE_URL = vRisingMapURL || "/vrising-map.png";
 
   const [data,       setData]       = useState<VRisingMapData | null>(null);
@@ -211,7 +215,7 @@ export default function VRisingMap({ serverId }: { serverId: number }) {
 
           {/* ── Castles ───────────────────────────────────────────────── */}
           {castles.map((castle, i) => {
-            const { x, y } = gameToSVG(castle.x, castle.z);
+            const { x, y } = gameToSVG(castle.x, castle.z, vRisingWorldXMin, vRisingWorldXMax, vRisingWorldZMin, vRisingWorldZMax);
             const col  = colorFromString(castle.clan || castle.owner);
             const tier = Math.max(1, castle.tier ?? 1);
             const size = 5 + tier * 1.8;
@@ -239,7 +243,7 @@ export default function VRisingMap({ serverId }: { serverId: number }) {
 
           {/* ── Players ───────────────────────────────────────────────── */}
           {players.map((player, i) => {
-            const { x, y } = gameToSVG(player.x, player.z);
+            const { x, y } = gameToSVG(player.x, player.z, vRisingWorldXMin, vRisingWorldXMax, vRisingWorldZMin, vRisingWorldZMax);
             const col = colorFromString(player.clan || player.name);
             return (
               <g key={`p-${i}`} filter="url(#vr-glow)">

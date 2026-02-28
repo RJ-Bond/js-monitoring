@@ -164,6 +164,14 @@ interface SettingsTabProps {
   onVRisingMapURLChange: (v: string) => void;
   onVRisingMapImageChange: (v: string) => void;
   onVRisingMapImageClear: () => void;
+  vRisingWorldXMin: number;
+  vRisingWorldXMax: number;
+  vRisingWorldZMin: number;
+  vRisingWorldZMax: number;
+  onVRisingWorldXMinChange: (v: number) => void;
+  onVRisingWorldXMaxChange: (v: number) => void;
+  onVRisingWorldZMinChange: (v: number) => void;
+  onVRisingWorldZMaxChange: (v: number) => void;
   sslStatus: SSLStatus | null;
   sslStatusLoading: boolean;
   forceHttps: boolean;
@@ -208,6 +216,8 @@ function SettingsTab({
   discordEmbedCfg, onDiscordEmbedCfgChange,
   vRisingMapEnabled, vRisingMapURL, vRisingMapImageSet, vRisingMapNewImage,
   onVRisingMapEnabledChange, onVRisingMapURLChange, onVRisingMapImageChange, onVRisingMapImageClear,
+  vRisingWorldXMin, vRisingWorldXMax, vRisingWorldZMin, vRisingWorldZMax,
+  onVRisingWorldXMinChange, onVRisingWorldXMaxChange, onVRisingWorldZMinChange, onVRisingWorldZMaxChange,
   sslStatus, sslStatusLoading, forceHttps, onForceHttpsChange, onRefreshSsl,
   onSave, t,
 }: SettingsTabProps) {
@@ -820,6 +830,50 @@ function SettingsTab({
           />
           <p className="text-xs text-muted-foreground mt-1">{t.adminSettingsVRisingMapURLHint}</p>
         </div>
+
+        {/* World bounds calibration */}
+        <div>
+          <label className="text-xs text-muted-foreground mb-2 block">{t.adminSettingsVRisingWorldBounds}</label>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">X min (west)</label>
+              <input
+                type="number"
+                className={inputCls}
+                value={vRisingWorldXMin}
+                onChange={(e) => onVRisingWorldXMinChange(Number(e.target.value))}
+              />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">X max (east)</label>
+              <input
+                type="number"
+                className={inputCls}
+                value={vRisingWorldXMax}
+                onChange={(e) => onVRisingWorldXMaxChange(Number(e.target.value))}
+              />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Z min (south)</label>
+              <input
+                type="number"
+                className={inputCls}
+                value={vRisingWorldZMin}
+                onChange={(e) => onVRisingWorldZMinChange(Number(e.target.value))}
+              />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Z max (north)</label>
+              <input
+                type="number"
+                className={inputCls}
+                value={vRisingWorldZMax}
+                onChange={(e) => onVRisingWorldZMaxChange(Number(e.target.value))}
+              />
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">{t.adminSettingsVRisingWorldBoundsHint}</p>
+        </div>
       </div>
 
       {/* Save */}
@@ -892,6 +946,10 @@ export default function AdminPage() {
   const [settingsVRisingMapURL, setSettingsVRisingMapURL] = useState("");
   const [settingsVRisingMapImageSet, setSettingsVRisingMapImageSet] = useState(false);
   const [settingsVRisingMapNewImage, setSettingsVRisingMapNewImage] = useState("");
+  const [settingsVRisingWorldXMin, setSettingsVRisingWorldXMin] = useState(-2880);
+  const [settingsVRisingWorldXMax, setSettingsVRisingWorldXMax] = useState(160);
+  const [settingsVRisingWorldZMin, setSettingsVRisingWorldZMin] = useState(-2400);
+  const [settingsVRisingWorldZMax, setSettingsVRisingWorldZMax] = useState(640);
   const [settingsForceHttps, setSettingsForceHttps] = useState(false);
   const [backupDownloading, setBackupDownloading] = useState(false);
   const [backupFile, setBackupFile] = useState<File | null>(null);
@@ -1000,6 +1058,10 @@ export default function AdminPage() {
         setSettingsVRisingMapURL(s.vrising_map_url ?? "");
         setSettingsVRisingMapImageSet(s.vrising_map_image_set ?? false);
         setSettingsVRisingMapNewImage("");
+        setSettingsVRisingWorldXMin(s.vrising_world_x_min ?? -2880);
+        setSettingsVRisingWorldXMax(s.vrising_world_x_max ?? 160);
+        setSettingsVRisingWorldZMin(s.vrising_world_z_min ?? -2400);
+        setSettingsVRisingWorldZMax(s.vrising_world_z_max ?? 640);
         setSteamNewKey("");
         setSteamClear(false);
       }).catch(() => {});
@@ -2078,6 +2140,14 @@ export default function AdminPage() {
               }
               setSettingsVRisingMapImageSet(false);
             }}
+            vRisingWorldXMin={settingsVRisingWorldXMin}
+            vRisingWorldXMax={settingsVRisingWorldXMax}
+            vRisingWorldZMin={settingsVRisingWorldZMin}
+            vRisingWorldZMax={settingsVRisingWorldZMax}
+            onVRisingWorldXMinChange={setSettingsVRisingWorldXMin}
+            onVRisingWorldXMaxChange={setSettingsVRisingWorldXMax}
+            onVRisingWorldZMinChange={setSettingsVRisingWorldZMin}
+            onVRisingWorldZMaxChange={setSettingsVRisingWorldZMax}
             sslStatus={sslStatus}
             sslStatusLoading={sslStatusLoading}
             forceHttps={settingsForceHttps}
@@ -2120,6 +2190,10 @@ export default function AdminPage() {
                   vrising_map_image: settingsVRisingMapNewImage === "__CLEAR__"
                     ? "__CLEAR__"
                     : settingsVRisingMapNewImage || "",
+                  vrising_world_x_min: settingsVRisingWorldXMin,
+                  vrising_world_x_max: settingsVRisingWorldXMax,
+                  vrising_world_z_min: settingsVRisingWorldZMin,
+                  vrising_world_z_max: settingsVRisingWorldZMax,
                 });
                 await refreshSettings();
                 // Refresh Steam key info

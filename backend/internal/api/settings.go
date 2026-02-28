@@ -56,6 +56,10 @@ func GetSettings(c echo.Context) error {
 		"default_theme":        dt,
 		"vrising_map_enabled":  s.VRisingMapEnabled,
 		"vrising_map_url":      effectiveVRisingMapURL(s),
+		"vrising_world_x_min":  effectiveWorldBound(s.VRisingWorldXMin, -2880),
+		"vrising_world_x_max":  effectiveWorldBound(s.VRisingWorldXMax, 160),
+		"vrising_world_z_min":  effectiveWorldBound(s.VRisingWorldZMin, -2400),
+		"vrising_world_z_max":  effectiveWorldBound(s.VRisingWorldZMax, 640),
 	})
 }
 
@@ -112,6 +116,10 @@ func GetAdminSettings(c echo.Context) error {
 		"vrising_map_enabled":         s.VRisingMapEnabled,
 		"vrising_map_url":             s.VRisingMapURL,
 		"vrising_map_image_set":       s.VRisingMapImage != "",
+		"vrising_world_x_min":         effectiveWorldBound(s.VRisingWorldXMin, -2880),
+		"vrising_world_x_max":         effectiveWorldBound(s.VRisingWorldXMax, 160),
+		"vrising_world_z_min":         effectiveWorldBound(s.VRisingWorldZMin, -2400),
+		"vrising_world_z_max":         effectiveWorldBound(s.VRisingWorldZMax, 640),
 	})
 }
 
@@ -139,6 +147,10 @@ func UpdateSettings(c echo.Context) error {
 		VRisingMapEnabled       *bool  `json:"vrising_map_enabled"`
 		VRisingMapURL           string `json:"vrising_map_url"`
 		VRisingMapImage         string `json:"vrising_map_image"` // "" = no change, "__CLEAR__" = delete, "data:..." = save
+		VRisingWorldXMin        *int   `json:"vrising_world_x_min"`
+		VRisingWorldXMax        *int   `json:"vrising_world_x_max"`
+		VRisingWorldZMin        *int   `json:"vrising_world_z_min"`
+		VRisingWorldZMax        *int   `json:"vrising_world_z_max"`
 	}
 	if err := c.Bind(&payload); err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid payload"})
@@ -201,6 +213,10 @@ func UpdateSettings(c echo.Context) error {
 	if payload.VRisingMapEnabled != nil {
 		s.VRisingMapEnabled = *payload.VRisingMapEnabled
 	}
+	if payload.VRisingWorldXMin != nil { s.VRisingWorldXMin = *payload.VRisingWorldXMin }
+	if payload.VRisingWorldXMax != nil { s.VRisingWorldXMax = *payload.VRisingWorldXMax }
+	if payload.VRisingWorldZMin != nil { s.VRisingWorldZMin = *payload.VRisingWorldZMin }
+	if payload.VRisingWorldZMax != nil { s.VRisingWorldZMax = *payload.VRisingWorldZMax }
 	switch payload.VRisingMapImage {
 	case "":
 		// no change
@@ -271,6 +287,16 @@ func GetLogo(c echo.Context) error {
 
 	c.Response().Header().Set("Cache-Control", "public, max-age=300")
 	return c.Blob(http.StatusOK, mime, data)
+}
+
+// effectiveWorldBound returns the stored value if non-zero, otherwise the default.
+// GORM stores int as 0 when unset; a zero bound is invalid for V Rising world coordinates,
+// so we treat 0 as "not set" and fall back to the known default.
+func effectiveWorldBound(stored, def int) int {
+	if stored != 0 {
+		return stored
+	}
+	return def
 }
 
 // effectiveVRisingMapURL returns the URL to serve as vrising_map_url in public settings.

@@ -9,6 +9,10 @@ interface SiteSettingsCtx {
   steamEnabled: boolean;
   vRisingMapEnabled: boolean;
   vRisingMapURL: string;
+  vRisingWorldXMin: number;
+  vRisingWorldXMax: number;
+  vRisingWorldZMin: number;
+  vRisingWorldZMax: number;
   refresh: () => Promise<void>;
 }
 
@@ -18,6 +22,10 @@ const DEFAULT: SiteSettingsCtx = {
   steamEnabled: false,
   vRisingMapEnabled: true,
   vRisingMapURL: "",
+  vRisingWorldXMin: -2880,
+  vRisingWorldXMax: 160,
+  vRisingWorldZMin: -2400,
+  vRisingWorldZMax: 640,
   refresh: async () => {},
 };
 
@@ -35,6 +43,10 @@ export function SiteSettingsProvider({ children }: { children: React.ReactNode }
     default_theme: "dark",
     vrising_map_enabled: true,
     vrising_map_url: "",
+    vrising_world_x_min: -2880,
+    vrising_world_x_max: 160,
+    vrising_world_z_min: -2400,
+    vrising_world_z_max: 640,
   });
 
   const load = useCallback(async () => {
@@ -70,6 +82,10 @@ export function SiteSettingsProvider({ children }: { children: React.ReactNode }
         steamEnabled: settings.steam_enabled,
         vRisingMapEnabled: settings.vrising_map_enabled ?? true,
         vRisingMapURL: settings.vrising_map_url ?? "",
+        vRisingWorldXMin: settings.vrising_world_x_min ?? -2880,
+        vRisingWorldXMax: settings.vrising_world_x_max ?? 160,
+        vRisingWorldZMin: settings.vrising_world_z_min ?? -2400,
+        vRisingWorldZMax: settings.vrising_world_z_max ?? 640,
         refresh: load,
       }}
     >

@@ -134,6 +134,10 @@ type SiteSettings struct {
 	VRisingMapEnabled       bool   `gorm:"default:true"                           json:"vrising_map_enabled"`       // показывать вкладку «Живая карта» на V Rising серверах
 	VRisingMapURL           string `gorm:"type:varchar(500)"                      json:"vrising_map_url"`           // URL карты Вардорана (пусто = /vrising-map.png)
 	VRisingMapImage         string `gorm:"type:longtext"                          json:"-"`                         // base64 загруженного изображения карты
+	VRisingWorldXMin        int    `gorm:"default:-2880"                          json:"vrising_world_x_min"`       // западная граница мира (игровые единицы)
+	VRisingWorldXMax        int    `gorm:"default:160"                            json:"vrising_world_x_max"`       // восточная граница мира
+	VRisingWorldZMin        int    `gorm:"default:-2400"                          json:"vrising_world_z_min"`       // южная граница мира (минимальный Z)
+	VRisingWorldZMax        int    `gorm:"default:640"                            json:"vrising_world_z_max"`       // северная граница мира (максимальный Z)
 }
 
 // DiscordEmbed — хранит активные embed-сообщения бота для восстановления после перезапуска.
