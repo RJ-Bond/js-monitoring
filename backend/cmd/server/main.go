@@ -115,6 +115,8 @@ func main() {
 	v1.GET("/chart/:serverID", api.GetServerChart)
 	v1.GET("/servers/:id/vrising/map", api.GetVRisingMap)
 	v1.GET("/vrising/map-image", api.GetVRisingMapImage)
+	v1.GET("/vrising/castle-icon", api.GetVRisingCastleIcon)
+	v1.GET("/vrising/player-icon", api.GetVRisingPlayerIcon)
 
 	// ── Auth ─────────────────────────────────────────────────────────────────
 	authG := v1.Group("/auth")

@@ -43,6 +43,8 @@ export default function VRisingMap({ serverId }: { serverId: number }) {
     vRisingWorldXMax,
     vRisingWorldZMin,
     vRisingWorldZMax,
+    vRisingCastleIconURL,
+    vRisingPlayerIconURL,
   } = useSiteSettings();
   const MAP_IMAGE_URL = vRisingMapURL || "/vrising-map.png";
 
@@ -219,24 +221,32 @@ export default function VRisingMap({ serverId }: { serverId: number }) {
             const col  = colorFromString(castle.clan || castle.owner);
             const tier = Math.max(1, castle.tier ?? 1);
             const size = 5 + tier * 1.8;
+            const tooltip = `${t.vRisingMapCastle}: ${castle.name || castle.clan || castle.owner} · ${t.vRisingMapTier} ${tier}`;
             return (
-              <g key={`c-${i}`} filter="url(#vr-shadow)">
-                {/* Glow halo */}
-                <circle cx={x} cy={y} r={size + 5} fill={col} opacity="0.2" />
-                {/* Diamond icon */}
-                <rect
-                  x={x - size / 2} y={y - size / 2}
-                  width={size} height={size}
-                  fill={col} opacity="0.92" rx="1.5"
-                  transform={`rotate(45,${x},${y})`}
-                  style={{ cursor: "pointer" }}
-                  onMouseMove={(e) =>
-                    showTooltip(e,
-                      `${t.vRisingMapCastle}: ${castle.name || castle.clan || castle.owner} · ${t.vRisingMapTier} ${tier}`
-                    )
-                  }
-                  onMouseLeave={hideTooltip}
-                />
+              <g key={`c-${i}`} filter="url(#vr-shadow)"
+                style={{ cursor: "pointer" }}
+                onMouseMove={(e) => showTooltip(e, tooltip)}
+                onMouseLeave={hideTooltip}
+              >
+                {vRisingCastleIconURL ? (
+                  <image
+                    href={vRisingCastleIconURL}
+                    x={x - 12} y={y - 12}
+                    width={24} height={24}
+                  />
+                ) : (
+                  <>
+                    {/* Glow halo */}
+                    <circle cx={x} cy={y} r={size + 5} fill={col} opacity="0.2" />
+                    {/* Diamond icon */}
+                    <rect
+                      x={x - size / 2} y={y - size / 2}
+                      width={size} height={size}
+                      fill={col} opacity="0.92" rx="1.5"
+                      transform={`rotate(45,${x},${y})`}
+                    />
+                  </>
+                )}
               </g>
             );
           })}
@@ -245,23 +255,31 @@ export default function VRisingMap({ serverId }: { serverId: number }) {
           {players.map((player, i) => {
             const { x, y } = gameToSVG(player.x, player.z, vRisingWorldXMin, vRisingWorldXMax, vRisingWorldZMin, vRisingWorldZMax);
             const col = colorFromString(player.clan || player.name);
+            const tooltip = `${t.vRisingMapPlayer}: ${player.name}${player.clan ? ` [${player.clan}]` : ""}`;
             return (
-              <g key={`p-${i}`} filter="url(#vr-glow)">
-                {/* Outer ring */}
-                <circle cx={x} cy={y} r={7} fill={col} opacity="0.25" />
-                {/* Player dot */}
-                <circle
-                  cx={x} cy={y} r={4.5}
-                  fill={col} opacity="0.95"
-                  stroke="#000" strokeWidth="1.2"
-                  style={{ cursor: "pointer" }}
-                  onMouseMove={(e) =>
-                    showTooltip(e,
-                      `${t.vRisingMapPlayer}: ${player.name}${player.clan ? ` [${player.clan}]` : ""}`
-                    )
-                  }
-                  onMouseLeave={hideTooltip}
-                />
+              <g key={`p-${i}`} filter="url(#vr-glow)"
+                style={{ cursor: "pointer" }}
+                onMouseMove={(e) => showTooltip(e, tooltip)}
+                onMouseLeave={hideTooltip}
+              >
+                {vRisingPlayerIconURL ? (
+                  <image
+                    href={vRisingPlayerIconURL}
+                    x={x - 10} y={y - 10}
+                    width={20} height={20}
+                  />
+                ) : (
+                  <>
+                    {/* Outer ring */}
+                    <circle cx={x} cy={y} r={7} fill={col} opacity="0.25" />
+                    {/* Player dot */}
+                    <circle
+                      cx={x} cy={y} r={4.5}
+                      fill={col} opacity="0.95"
+                      stroke="#000" strokeWidth="1.2"
+                    />
+                  </>
+                )}
               </g>
             );
           })}

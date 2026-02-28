@@ -172,6 +172,14 @@ interface SettingsTabProps {
   onVRisingWorldXMaxChange: (v: number) => void;
   onVRisingWorldZMinChange: (v: number) => void;
   onVRisingWorldZMaxChange: (v: number) => void;
+  vRisingCastleIconSet: boolean;
+  vRisingPlayerIconSet: boolean;
+  vRisingCastleIconNew: string;
+  vRisingPlayerIconNew: string;
+  onVRisingCastleIconChange: (v: string) => void;
+  onVRisingPlayerIconChange: (v: string) => void;
+  onVRisingCastleIconClear: () => void;
+  onVRisingPlayerIconClear: () => void;
   sslStatus: SSLStatus | null;
   sslStatusLoading: boolean;
   forceHttps: boolean;
@@ -218,6 +226,8 @@ function SettingsTab({
   onVRisingMapEnabledChange, onVRisingMapURLChange, onVRisingMapImageChange, onVRisingMapImageClear,
   vRisingWorldXMin, vRisingWorldXMax, vRisingWorldZMin, vRisingWorldZMax,
   onVRisingWorldXMinChange, onVRisingWorldXMaxChange, onVRisingWorldZMinChange, onVRisingWorldZMaxChange,
+  vRisingCastleIconSet, vRisingPlayerIconSet, vRisingCastleIconNew, vRisingPlayerIconNew,
+  onVRisingCastleIconChange, onVRisingPlayerIconChange, onVRisingCastleIconClear, onVRisingPlayerIconClear,
   sslStatus, sslStatusLoading, forceHttps, onForceHttpsChange, onRefreshSsl,
   onSave, t,
 }: SettingsTabProps) {
@@ -874,6 +884,82 @@ function SettingsTab({
           </div>
           <p className="text-xs text-muted-foreground mt-1">{t.adminSettingsVRisingWorldBoundsHint}</p>
         </div>
+
+        {/* Castle icon */}
+        <div>
+          <label className="text-xs text-muted-foreground mb-2 block">{t.adminSettingsVRisingCastleIcon}</label>
+          <div className="flex items-center gap-2 flex-wrap">
+            <label className="px-3 py-2 rounded-xl text-sm border border-white/10 bg-white/5 hover:bg-white/10 cursor-pointer transition-colors">
+              {t.adminSettingsVRisingMapUpload}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = () => onVRisingCastleIconChange(reader.result as string);
+                  reader.readAsDataURL(file);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+            {(vRisingCastleIconSet || vRisingCastleIconNew) && vRisingCastleIconNew !== "__CLEAR__" && (
+              <button
+                type="button"
+                onClick={onVRisingCastleIconClear}
+                className="px-3 py-2 rounded-xl text-sm border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors"
+              >
+                🗑 {t.adminSettingsVRisingCastleIconClear}
+              </button>
+            )}
+            {vRisingCastleIconNew && vRisingCastleIconNew !== "__CLEAR__" ? (
+              <img src={vRisingCastleIconNew} alt="castle icon" className="w-10 h-10 object-contain rounded border border-white/10" />
+            ) : (vRisingCastleIconSet && !vRisingCastleIconNew) ? (
+              <span className="text-xs text-neon-green">✓ {t.adminSettingsVRisingCastleIconUploaded}</span>
+            ) : null}
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">{t.adminSettingsVRisingCastleIconHint}</p>
+        </div>
+
+        {/* Player icon */}
+        <div>
+          <label className="text-xs text-muted-foreground mb-2 block">{t.adminSettingsVRisingPlayerIcon}</label>
+          <div className="flex items-center gap-2 flex-wrap">
+            <label className="px-3 py-2 rounded-xl text-sm border border-white/10 bg-white/5 hover:bg-white/10 cursor-pointer transition-colors">
+              {t.adminSettingsVRisingMapUpload}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = () => onVRisingPlayerIconChange(reader.result as string);
+                  reader.readAsDataURL(file);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+            {(vRisingPlayerIconSet || vRisingPlayerIconNew) && vRisingPlayerIconNew !== "__CLEAR__" && (
+              <button
+                type="button"
+                onClick={onVRisingPlayerIconClear}
+                className="px-3 py-2 rounded-xl text-sm border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors"
+              >
+                🗑 {t.adminSettingsVRisingPlayerIconClear}
+              </button>
+            )}
+            {vRisingPlayerIconNew && vRisingPlayerIconNew !== "__CLEAR__" ? (
+              <img src={vRisingPlayerIconNew} alt="player icon" className="w-10 h-10 object-contain rounded border border-white/10" />
+            ) : (vRisingPlayerIconSet && !vRisingPlayerIconNew) ? (
+              <span className="text-xs text-neon-green">✓ {t.adminSettingsVRisingPlayerIconUploaded}</span>
+            ) : null}
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">{t.adminSettingsVRisingPlayerIconHint}</p>
+        </div>
       </div>
 
       {/* Save */}
@@ -950,6 +1036,10 @@ export default function AdminPage() {
   const [settingsVRisingWorldXMax, setSettingsVRisingWorldXMax] = useState(160);
   const [settingsVRisingWorldZMin, setSettingsVRisingWorldZMin] = useState(-2400);
   const [settingsVRisingWorldZMax, setSettingsVRisingWorldZMax] = useState(640);
+  const [settingsVRisingCastleIconSet, setSettingsVRisingCastleIconSet] = useState(false);
+  const [settingsVRisingPlayerIconSet, setSettingsVRisingPlayerIconSet] = useState(false);
+  const [settingsVRisingCastleIconNew, setSettingsVRisingCastleIconNew] = useState("");
+  const [settingsVRisingPlayerIconNew, setSettingsVRisingPlayerIconNew] = useState("");
   const [settingsForceHttps, setSettingsForceHttps] = useState(false);
   const [backupDownloading, setBackupDownloading] = useState(false);
   const [backupFile, setBackupFile] = useState<File | null>(null);
@@ -1062,6 +1152,10 @@ export default function AdminPage() {
         setSettingsVRisingWorldXMax(s.vrising_world_x_max ?? 160);
         setSettingsVRisingWorldZMin(s.vrising_world_z_min ?? -2400);
         setSettingsVRisingWorldZMax(s.vrising_world_z_max ?? 640);
+        setSettingsVRisingCastleIconSet(s.vrising_castle_icon_set ?? false);
+        setSettingsVRisingPlayerIconSet(s.vrising_player_icon_set ?? false);
+        setSettingsVRisingCastleIconNew("");
+        setSettingsVRisingPlayerIconNew("");
         setSteamNewKey("");
         setSteamClear(false);
       }).catch(() => {});
@@ -2148,6 +2242,22 @@ export default function AdminPage() {
             onVRisingWorldXMaxChange={setSettingsVRisingWorldXMax}
             onVRisingWorldZMinChange={setSettingsVRisingWorldZMin}
             onVRisingWorldZMaxChange={setSettingsVRisingWorldZMax}
+            vRisingCastleIconSet={settingsVRisingCastleIconSet}
+            vRisingPlayerIconSet={settingsVRisingPlayerIconSet}
+            vRisingCastleIconNew={settingsVRisingCastleIconNew}
+            vRisingPlayerIconNew={settingsVRisingPlayerIconNew}
+            onVRisingCastleIconChange={setSettingsVRisingCastleIconNew}
+            onVRisingPlayerIconChange={setSettingsVRisingPlayerIconNew}
+            onVRisingCastleIconClear={() => {
+              if (settingsVRisingCastleIconSet) setSettingsVRisingCastleIconNew("__CLEAR__");
+              else setSettingsVRisingCastleIconNew("");
+              setSettingsVRisingCastleIconSet(false);
+            }}
+            onVRisingPlayerIconClear={() => {
+              if (settingsVRisingPlayerIconSet) setSettingsVRisingPlayerIconNew("__CLEAR__");
+              else setSettingsVRisingPlayerIconNew("");
+              setSettingsVRisingPlayerIconSet(false);
+            }}
             sslStatus={sslStatus}
             sslStatusLoading={sslStatusLoading}
             forceHttps={settingsForceHttps}
@@ -2194,6 +2304,8 @@ export default function AdminPage() {
                   vrising_world_x_max: settingsVRisingWorldXMax,
                   vrising_world_z_min: settingsVRisingWorldZMin,
                   vrising_world_z_max: settingsVRisingWorldZMax,
+                  vrising_castle_icon: settingsVRisingCastleIconNew === "__CLEAR__" ? "__CLEAR__" : settingsVRisingCastleIconNew || "",
+                  vrising_player_icon: settingsVRisingPlayerIconNew === "__CLEAR__" ? "__CLEAR__" : settingsVRisingPlayerIconNew || "",
                 });
                 await refreshSettings();
                 // Refresh Steam key info

@@ -54,12 +54,14 @@ func GetSettings(c echo.Context) error {
 		"registration_enabled": s.RegistrationEnabled,
 		"force_https":          s.ForceHTTPS,
 		"default_theme":        dt,
-		"vrising_map_enabled":  s.VRisingMapEnabled,
-		"vrising_map_url":      effectiveVRisingMapURL(s),
-		"vrising_world_x_min":  effectiveWorldBound(s.VRisingWorldXMin, -2880),
-		"vrising_world_x_max":  effectiveWorldBound(s.VRisingWorldXMax, 160),
-		"vrising_world_z_min":  effectiveWorldBound(s.VRisingWorldZMin, -2400),
-		"vrising_world_z_max":  effectiveWorldBound(s.VRisingWorldZMax, 640),
+		"vrising_map_enabled":      s.VRisingMapEnabled,
+		"vrising_map_url":          effectiveVRisingMapURL(s),
+		"vrising_world_x_min":      effectiveWorldBound(s.VRisingWorldXMin, -2880),
+		"vrising_world_x_max":      effectiveWorldBound(s.VRisingWorldXMax, 160),
+		"vrising_world_z_min":      effectiveWorldBound(s.VRisingWorldZMin, -2400),
+		"vrising_world_z_max":      effectiveWorldBound(s.VRisingWorldZMax, 640),
+		"vrising_castle_icon_url":  effectiveIconURL(s.VRisingCastleIcon, "/api/v1/vrising/castle-icon"),
+		"vrising_player_icon_url":  effectiveIconURL(s.VRisingPlayerIcon, "/api/v1/vrising/player-icon"),
 	})
 }
 
@@ -120,6 +122,8 @@ func GetAdminSettings(c echo.Context) error {
 		"vrising_world_x_max":         effectiveWorldBound(s.VRisingWorldXMax, 160),
 		"vrising_world_z_min":         effectiveWorldBound(s.VRisingWorldZMin, -2400),
 		"vrising_world_z_max":         effectiveWorldBound(s.VRisingWorldZMax, 640),
+		"vrising_castle_icon_set":     s.VRisingCastleIcon != "",
+		"vrising_player_icon_set":     s.VRisingPlayerIcon != "",
 	})
 }
 
@@ -151,6 +155,8 @@ func UpdateSettings(c echo.Context) error {
 		VRisingWorldXMax        *int   `json:"vrising_world_x_max"`
 		VRisingWorldZMin        *int   `json:"vrising_world_z_min"`
 		VRisingWorldZMax        *int   `json:"vrising_world_z_max"`
+		VRisingCastleIcon       string `json:"vrising_castle_icon"` // "" = no change, "__CLEAR__" = delete, "data:..." = save
+		VRisingPlayerIcon       string `json:"vrising_player_icon"` // "" = no change, "__CLEAR__" = delete, "data:..." = save
 	}
 	if err := c.Bind(&payload); err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid payload"})
@@ -228,6 +234,28 @@ func UpdateSettings(c echo.Context) error {
 		}
 		s.VRisingMapImage = payload.VRisingMapImage
 	}
+	switch payload.VRisingCastleIcon {
+	case "":
+		// no change
+	case "__CLEAR__":
+		s.VRisingCastleIcon = ""
+	default:
+		if len(payload.VRisingCastleIcon) > 1_500_000 { // 1 MB base64 limit
+			return c.JSON(http.StatusBadRequest, echo.Map{"error": "castle icon too large (max 1 MB)"})
+		}
+		s.VRisingCastleIcon = payload.VRisingCastleIcon
+	}
+	switch payload.VRisingPlayerIcon {
+	case "":
+		// no change
+	case "__CLEAR__":
+		s.VRisingPlayerIcon = ""
+	default:
+		if len(payload.VRisingPlayerIcon) > 1_500_000 { // 1 MB base64 limit
+			return c.JSON(http.StatusBadRequest, echo.Map{"error": "player icon too large (max 1 MB)"})
+		}
+		s.VRisingPlayerIcon = payload.VRisingPlayerIcon
+	}
 	if payload.DiscordRefreshInterval >= 10 {
 		s.DiscordRefreshInterval = payload.DiscordRefreshInterval
 	} else if payload.DiscordRefreshInterval == 0 && s.DiscordRefreshInterval == 0 {
@@ -289,6 +317,14 @@ func GetLogo(c echo.Context) error {
 	return c.Blob(http.StatusOK, mime, data)
 }
 
+// effectiveIconURL returns the API endpoint if the icon data is present, otherwise empty string.
+func effectiveIconURL(data, endpoint string) string {
+	if data != "" {
+		return endpoint
+	}
+	return ""
+}
+
 // effectiveWorldBound returns the stored value if non-zero, otherwise the default.
 // GORM stores int as 0 when unset; a zero bound is invalid for V Rising world coordinates,
 // so we treat 0 as "not set" and fall back to the known default.
@@ -337,6 +373,56 @@ func GetVRisingMapImage(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
+	c.Response().Header().Set("Cache-Control", "public, max-age=3600")
+	return c.Blob(http.StatusOK, mime, data)
+}
+
+// GetVRisingCastleIcon GET /api/v1/vrising/castle-icon — public
+// Serves the custom castle icon uploaded via admin settings.
+func GetVRisingCastleIcon(c echo.Context) error {
+	var s models.SiteSettings
+	if database.DB.First(&s, 1).Error != nil || s.VRisingCastleIcon == "" {
+		return c.NoContent(http.StatusNotFound)
+	}
+	comma := strings.Index(s.VRisingCastleIcon, ",")
+	if comma < 0 {
+		return c.NoContent(http.StatusNotFound)
+	}
+	header := s.VRisingCastleIcon[:comma]
+	encoded := s.VRisingCastleIcon[comma+1:]
+	mime := "image/png"
+	if semi := strings.Index(header, ";"); semi > 5 {
+		mime = header[5:semi]
+	}
+	data, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	c.Response().Header().Set("Cache-Control", "public, max-age=3600")
+	return c.Blob(http.StatusOK, mime, data)
+}
+
+// GetVRisingPlayerIcon GET /api/v1/vrising/player-icon — public
+// Serves the custom player icon uploaded via admin settings.
+func GetVRisingPlayerIcon(c echo.Context) error {
+	var s models.SiteSettings
+	if database.DB.First(&s, 1).Error != nil || s.VRisingPlayerIcon == "" {
+		return c.NoContent(http.StatusNotFound)
+	}
+	comma := strings.Index(s.VRisingPlayerIcon, ",")
+	if comma < 0 {
+		return c.NoContent(http.StatusNotFound)
+	}
+	header := s.VRisingPlayerIcon[:comma]
+	encoded := s.VRisingPlayerIcon[comma+1:]
+	mime := "image/png"
+	if semi := strings.Index(header, ";"); semi > 5 {
+		mime = header[5:semi]
+	}
+	data, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return c.NoContent(http.StatusInternalServerError)
+	}
 	c.Response().Header().Set("Cache-Control", "public, max-age=3600")
 	return c.Blob(http.StatusOK, mime, data)
 }

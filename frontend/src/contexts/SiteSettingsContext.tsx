@@ -13,6 +13,8 @@ interface SiteSettingsCtx {
   vRisingWorldXMax: number;
   vRisingWorldZMin: number;
   vRisingWorldZMax: number;
+  vRisingCastleIconURL: string;
+  vRisingPlayerIconURL: string;
   refresh: () => Promise<void>;
 }
 
@@ -26,6 +28,8 @@ const DEFAULT: SiteSettingsCtx = {
   vRisingWorldXMax: 160,
   vRisingWorldZMin: -2400,
   vRisingWorldZMax: 640,
+  vRisingCastleIconURL: "",
+  vRisingPlayerIconURL: "",
   refresh: async () => {},
 };
 
@@ -47,6 +51,8 @@ export function SiteSettingsProvider({ children }: { children: React.ReactNode }
     vrising_world_x_max: 160,
     vrising_world_z_min: -2400,
     vrising_world_z_max: 640,
+    vrising_castle_icon_url: "",
+    vrising_player_icon_url: "",
   });
 
   const load = useCallback(async () => {
@@ -86,6 +92,8 @@ export function SiteSettingsProvider({ children }: { children: React.ReactNode }
         vRisingWorldXMax: settings.vrising_world_x_max ?? 160,
         vRisingWorldZMin: settings.vrising_world_z_min ?? -2400,
         vRisingWorldZMax: settings.vrising_world_z_max ?? 640,
+        vRisingCastleIconURL: settings.vrising_castle_icon_url ?? "",
+        vRisingPlayerIconURL: settings.vrising_player_icon_url ?? "",
         refresh: load,
       }}
     >
