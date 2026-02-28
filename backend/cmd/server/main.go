@@ -114,7 +114,6 @@ func main() {
 	v1.GET("/players/:name", api.GetPlayerProfile)
 	v1.GET("/chart/:serverID", api.GetServerChart)
 	v1.GET("/servers/:id/vrising/map", api.GetVRisingMap)
-	v1.POST("/vrising/push", api.PushVRisingMap)
 
 	// ── Auth ─────────────────────────────────────────────────────────────────
 	authG := v1.Group("/auth")
@@ -134,6 +133,7 @@ func main() {
 	protected.PUT("/profile", api.UpdateProfile)
 	protected.PUT("/profile/avatar", api.UpdateAvatar)
 	protected.POST("/profile/token", api.GenerateAPIToken)
+	protected.POST("/vrising/push", api.PushVRisingMap)
 	protected.DELETE("/profile", api.DeleteProfile)
 	protected.POST("/profile/delete-cancel", api.CancelDeleteProfile)
 	protected.GET("/profile/servers", api.GetProfileServers)

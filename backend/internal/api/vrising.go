@@ -47,25 +47,11 @@ type VRisingMapResponse struct {
 }
 
 // PushVRisingMap POST /api/v1/vrising/push
-// Принимает данные от BepInEx плагина (аутентификация по X-API-Key)
+// Принимает данные от BepInEx плагина.
+// Аутентификация — JWTMiddleware (Bearer token или X-API-Key из профиля).
 func PushVRisingMap(c echo.Context) error {
-	// Проверка X-API-Key (то же, что у X-API-Key middleware для поллера)
-	var settings models.SiteSettings
-	if err := database.DB.First(&settings, 1).Error; err != nil {
-		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "settings unavailable"})
-	}
-
-	// Используем SteamAPIKey как shared secret или VRisingPluginKey если добавим
-	// Пока используем X-API-Key из user.api_token через отдельную проверку
-	apiKey := c.Request().Header.Get("X-API-Key")
-	if apiKey == "" {
-		return c.JSON(http.StatusUnauthorized, echo.Map{"error": "X-API-Key required"})
-	}
-	// Ищем пользователя с таким API токеном
-	var user models.User
-	if err := database.DB.Where("api_token = ?", apiKey).First(&user).Error; err != nil {
-		return c.JSON(http.StatusUnauthorized, echo.Map{"error": "invalid API key"})
-	}
+	userID := uint(c.Get("user_id").(float64))
+	role, _ := c.Get("role").(string)
 
 	var payload VRisingMapPayload
 	if err := c.Bind(&payload); err != nil {
@@ -81,7 +67,7 @@ func PushVRisingMap(c echo.Context) error {
 	if err := database.DB.First(&server, payload.ServerID).Error; err != nil {
 		return c.JSON(http.StatusNotFound, echo.Map{"error": "server not found"})
 	}
-	if user.Role != "admin" && server.OwnerID != user.ID {
+	if role != "admin" && server.OwnerID != userID {
 		return c.JSON(http.StatusForbidden, echo.Map{"error": "not your server"})
 	}
 
