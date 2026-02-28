@@ -204,8 +204,9 @@ export default function VRisingMap({ serverId }: { serverId: number }) {
             ref={svgRef}
             viewBox={`0 0 ${SVG_SIZE} ${SVG_SIZE}`}
             width="100%"
-            style={{ display: "block", aspectRatio: "1/1" }}
+            style={{ display: "block", aspectRatio: "1/1", cursor: isFullscreen ? "default" : "zoom-in" }}
             onMouseLeave={hideTooltip}
+            onDoubleClick={toggleFullscreen}
           >
             <defs>
               <radialGradient id="vr-bg" cx="50%" cy="50%" r="60%">
