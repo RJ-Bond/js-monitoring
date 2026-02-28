@@ -28,6 +28,7 @@ type DiscordBot struct {
 	activeMessages  sync.Map      // key: "channelID:serverID" → messageID
 	activePeriods   sync.Map      // key: "channelID:serverID" → current period string
 	refreshInterval time.Duration // embed auto-refresh interval, read from SiteSettings on startup
+	cmdCooldowns    sync.Map      // key: userID → time.Time (anti-spam для /addserver)
 }
 
 // NewDiscordBot creates a new DiscordBot with the given bot token.
@@ -261,6 +262,25 @@ func (b *DiscordBot) handleServerCommand(s *discordgo.Session, i *discordgo.Inte
 		return
 	}
 
+	// Rate limit: 5 секунд между использованиями команды одним пользователем
+	const cooldown = 5 * time.Second
+	userID := i.Member.User.ID
+	if last, ok := b.cmdCooldowns.Load(userID); ok {
+		since := time.Since(last.(time.Time))
+		if since < cooldown {
+			remaining := int((cooldown-since)/time.Second) + 1
+			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: fmt.Sprintf("⏳ Подождите **%d сек.** перед следующим использованием команды.", remaining),
+					Flags:   discordgo.MessageFlagsEphemeral,
+				},
+			})
+			return
+		}
+	}
+	b.cmdCooldowns.Store(userID, time.Now())
+
 	// Ephemeral ACK — only the caller sees "thinking", channel stays clean.
 	_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
@@ -447,23 +467,61 @@ func (b *DiscordBot) handleAddServerAutocomplete(s *discordgo.Session, i *discor
 	})
 }
 
-// replyServerList edits the deferred response with a list of configured servers.
+// replyServerList edits the deferred response with a styled embed listing all servers.
 func (b *DiscordBot) replyServerList(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	var servers []models.Server
 	b.db.Preload("Status").Limit(25).Find(&servers)
 
-	var content string
+	empty := ""
+
 	if len(servers) == 0 {
-		content = "Нет настроенных серверов."
-	} else {
-		var lines []string
-		for _, srv := range servers {
-			name := serverDisplayName(&srv)
-			lines = append(lines, fmt.Sprintf("`%d` — `%s:%d` | **%s**", srv.ID, srv.IP, srv.Port, name))
-		}
-		content = "**Серверы:**\n" + strings.Join(lines, "\n") + "\n\nВыбери через автодополнение или укажи `/addserver id:<номер>`"
+		content := "Нет настроенных серверов."
+		b.retryEdit(s, i, &discordgo.WebhookEdit{Content: &content})
+		return
 	}
-	b.retryEdit(s, i, &discordgo.WebhookEdit{Content: &content})
+
+	var desc strings.Builder
+	onlineTotal, playerTotal := 0, 0
+	for _, srv := range servers {
+		name := serverDisplayName(&srv)
+		statusEmoji := "🔴"
+		playersStr := ""
+		if srv.Status != nil && srv.Status.OnlineStatus {
+			statusEmoji = "🟢"
+			onlineTotal++
+			playersStr = fmt.Sprintf(" · 👥 **%d**/%d", srv.Status.PlayersNow, srv.Status.PlayersMax)
+			playerTotal += srv.Status.PlayersNow
+		}
+		desc.WriteString(fmt.Sprintf("%s `#%d` **%s**%s\n", statusEmoji, srv.ID, name, playersStr))
+		desc.WriteString(fmt.Sprintf("　　`%s:%d`\n", srv.IP, srv.Port))
+	}
+
+	embed := &discordgo.MessageEmbed{
+		Title:       "🖥️ Серверы мониторинга",
+		Description: desc.String(),
+		Color:       0x5865F2,
+		Fields: []*discordgo.MessageEmbedField{
+			{
+				Name:   "🟢 Онлайн",
+				Value:  fmt.Sprintf("%d из %d", onlineTotal, len(servers)),
+				Inline: true,
+			},
+			{
+				Name:   "👥 Игроков",
+				Value:  fmt.Sprintf("%d", playerTotal),
+				Inline: true,
+			},
+		},
+		Footer: &discordgo.MessageEmbedFooter{
+			Text: "Выбери сервер через автодополнение или /addserver id:<номер>",
+		},
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+	}
+
+	b.retryEdit(s, i, &discordgo.WebhookEdit{
+		Content: &empty,
+		Embeds:  &[]*discordgo.MessageEmbed{embed},
+	})
 }
 
 // startChannelAutoRefresh edits a plain channel message every minute until it fails
