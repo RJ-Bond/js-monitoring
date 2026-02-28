@@ -34,7 +34,7 @@ func GetSettings(c echo.Context) error {
 			"app_url":              "",
 			"registration_enabled": true,
 			"vrising_map_enabled":  true,
-			"vrising_map_url":      "",
+			"vrising_map_url":      "/vrising-map.png",
 		})
 	}
 	effectiveKey := s.SteamAPIKey
@@ -55,7 +55,7 @@ func GetSettings(c echo.Context) error {
 		"force_https":          s.ForceHTTPS,
 		"default_theme":        dt,
 		"vrising_map_enabled":  s.VRisingMapEnabled,
-		"vrising_map_url":      s.VRisingMapURL,
+		"vrising_map_url":      effectiveVRisingMapURL(s),
 	})
 }
 
@@ -111,6 +111,7 @@ func GetAdminSettings(c echo.Context) error {
 		"discord_refresh_interval":    s.DiscordRefreshInterval,
 		"vrising_map_enabled":         s.VRisingMapEnabled,
 		"vrising_map_url":             s.VRisingMapURL,
+		"vrising_map_image_set":       s.VRisingMapImage != "",
 	})
 }
 
@@ -137,6 +138,7 @@ func UpdateSettings(c echo.Context) error {
 		DiscordRefreshInterval  int    `json:"discord_refresh_interval"`
 		VRisingMapEnabled       *bool  `json:"vrising_map_enabled"`
 		VRisingMapURL           string `json:"vrising_map_url"`
+		VRisingMapImage         string `json:"vrising_map_image"` // "" = no change, "__CLEAR__" = delete, "data:..." = save
 	}
 	if err := c.Bind(&payload); err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid payload"})
@@ -199,6 +201,17 @@ func UpdateSettings(c echo.Context) error {
 	if payload.VRisingMapEnabled != nil {
 		s.VRisingMapEnabled = *payload.VRisingMapEnabled
 	}
+	switch payload.VRisingMapImage {
+	case "":
+		// no change
+	case "__CLEAR__":
+		s.VRisingMapImage = ""
+	default:
+		if len(payload.VRisingMapImage) > 10_000_000 { // 10 MB base64 limit
+			return c.JSON(http.StatusBadRequest, echo.Map{"error": "map image too large (max 10 MB)"})
+		}
+		s.VRisingMapImage = payload.VRisingMapImage
+	}
 	if payload.DiscordRefreshInterval >= 10 {
 		s.DiscordRefreshInterval = payload.DiscordRefreshInterval
 	} else if payload.DiscordRefreshInterval == 0 && s.DiscordRefreshInterval == 0 {
@@ -257,5 +270,47 @@ func GetLogo(c echo.Context) error {
 	}
 
 	c.Response().Header().Set("Cache-Control", "public, max-age=300")
+	return c.Blob(http.StatusOK, mime, data)
+}
+
+// effectiveVRisingMapURL returns the URL to serve as vrising_map_url in public settings.
+// If a custom URL is set, it wins. If an uploaded image exists, returns the API endpoint.
+// Otherwise returns the default static path.
+func effectiveVRisingMapURL(s models.SiteSettings) string {
+	if s.VRisingMapURL != "" {
+		return s.VRisingMapURL
+	}
+	if s.VRisingMapImage != "" {
+		return "/api/v1/vrising/map-image"
+	}
+	return "/vrising-map.png"
+}
+
+// GetVRisingMapImage GET /api/v1/vrising/map-image — public
+// Serves the Vardoran map image uploaded via admin settings.
+func GetVRisingMapImage(c echo.Context) error {
+	var s models.SiteSettings
+	if database.DB.First(&s, 1).Error != nil || s.VRisingMapImage == "" {
+		return c.NoContent(http.StatusNotFound)
+	}
+
+	comma := strings.Index(s.VRisingMapImage, ",")
+	if comma < 0 {
+		return c.NoContent(http.StatusNotFound)
+	}
+	header := s.VRisingMapImage[:comma]
+	encoded := s.VRisingMapImage[comma+1:]
+
+	mime := "image/png"
+	if semi := strings.Index(header, ";"); semi > 5 {
+		mime = header[5:semi]
+	}
+
+	data, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	c.Response().Header().Set("Cache-Control", "public, max-age=3600")
 	return c.Blob(http.StatusOK, mime, data)
 }

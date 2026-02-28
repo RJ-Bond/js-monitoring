@@ -158,8 +158,12 @@ interface SettingsTabProps {
   onDiscordEmbedCfgChange: (key: string, val: boolean) => void;
   vRisingMapEnabled: boolean;
   vRisingMapURL: string;
+  vRisingMapImageSet: boolean;
+  vRisingMapNewImage: string;
   onVRisingMapEnabledChange: (v: boolean) => void;
   onVRisingMapURLChange: (v: string) => void;
+  onVRisingMapImageChange: (v: string) => void;
+  onVRisingMapImageClear: () => void;
   sslStatus: SSLStatus | null;
   sslStatusLoading: boolean;
   forceHttps: boolean;
@@ -202,7 +206,8 @@ function SettingsTab({
   discordAlertChannelID, onDiscordAlertChannelIDChange,
   discordRefreshInterval, onDiscordRefreshIntervalChange,
   discordEmbedCfg, onDiscordEmbedCfgChange,
-  vRisingMapEnabled, vRisingMapURL, onVRisingMapEnabledChange, onVRisingMapURLChange,
+  vRisingMapEnabled, vRisingMapURL, vRisingMapImageSet, vRisingMapNewImage,
+  onVRisingMapEnabledChange, onVRisingMapURLChange, onVRisingMapImageChange, onVRisingMapImageClear,
   sslStatus, sslStatusLoading, forceHttps, onForceHttpsChange, onRefreshSsl,
   onSave, t,
 }: SettingsTabProps) {
@@ -759,6 +764,52 @@ function SettingsTab({
             <p className="text-xs text-muted-foreground">{t.adminSettingsVRisingMapEnabledHint}</p>
           </div>
         </label>
+
+        {/* Upload */}
+        <div className="space-y-2">
+          <label className="text-xs text-muted-foreground block">{t.adminSettingsVRisingMapUpload}</label>
+          <div className="flex items-center gap-3 flex-wrap">
+            <label className="cursor-pointer px-3 py-2 rounded-xl text-sm border border-white/10 bg-white/5 hover:bg-white/10 transition-colors">
+              📂 {t.adminSettingsVRisingMapUpload}
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  if (file.size > 7_340_032) { alert("Max 7 MB"); return; }
+                  const reader = new FileReader();
+                  reader.onload = () => onVRisingMapImageChange(reader.result as string);
+                  reader.readAsDataURL(file);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+            {(vRisingMapImageSet || vRisingMapNewImage) && (
+              <button
+                type="button"
+                onClick={onVRisingMapImageClear}
+                className="px-3 py-2 rounded-xl text-sm border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors"
+              >
+                🗑 {t.adminSettingsVRisingMapClear}
+              </button>
+            )}
+            {(vRisingMapImageSet && !vRisingMapNewImage) && (
+              <span className="text-xs text-neon-green">✓ {t.adminSettingsVRisingMapUploaded}</span>
+            )}
+          </div>
+          {vRisingMapNewImage && (
+            <img
+              src={vRisingMapNewImage}
+              alt="map preview"
+              className="w-32 h-32 object-cover rounded-xl border border-white/10 mt-1"
+            />
+          )}
+          <p className="text-xs text-muted-foreground">{t.adminSettingsVRisingMapUploadHint}</p>
+        </div>
+
+        {/* Custom URL (optional override) */}
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">{t.adminSettingsVRisingMapURL}</label>
           <input
@@ -839,6 +890,8 @@ export default function AdminPage() {
   const [discordEmbedCfg, setDiscordEmbedCfg] = useState<Record<string, boolean>>(defaultEmbedCfg);
   const [settingsVRisingMapEnabled, setSettingsVRisingMapEnabled] = useState(true);
   const [settingsVRisingMapURL, setSettingsVRisingMapURL] = useState("");
+  const [settingsVRisingMapImageSet, setSettingsVRisingMapImageSet] = useState(false);
+  const [settingsVRisingMapNewImage, setSettingsVRisingMapNewImage] = useState("");
   const [settingsForceHttps, setSettingsForceHttps] = useState(false);
   const [backupDownloading, setBackupDownloading] = useState(false);
   const [backupFile, setBackupFile] = useState<File | null>(null);
@@ -945,6 +998,8 @@ export default function AdminPage() {
         setSettingsForceHttps(s.force_https ?? false);
         setSettingsVRisingMapEnabled(s.vrising_map_enabled ?? true);
         setSettingsVRisingMapURL(s.vrising_map_url ?? "");
+        setSettingsVRisingMapImageSet(s.vrising_map_image_set ?? false);
+        setSettingsVRisingMapNewImage("");
         setSteamNewKey("");
         setSteamClear(false);
       }).catch(() => {});
@@ -2010,8 +2065,19 @@ export default function AdminPage() {
             onDiscordEmbedCfgChange={(key, val) => setDiscordEmbedCfg((prev) => ({ ...prev, [key]: val }))}
             vRisingMapEnabled={settingsVRisingMapEnabled}
             vRisingMapURL={settingsVRisingMapURL}
+            vRisingMapImageSet={settingsVRisingMapImageSet}
+            vRisingMapNewImage={settingsVRisingMapNewImage}
             onVRisingMapEnabledChange={setSettingsVRisingMapEnabled}
             onVRisingMapURLChange={setSettingsVRisingMapURL}
+            onVRisingMapImageChange={setSettingsVRisingMapNewImage}
+            onVRisingMapImageClear={() => {
+              if (settingsVRisingMapImageSet) {
+                setSettingsVRisingMapNewImage("__CLEAR__");
+              } else {
+                setSettingsVRisingMapNewImage("");
+              }
+              setSettingsVRisingMapImageSet(false);
+            }}
             sslStatus={sslStatus}
             sslStatusLoading={sslStatusLoading}
             forceHttps={settingsForceHttps}
@@ -2051,6 +2117,9 @@ export default function AdminPage() {
                   discord_embed_config: JSON.stringify(discordEmbedCfg),
                   vrising_map_enabled: settingsVRisingMapEnabled,
                   vrising_map_url: settingsVRisingMapURL,
+                  vrising_map_image: settingsVRisingMapNewImage === "__CLEAR__"
+                    ? "__CLEAR__"
+                    : settingsVRisingMapNewImage || "",
                 });
                 await refreshSettings();
                 // Refresh Steam key info
@@ -2067,6 +2136,8 @@ export default function AdminPage() {
                 setDiscordRefreshInterval(updated.discord_refresh_interval ?? 60);
                 setDiscordNewBotToken("");
                 setDiscordBotClear(false);
+                setSettingsVRisingMapImageSet(updated.vrising_map_image_set ?? false);
+                setSettingsVRisingMapNewImage("");
                 setSettingsSaved(true);
                 setTimeout(() => setSettingsSaved(false), 2000);
               } catch {

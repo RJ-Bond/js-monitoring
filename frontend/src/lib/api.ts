@@ -107,6 +107,7 @@ export interface AdminSiteSettings {
   discord_refresh_interval?: number;
   vrising_map_enabled?: boolean;
   vrising_map_url?: string;
+  vrising_map_image_set?: boolean;
 }
 
 export interface SSLStatus {
@@ -290,7 +291,7 @@ export const api = {
     fetchJSON("/api/v1/admin/servers/bulk", { method: "POST", body: JSON.stringify({ action, ids }) }),
 
   // Update settings with registration_enabled and news webhook
-  updateSettingsFull: (data: { site_name?: string; logo_data?: string; app_url?: string; steam_api_key?: string; registration_enabled?: boolean; news_webhook_url?: string; news_role_id?: string; news_tg_bot_token?: string; news_tg_chat_id?: string; news_tg_thread_id?: string; force_https?: boolean; default_theme?: string; discord_bot_token?: string; discord_app_id?: string; discord_proxy?: string; discord_embed_config?: string; discord_alert_channel_id?: string; discord_refresh_interval?: number; vrising_map_enabled?: boolean; vrising_map_url?: string }) =>
+  updateSettingsFull: (data: { site_name?: string; logo_data?: string; app_url?: string; steam_api_key?: string; registration_enabled?: boolean; news_webhook_url?: string; news_role_id?: string; news_tg_bot_token?: string; news_tg_chat_id?: string; news_tg_thread_id?: string; force_https?: boolean; default_theme?: string; discord_bot_token?: string; discord_app_id?: string; discord_proxy?: string; discord_embed_config?: string; discord_alert_channel_id?: string; discord_refresh_interval?: number; vrising_map_enabled?: boolean; vrising_map_url?: string; vrising_map_image?: string }) =>
     fetchJSON<SiteSettings>("/api/v1/admin/settings", { method: "PUT", body: JSON.stringify(data) }),
 
   testNewsWebhook: () => fetchJSON<{ ok: boolean }>("/api/v1/admin/news/webhook/test", { method: "POST" }),
