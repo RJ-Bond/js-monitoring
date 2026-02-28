@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, type RefObject } from "react";
-import { Maximize2, X } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Maximize2, Minimize2 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useSiteSettings } from "@/contexts/SiteSettingsContext";
 import { api } from "@/lib/api";
@@ -56,11 +56,9 @@ export default function VRisingMap({ serverId }: { serverId: number }) {
   const [mapError,    setMapError]    = useState(false);
   const [tooltip,     setTooltip]     = useState<TooltipState | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const svgRef      = useRef<SVGSVGElement>(null);
-  const modalSvgRef = useRef<SVGSVGElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const svgRef       = useRef<SVGSVGElement>(null);
 
-  // Pre-check whether the map image actually exists before SVG renders it,
-  // so we can show the correct fallback state immediately.
   useEffect(() => {
     const img = new Image();
     img.onload  = () => setMapLoaded(true);
@@ -86,16 +84,23 @@ export default function VRisingMap({ serverId }: { serverId: number }) {
     return () => clearInterval(timer);
   }, [load]);
 
-  // Close fullscreen on Escape
+  // Sync React state with browser fullscreen changes (Escape key, F11, etc.)
   useEffect(() => {
-    if (!isFullscreen) return;
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") setIsFullscreen(false); };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [isFullscreen]);
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", handler);
+    return () => document.removeEventListener("fullscreenchange", handler);
+  }, []);
 
-  const showTooltip = (e: React.MouseEvent, content: string, ref: RefObject<SVGSVGElement | null>) => {
-    const rect = ref.current?.getBoundingClientRect();
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      containerRef.current?.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
+  };
+
+  const showTooltip = (e: React.MouseEvent, content: string) => {
+    const rect = svgRef.current?.getBoundingClientRect();
     if (!rect) return;
     setTooltip({ x: e.clientX - rect.left + 10, y: e.clientY - rect.top - 32, content });
   };
@@ -131,213 +136,27 @@ export default function VRisingMap({ serverId }: { serverId: number }) {
   const castles:   VRisingCastle[]   = data.castles    ?? [];
   const freePlots: VRisingFreePlot[] = data.free_plots ?? [];
 
-  /** SVG content shared between card and fullscreen modal. */
-  const renderMapSVG = (ref: RefObject<SVGSVGElement | null>) => (
-    <div className="relative rounded-xl overflow-hidden border border-white/10 bg-[#0d1117]">
-      <svg
-        ref={ref}
-        viewBox={`0 0 ${SVG_SIZE} ${SVG_SIZE}`}
-        width="100%"
-        style={{ display: "block", aspectRatio: "1/1" }}
-        onMouseLeave={hideTooltip}
-      >
-        <defs>
-          {/* Fallback background gradient (visible when no map image) */}
-          <radialGradient id="vr-bg" cx="50%" cy="50%" r="60%">
-            <stop offset="0%" stopColor="#1a1f2e" />
-            <stop offset="100%" stopColor="#0d1117" />
-          </radialGradient>
-          {/* Glow filter for player dots */}
-          <filter id="vr-glow" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="2.5" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-          {/* Drop-shadow for castle icons on bright map areas */}
-          <filter id="vr-shadow" x="-30%" y="-30%" width="160%" height="160%">
-            <feDropShadow dx="0" dy="0" stdDeviation="2" floodColor="#000" floodOpacity="0.8" />
-          </filter>
-        </defs>
-
-        {/* ── Background ────────────────────────────────────────────── */}
-        <rect width={SVG_SIZE} height={SVG_SIZE} fill="url(#vr-bg)" />
-
-        {mapLoaded && (
-          /* Real Vardoran map texture */
-          <image
-            href={MAP_IMAGE_URL}
-            x={0} y={0}
-            width={SVG_SIZE} height={SVG_SIZE}
-            preserveAspectRatio="xMidYMid slice"
-          />
-        )}
-
-        {!mapLoaded && !mapError && (
-          /* Loading skeleton grid */
-          <>
-            {Array.from({ length: 9 }).map((_, i) => {
-              const step = SVG_SIZE / 8;
-              return (
-                <g key={i} opacity="0.06">
-                  <line x1={step * i} y1={0} x2={step * i} y2={SVG_SIZE} stroke="#fff" strokeWidth="1" />
-                  <line x1={0} y1={step * i} x2={SVG_SIZE} y2={step * i} stroke="#fff" strokeWidth="1" />
-                </g>
-              );
-            })}
-          </>
-        )}
-
-        {mapLoaded && (
-          /* Semi-transparent dark vignette so dots stay readable on bright terrain */
-          <rect
-            width={SVG_SIZE} height={SVG_SIZE}
-            fill="rgba(0,0,0,0.18)"
-            style={{ pointerEvents: "none" }}
-          />
-        )}
-
-        {/* ── Free plots ────────────────────────────────────────────── */}
-        {freePlots.map((plot, i) => {
-          const { x, y } = gameToSVG(plot.x, plot.z, vRisingWorldXMin, vRisingWorldXMax, vRisingWorldZMin, vRisingWorldZMax);
-          return (
-            <g key={`fp-${i}`}
-              style={{ cursor: "pointer" }}
-              onMouseMove={(e) => showTooltip(e, t.vRisingMapFreePlot, ref)}
-              onMouseLeave={hideTooltip}
-            >
-              {/* Outer glow */}
-              <circle cx={x} cy={y} r={14} fill="#22c55e" opacity="0.08" />
-              {/* Green circle outline */}
-              <circle
-                cx={x} cy={y} r={10}
-                fill="none"
-                stroke="#22c55e" strokeWidth="1.5" opacity="0.65"
-              />
-            </g>
-          );
-        })}
-
-        {/* ── Castles ───────────────────────────────────────────────── */}
-        {castles.map((castle, i) => {
-          const { x, y } = gameToSVG(castle.x, castle.z, vRisingWorldXMin, vRisingWorldXMax, vRisingWorldZMin, vRisingWorldZMax);
-          const col  = colorFromString(castle.clan || castle.owner);
-          const tier = Math.max(1, castle.tier ?? 1);
-          const size = 5 + tier * 1.8;
-          const tip = `${t.vRisingMapCastle}: ${castle.name || castle.clan || castle.owner} · ${t.vRisingMapTier} ${tier}`;
-          return (
-            <g key={`c-${i}`} filter="url(#vr-shadow)"
-              style={{ cursor: "pointer" }}
-              onMouseMove={(e) => showTooltip(e, tip, ref)}
-              onMouseLeave={hideTooltip}
-            >
-              {vRisingCastleIconURL ? (
-                <image
-                  href={vRisingCastleIconURL}
-                  x={x - 12} y={y - 12}
-                  width={24} height={24}
-                />
-              ) : (
-                <>
-                  {/* Glow halo */}
-                  <circle cx={x} cy={y} r={size + 5} fill={col} opacity="0.2" />
-                  {/* Diamond icon */}
-                  <rect
-                    x={x - size / 2} y={y - size / 2}
-                    width={size} height={size}
-                    fill={col} opacity="0.92" rx="1.5"
-                    transform={`rotate(45,${x},${y})`}
-                  />
-                </>
-              )}
-            </g>
-          );
-        })}
-
-        {/* ── Players ───────────────────────────────────────────────── */}
-        {players.map((player, i) => {
-          const { x, y } = gameToSVG(player.x, player.z, vRisingWorldXMin, vRisingWorldXMax, vRisingWorldZMin, vRisingWorldZMax);
-          const col = colorFromString(player.clan || player.name);
-          const tip = `${t.vRisingMapPlayer}: ${player.name}${player.clan ? ` [${player.clan}]` : ""}`;
-          return (
-            <g key={`p-${i}`} filter="url(#vr-glow)"
-              style={{ cursor: "pointer" }}
-              onMouseMove={(e) => showTooltip(e, tip, ref)}
-              onMouseLeave={hideTooltip}
-            >
-              {vRisingPlayerIconURL ? (
-                <image
-                  href={vRisingPlayerIconURL}
-                  x={x - 10} y={y - 10}
-                  width={20} height={20}
-                />
-              ) : (
-                <>
-                  {/* Outer ring */}
-                  <circle cx={x} cy={y} r={7} fill={col} opacity="0.25" />
-                  {/* Player dot */}
-                  <circle
-                    cx={x} cy={y} r={4.5}
-                    fill={col} opacity="0.95"
-                    stroke="#000" strokeWidth="1.2"
-                  />
-                </>
-              )}
-            </g>
-          );
-        })}
-
-        {/* Empty state */}
-        {players.length === 0 && castles.length === 0 && freePlots.length === 0 && (
-          <text
-            x={SVG_SIZE / 2} y={SVG_SIZE / 2}
-            textAnchor="middle" dominantBaseline="middle"
-            fill="#6b7280" fontSize="13"
-          >
-            {t.vRisingMapNoData}
-          </text>
-        )}
-
-        {/* ── Legend ────────────────────────────────────────────────── */}
-        <g>
-          <rect x={6} y={SVG_SIZE - 58} width={98} height={54} rx="6"
-            fill="rgba(0,0,0,0.55)" />
-          <circle cx={18} cy={SVG_SIZE - 46} r={4} fill="#00e87a" />
-          <text x={27} y={SVG_SIZE - 42} fill="#d1d5db" fontSize="9.5">{t.vRisingMapPlayer}</text>
-          <rect x={14} y={SVG_SIZE - 36} width={8} height={8} fill="#c084fc" rx="1"
-            transform={`rotate(45,18,${SVG_SIZE - 32})`} />
-          <text x={27} y={SVG_SIZE - 28} fill="#d1d5db" fontSize="9.5">{t.vRisingMapCastle}</text>
-          <circle cx={18} cy={SVG_SIZE - 16} r={5} fill="none" stroke="#22c55e" strokeWidth="1.5" opacity="0.8" />
-          <text x={27} y={SVG_SIZE - 12} fill="#d1d5db" fontSize="9.5">{t.vRisingMapFreePlot}</text>
-        </g>
-
-        {/* Cardinal directions (only when real map shown) */}
-        {mapLoaded && (
-          <g fill="#fff" fontSize="10" opacity="0.45" fontWeight="bold">
-            <text x={SVG_SIZE / 2} y={14} textAnchor="middle">N</text>
-            <text x={SVG_SIZE / 2} y={SVG_SIZE - 5} textAnchor="middle">S</text>
-            <text x={8}            y={SVG_SIZE / 2 + 4}>W</text>
-            <text x={SVG_SIZE - 8} y={SVG_SIZE / 2 + 4} textAnchor="end">E</text>
-          </g>
-        )}
-      </svg>
-
-      {/* Tooltip */}
-      {tooltip && (
-        <div
-          className="pointer-events-none absolute z-10 bg-black/90 text-white text-xs px-2.5 py-1.5 rounded-lg border border-white/10 whitespace-nowrap"
-          style={{ left: tooltip.x, top: tooltip.y }}
-        >
-          {tooltip.content}
-        </div>
-      )}
-    </div>
-  );
+  // In fullscreen the browser makes containerRef fill 100vw × 100vh.
+  // Constrain the map to a square fitting within the viewport height.
+  const fsMapSize = "min(calc(100vh - 52px), calc(100vw - 32px))";
 
   return (
-    <>
-      <div className="flex flex-col gap-2">
+    <div
+      ref={containerRef}
+      style={isFullscreen ? {
+        background: "#0d1117",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "8px",
+        padding: "10px 16px",
+      } : {}}
+    >
+      <div
+        className="flex flex-col gap-2"
+        style={isFullscreen ? { width: fsMapSize } : undefined}
+      >
         {/* Header stats */}
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <div className="flex items-center gap-3">
@@ -360,11 +179,11 @@ export default function VRisingMap({ serverId }: { serverId: number }) {
             {data.stale_data && <span className="text-yellow-400">⚠ {t.vRisingMapStale}</span>}
             <span className="opacity-50">{t.vRisingMapUpdated} {formatTime(data.updated_at)}</span>
             <button
-              onClick={() => setIsFullscreen(true)}
+              onClick={toggleFullscreen}
               className="p-1 rounded hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors"
-              title={t.vRisingMapFullscreen}
+              title={isFullscreen ? t.vRisingMapExitFullscreen : t.vRisingMapFullscreen}
             >
-              <Maximize2 size={13} />
+              {isFullscreen ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
             </button>
           </div>
         </div>
@@ -379,53 +198,179 @@ export default function VRisingMap({ serverId }: { serverId: number }) {
           </div>
         )}
 
-        {renderMapSVG(svgRef)}
-      </div>
-
-      {/* ── Fullscreen modal ──────────────────────────────────────────────── */}
-      {isFullscreen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
-          onClick={() => setIsFullscreen(false)}
-        >
-          <div
-            className="relative w-full max-w-4xl"
-            onClick={(e) => e.stopPropagation()}
+        {/* Map SVG */}
+        <div className="relative rounded-xl overflow-hidden border border-white/10 bg-[#0d1117]">
+          <svg
+            ref={svgRef}
+            viewBox={`0 0 ${SVG_SIZE} ${SVG_SIZE}`}
+            width="100%"
+            style={{ display: "block", aspectRatio: "1/1" }}
+            onMouseLeave={hideTooltip}
           >
-            {/* Modal header */}
-            <div className="flex items-center justify-between mb-2 text-xs text-muted-foreground px-1">
-              <div className="flex items-center gap-3">
-                <span>
-                  <span className="text-neon-green font-semibold">{players.length}</span>{" "}
-                  {t.vRisingMapPlayers}
-                </span>
-                <span>
-                  <span className="text-neon-purple font-semibold">{castles.length}</span>{" "}
-                  {t.vRisingMapCastles}
-                </span>
-                {freePlots.length > 0 && (
-                  <span>
-                    <span className="text-green-400 font-semibold">{freePlots.length}</span>{" "}
-                    {t.vRisingMapFreePlots}
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                {data.stale_data && <span className="text-yellow-400">⚠ {t.vRisingMapStale}</span>}
-                <span className="opacity-50">{t.vRisingMapUpdated} {formatTime(data.updated_at)}</span>
-                <button
-                  onClick={() => setIsFullscreen(false)}
-                  className="p-1 rounded hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            </div>
+            <defs>
+              <radialGradient id="vr-bg" cx="50%" cy="50%" r="60%">
+                <stop offset="0%" stopColor="#1a1f2e" />
+                <stop offset="100%" stopColor="#0d1117" />
+              </radialGradient>
+              <filter id="vr-glow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="2.5" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              <filter id="vr-shadow" x="-30%" y="-30%" width="160%" height="160%">
+                <feDropShadow dx="0" dy="0" stdDeviation="2" floodColor="#000" floodOpacity="0.8" />
+              </filter>
+            </defs>
 
-            {renderMapSVG(modalSvgRef)}
-          </div>
+            {/* ── Background ──────────────────────────────────────────── */}
+            <rect width={SVG_SIZE} height={SVG_SIZE} fill="url(#vr-bg)" />
+
+            {mapLoaded && (
+              <image
+                href={MAP_IMAGE_URL}
+                x={0} y={0}
+                width={SVG_SIZE} height={SVG_SIZE}
+                preserveAspectRatio="xMidYMid slice"
+              />
+            )}
+
+            {!mapLoaded && !mapError && (
+              <>
+                {Array.from({ length: 9 }).map((_, i) => {
+                  const step = SVG_SIZE / 8;
+                  return (
+                    <g key={i} opacity="0.06">
+                      <line x1={step * i} y1={0} x2={step * i} y2={SVG_SIZE} stroke="#fff" strokeWidth="1" />
+                      <line x1={0} y1={step * i} x2={SVG_SIZE} y2={step * i} stroke="#fff" strokeWidth="1" />
+                    </g>
+                  );
+                })}
+              </>
+            )}
+
+            {mapLoaded && (
+              <rect
+                width={SVG_SIZE} height={SVG_SIZE}
+                fill="rgba(0,0,0,0.18)"
+                style={{ pointerEvents: "none" }}
+              />
+            )}
+
+            {/* ── Free plots ────────────────────────────────────────── */}
+            {freePlots.map((plot, i) => {
+              const { x, y } = gameToSVG(plot.x, plot.z, vRisingWorldXMin, vRisingWorldXMax, vRisingWorldZMin, vRisingWorldZMax);
+              return (
+                <g key={`fp-${i}`}
+                  style={{ cursor: "pointer" }}
+                  onMouseMove={(e) => showTooltip(e, t.vRisingMapFreePlot)}
+                  onMouseLeave={hideTooltip}
+                >
+                  <circle cx={x} cy={y} r={14} fill="#22c55e" opacity="0.08" />
+                  <circle cx={x} cy={y} r={10} fill="none" stroke="#22c55e" strokeWidth="1.5" opacity="0.65" />
+                </g>
+              );
+            })}
+
+            {/* ── Castles ───────────────────────────────────────────── */}
+            {castles.map((castle, i) => {
+              const { x, y } = gameToSVG(castle.x, castle.z, vRisingWorldXMin, vRisingWorldXMax, vRisingWorldZMin, vRisingWorldZMax);
+              const col  = colorFromString(castle.clan || castle.owner);
+              const tier = Math.max(1, castle.tier ?? 1);
+              const size = 5 + tier * 1.8;
+              const tip  = `${t.vRisingMapCastle}: ${castle.name || castle.clan || castle.owner} · ${t.vRisingMapTier} ${tier}`;
+              return (
+                <g key={`c-${i}`} filter="url(#vr-shadow)"
+                  style={{ cursor: "pointer" }}
+                  onMouseMove={(e) => showTooltip(e, tip)}
+                  onMouseLeave={hideTooltip}
+                >
+                  {vRisingCastleIconURL ? (
+                    <image href={vRisingCastleIconURL} x={x - 12} y={y - 12} width={24} height={24} />
+                  ) : (
+                    <>
+                      <circle cx={x} cy={y} r={size + 5} fill={col} opacity="0.2" />
+                      <rect
+                        x={x - size / 2} y={y - size / 2}
+                        width={size} height={size}
+                        fill={col} opacity="0.92" rx="1.5"
+                        transform={`rotate(45,${x},${y})`}
+                      />
+                    </>
+                  )}
+                </g>
+              );
+            })}
+
+            {/* ── Players ───────────────────────────────────────────── */}
+            {players.map((player, i) => {
+              const { x, y } = gameToSVG(player.x, player.z, vRisingWorldXMin, vRisingWorldXMax, vRisingWorldZMin, vRisingWorldZMax);
+              const col = colorFromString(player.clan || player.name);
+              const tip = `${t.vRisingMapPlayer}: ${player.name}${player.clan ? ` [${player.clan}]` : ""}`;
+              return (
+                <g key={`p-${i}`} filter="url(#vr-glow)"
+                  style={{ cursor: "pointer" }}
+                  onMouseMove={(e) => showTooltip(e, tip)}
+                  onMouseLeave={hideTooltip}
+                >
+                  {vRisingPlayerIconURL ? (
+                    <image href={vRisingPlayerIconURL} x={x - 10} y={y - 10} width={20} height={20} />
+                  ) : (
+                    <>
+                      <circle cx={x} cy={y} r={7} fill={col} opacity="0.25" />
+                      <circle cx={x} cy={y} r={4.5} fill={col} opacity="0.95" stroke="#000" strokeWidth="1.2" />
+                    </>
+                  )}
+                </g>
+              );
+            })}
+
+            {/* Empty state */}
+            {players.length === 0 && castles.length === 0 && freePlots.length === 0 && (
+              <text
+                x={SVG_SIZE / 2} y={SVG_SIZE / 2}
+                textAnchor="middle" dominantBaseline="middle"
+                fill="#6b7280" fontSize="13"
+              >
+                {t.vRisingMapNoData}
+              </text>
+            )}
+
+            {/* ── Legend ────────────────────────────────────────────── */}
+            <g>
+              <rect x={6} y={SVG_SIZE - 58} width={98} height={54} rx="6" fill="rgba(0,0,0,0.55)" />
+              <circle cx={18} cy={SVG_SIZE - 46} r={4} fill="#00e87a" />
+              <text x={27} y={SVG_SIZE - 42} fill="#d1d5db" fontSize="9.5">{t.vRisingMapPlayer}</text>
+              <rect x={14} y={SVG_SIZE - 36} width={8} height={8} fill="#c084fc" rx="1"
+                transform={`rotate(45,18,${SVG_SIZE - 32})`} />
+              <text x={27} y={SVG_SIZE - 28} fill="#d1d5db" fontSize="9.5">{t.vRisingMapCastle}</text>
+              <circle cx={18} cy={SVG_SIZE - 16} r={5} fill="none" stroke="#22c55e" strokeWidth="1.5" opacity="0.8" />
+              <text x={27} y={SVG_SIZE - 12} fill="#d1d5db" fontSize="9.5">{t.vRisingMapFreePlot}</text>
+            </g>
+
+            {/* Cardinal directions */}
+            {mapLoaded && (
+              <g fill="#fff" fontSize="10" opacity="0.45" fontWeight="bold">
+                <text x={SVG_SIZE / 2} y={14} textAnchor="middle">N</text>
+                <text x={SVG_SIZE / 2} y={SVG_SIZE - 5} textAnchor="middle">S</text>
+                <text x={8}            y={SVG_SIZE / 2 + 4}>W</text>
+                <text x={SVG_SIZE - 8} y={SVG_SIZE / 2 + 4} textAnchor="end">E</text>
+              </g>
+            )}
+          </svg>
+
+          {/* Tooltip */}
+          {tooltip && (
+            <div
+              className="pointer-events-none absolute z-10 bg-black/90 text-white text-xs px-2.5 py-1.5 rounded-lg border border-white/10 whitespace-nowrap"
+              style={{ left: tooltip.x, top: tooltip.y }}
+            >
+              {tooltip.content}
+            </div>
+          )}
         </div>
-      )}
-    </>
+      </div>
+    </div>
   );
 }
