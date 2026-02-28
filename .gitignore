@@ -39,3 +39,8 @@ logs/
 
 # MySQL data (docker volume)
 mysql-data/
+
+# V Rising map texture (copyrighted game asset — place manually)
+frontend/public/vrising-map.png
+frontend/public/vrising-map.jpg
+frontend/public/vrising-map.webp
