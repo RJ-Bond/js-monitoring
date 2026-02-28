@@ -522,7 +522,7 @@ function SettingsTab({
               </>
             ) : discordBotClear ? (
               <>
-                <span className="flex-1 text-xs text-red-400 bg-red-500/5 border border-red-500/20 rounded-xl px-3 py-2">Token will be cleared on save</span>
+                <span className="flex-1 text-xs text-red-400 bg-red-500/5 border border-red-500/20 rounded-xl px-3 py-2">{t.adminSettingsTokenWillClear}</span>
                 <button
                   type="button"
                   onClick={onDiscordBotClear}
