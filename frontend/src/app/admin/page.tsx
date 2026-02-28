@@ -890,7 +890,7 @@ function SettingsTab({
           <label className="text-xs text-muted-foreground mb-2 block">{t.adminSettingsVRisingCastleIcon}</label>
           <div className="flex items-center gap-2 flex-wrap">
             <label className="px-3 py-2 rounded-xl text-sm border border-white/10 bg-white/5 hover:bg-white/10 cursor-pointer transition-colors">
-              {t.adminSettingsVRisingMapUpload}
+              {t.adminSettingsVRisingCastleIconUpload}
               <input
                 type="file"
                 accept="image/*"
@@ -928,7 +928,7 @@ function SettingsTab({
           <label className="text-xs text-muted-foreground mb-2 block">{t.adminSettingsVRisingPlayerIcon}</label>
           <div className="flex items-center gap-2 flex-wrap">
             <label className="px-3 py-2 rounded-xl text-sm border border-white/10 bg-white/5 hover:bg-white/10 cursor-pointer transition-colors">
-              {t.adminSettingsVRisingMapUpload}
+              {t.adminSettingsVRisingPlayerIconUpload}
               <input
                 type="file"
                 accept="image/*"

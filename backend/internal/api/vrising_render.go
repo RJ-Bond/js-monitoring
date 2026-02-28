@@ -96,6 +96,13 @@ func buildVRisingMapPNG(payload VRisingMapPayload, s models.SiteSettings) ([]byt
 		playerIconImg, _ = vrDecodeBase64Image(s.VRisingPlayerIcon)
 	}
 
+	// Draw free plots (green outline circles, below castles/players)
+	freePlotCol := color.RGBA{34, 197, 94, 160} // green-500
+	for _, plot := range payload.FreePlots {
+		px, py := toPixel(plot.X, plot.Z)
+		vrDrawCircleOutline(img, px, py, 10, 2, freePlotCol)
+	}
+
 	// Draw castles
 	for _, castle := range payload.Castles {
 		px, py := toPixel(castle.X, castle.Z)
@@ -172,6 +179,23 @@ func vrDrawFilledCircle(img *image.RGBA, cx, cy, r int, col color.Color) {
 	for dy := -r; dy <= r; dy++ {
 		for dx := -r; dx <= r; dx++ {
 			if dx*dx+dy*dy <= r*r {
+				img.Set(cx+dx, cy+dy, col)
+			}
+		}
+	}
+}
+
+// vrDrawCircleOutline draws a circle outline with the given thickness.
+func vrDrawCircleOutline(img *image.RGBA, cx, cy, r, thickness int, col color.Color) {
+	rOuter := r + thickness/2
+	rInner := r - thickness/2
+	if rInner < 0 {
+		rInner = 0
+	}
+	for dy := -rOuter; dy <= rOuter; dy++ {
+		for dx := -rOuter; dx <= rOuter; dx++ {
+			d2 := dx*dx + dy*dy
+			if d2 <= rOuter*rOuter && d2 >= rInner*rInner {
 				img.Set(cx+dx, cy+dy, col)
 			}
 		}

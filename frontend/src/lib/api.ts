@@ -17,10 +17,16 @@ export interface VRisingCastle {
   name?: string;
 }
 
+export interface VRisingFreePlot {
+  x: number;
+  z: number;
+}
+
 export interface VRisingMapData {
   server_id: number;
   players: VRisingPlayer[];
   castles: VRisingCastle[];
+  free_plots?: VRisingFreePlot[];
   updated_at: string;
   stale_data: boolean;
 }

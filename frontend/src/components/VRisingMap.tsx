@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useSiteSettings } from "@/contexts/SiteSettingsContext";
 import { api } from "@/lib/api";
-import type { VRisingMapData, VRisingPlayer, VRisingCastle } from "@/lib/api";
+import type { VRisingMapData, VRisingPlayer, VRisingCastle, VRisingFreePlot } from "@/lib/api";
 
 // ── Coordinate calibration ────────────────────────────────────────────────────
 // V Rising world (Vardoran): X increases east, Z increases north.
@@ -116,8 +116,9 @@ export default function VRisingMap({ serverId }: { serverId: number }) {
     );
   }
 
-  const players: VRisingPlayer[] = data.players ?? [];
-  const castles: VRisingCastle[] = data.castles ?? [];
+  const players:   VRisingPlayer[]   = data.players    ?? [];
+  const castles:   VRisingCastle[]   = data.castles    ?? [];
+  const freePlots: VRisingFreePlot[] = data.free_plots ?? [];
 
   return (
     <div className="flex flex-col gap-2">
@@ -132,6 +133,12 @@ export default function VRisingMap({ serverId }: { serverId: number }) {
             <span className="text-neon-purple font-semibold">{castles.length}</span>{" "}
             {t.vRisingMapCastles}
           </span>
+          {freePlots.length > 0 && (
+            <span>
+              <span className="text-green-400 font-semibold">{freePlots.length}</span>{" "}
+              {t.vRisingMapFreePlots}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1.5">
           {data.stale_data && <span className="text-yellow-400">⚠ {t.vRisingMapStale}</span>}
@@ -215,6 +222,27 @@ export default function VRisingMap({ serverId }: { serverId: number }) {
             />
           )}
 
+          {/* ── Free plots ────────────────────────────────────────────── */}
+          {freePlots.map((plot, i) => {
+            const { x, y } = gameToSVG(plot.x, plot.z, vRisingWorldXMin, vRisingWorldXMax, vRisingWorldZMin, vRisingWorldZMax);
+            return (
+              <g key={`fp-${i}`}
+                style={{ cursor: "pointer" }}
+                onMouseMove={(e) => showTooltip(e, t.vRisingMapFreePlot)}
+                onMouseLeave={hideTooltip}
+              >
+                {/* Outer glow */}
+                <circle cx={x} cy={y} r={14} fill="#22c55e" opacity="0.08" />
+                {/* Green circle outline */}
+                <circle
+                  cx={x} cy={y} r={10}
+                  fill="none"
+                  stroke="#22c55e" strokeWidth="1.5" opacity="0.65"
+                />
+              </g>
+            );
+          })}
+
           {/* ── Castles ───────────────────────────────────────────────── */}
           {castles.map((castle, i) => {
             const { x, y } = gameToSVG(castle.x, castle.z, vRisingWorldXMin, vRisingWorldXMax, vRisingWorldZMin, vRisingWorldZMax);
@@ -285,7 +313,7 @@ export default function VRisingMap({ serverId }: { serverId: number }) {
           })}
 
           {/* Empty state */}
-          {players.length === 0 && castles.length === 0 && (
+          {players.length === 0 && castles.length === 0 && freePlots.length === 0 && (
             <text
               x={SVG_SIZE / 2} y={SVG_SIZE / 2}
               textAnchor="middle" dominantBaseline="middle"
@@ -297,13 +325,15 @@ export default function VRisingMap({ serverId }: { serverId: number }) {
 
           {/* ── Legend ────────────────────────────────────────────────── */}
           <g>
-            <rect x={6} y={SVG_SIZE - 42} width={90} height={38} rx="6"
+            <rect x={6} y={SVG_SIZE - 58} width={98} height={54} rx="6"
               fill="rgba(0,0,0,0.55)" />
-            <circle cx={18} cy={SVG_SIZE - 30} r={4} fill="#00e87a" />
-            <text x={27} y={SVG_SIZE - 26} fill="#d1d5db" fontSize="9.5">{t.vRisingMapPlayer}</text>
-            <rect x={14} y={SVG_SIZE - 20} width={8} height={8} fill="#c084fc" rx="1"
-              transform={`rotate(45,18,${SVG_SIZE - 16})`} />
-            <text x={27} y={SVG_SIZE - 12} fill="#d1d5db" fontSize="9.5">{t.vRisingMapCastle}</text>
+            <circle cx={18} cy={SVG_SIZE - 46} r={4} fill="#00e87a" />
+            <text x={27} y={SVG_SIZE - 42} fill="#d1d5db" fontSize="9.5">{t.vRisingMapPlayer}</text>
+            <rect x={14} y={SVG_SIZE - 36} width={8} height={8} fill="#c084fc" rx="1"
+              transform={`rotate(45,18,${SVG_SIZE - 32})`} />
+            <text x={27} y={SVG_SIZE - 28} fill="#d1d5db" fontSize="9.5">{t.vRisingMapCastle}</text>
+            <circle cx={18} cy={SVG_SIZE - 16} r={5} fill="none" stroke="#22c55e" strokeWidth="1.5" opacity="0.8" />
+            <text x={27} y={SVG_SIZE - 12} fill="#d1d5db" fontSize="9.5">{t.vRisingMapFreePlot}</text>
           </g>
 
           {/* Cardinal directions (only when real map shown) */}

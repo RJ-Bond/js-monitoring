@@ -30,20 +30,28 @@ type VRisingCastle struct {
 	Name  string  `json:"name,omitempty"`
 }
 
+// VRisingFreePlot — незанятый участок под замок
+type VRisingFreePlot struct {
+	X float32 `json:"x"`
+	Z float32 `json:"z"`
+}
+
 // VRisingMapPayload — данные, присылаемые плагином
 type VRisingMapPayload struct {
-	ServerID int             `json:"server_id"`
-	Players  []VRisingPlayer `json:"players"`
-	Castles  []VRisingCastle `json:"castles"`
+	ServerID  int               `json:"server_id"`
+	Players   []VRisingPlayer   `json:"players"`
+	Castles   []VRisingCastle   `json:"castles"`
+	FreePlots []VRisingFreePlot `json:"free_plots,omitempty"`
 }
 
 // VRisingMapResponse — ответ на запрос карты с метаинформацией
 type VRisingMapResponse struct {
-	ServerID  int             `json:"server_id"`
-	Players   []VRisingPlayer `json:"players"`
-	Castles   []VRisingCastle `json:"castles"`
-	UpdatedAt time.Time       `json:"updated_at"`
-	StaleData bool            `json:"stale_data"` // данные старше 5 минут
+	ServerID  int               `json:"server_id"`
+	Players   []VRisingPlayer   `json:"players"`
+	Castles   []VRisingCastle   `json:"castles"`
+	FreePlots []VRisingFreePlot `json:"free_plots,omitempty"`
+	UpdatedAt time.Time         `json:"updated_at"`
+	StaleData bool              `json:"stale_data"` // данные старше 5 минут
 }
 
 // PushVRisingMap POST /api/v1/vrising/push
@@ -113,6 +121,7 @@ func GetVRisingMap(c echo.Context) error {
 		ServerID:  payload.ServerID,
 		Players:   payload.Players,
 		Castles:   payload.Castles,
+		FreePlots: payload.FreePlots,
 		UpdatedAt: mapData.UpdatedAt,
 		StaleData: time.Since(mapData.UpdatedAt) > 5*time.Minute,
 	}
