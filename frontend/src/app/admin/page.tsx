@@ -156,6 +156,10 @@ interface SettingsTabProps {
   onDiscordRefreshIntervalChange: (v: number) => void;
   discordEmbedCfg: Record<string, boolean>;
   onDiscordEmbedCfgChange: (key: string, val: boolean) => void;
+  vRisingMapEnabled: boolean;
+  vRisingMapURL: string;
+  onVRisingMapEnabledChange: (v: boolean) => void;
+  onVRisingMapURLChange: (v: string) => void;
   sslStatus: SSLStatus | null;
   sslStatusLoading: boolean;
   forceHttps: boolean;
@@ -198,6 +202,7 @@ function SettingsTab({
   discordAlertChannelID, onDiscordAlertChannelIDChange,
   discordRefreshInterval, onDiscordRefreshIntervalChange,
   discordEmbedCfg, onDiscordEmbedCfgChange,
+  vRisingMapEnabled, vRisingMapURL, onVRisingMapEnabledChange, onVRisingMapURLChange,
   sslStatus, sslStatusLoading, forceHttps, onForceHttpsChange, onRefreshSsl,
   onSave, t,
 }: SettingsTabProps) {
@@ -736,6 +741,36 @@ function SettingsTab({
         )}
       </div>
 
+      {/* V Rising Map */}
+      <div className="glass-card rounded-2xl p-5 space-y-4">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground/80 flex items-center gap-2">
+          <span className="w-0.5 h-3.5 rounded-full bg-red-500/70 flex-shrink-0" />
+          🗺️ {t.adminSettingsVRisingMap}
+        </h2>
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={vRisingMapEnabled}
+            onChange={(e) => onVRisingMapEnabledChange(e.target.checked)}
+            className="w-4 h-4 rounded accent-neon-green"
+          />
+          <div>
+            <span className="text-sm">{t.adminSettingsVRisingMapEnabled}</span>
+            <p className="text-xs text-muted-foreground">{t.adminSettingsVRisingMapEnabledHint}</p>
+          </div>
+        </label>
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">{t.adminSettingsVRisingMapURL}</label>
+          <input
+            className={inputCls}
+            value={vRisingMapURL}
+            onChange={(e) => onVRisingMapURLChange(e.target.value)}
+            placeholder="/vrising-map.png"
+          />
+          <p className="text-xs text-muted-foreground mt-1">{t.adminSettingsVRisingMapURLHint}</p>
+        </div>
+      </div>
+
       {/* Save */}
       <button
         onClick={onSave}
@@ -802,6 +837,8 @@ export default function AdminPage() {
   const [discordRefreshInterval, setDiscordRefreshInterval] = useState(60);
   const defaultEmbedCfg = { status: true, address: true, country: true, game: true, map: true, ping: true, players: true, peak_24h: true, uptime_24h: true, average_24h: true, unique_today: true, player_list: true };
   const [discordEmbedCfg, setDiscordEmbedCfg] = useState<Record<string, boolean>>(defaultEmbedCfg);
+  const [settingsVRisingMapEnabled, setSettingsVRisingMapEnabled] = useState(true);
+  const [settingsVRisingMapURL, setSettingsVRisingMapURL] = useState("");
   const [settingsForceHttps, setSettingsForceHttps] = useState(false);
   const [backupDownloading, setBackupDownloading] = useState(false);
   const [backupFile, setBackupFile] = useState<File | null>(null);
@@ -906,6 +943,8 @@ export default function AdminPage() {
           setDiscordEmbedCfg(defaultEmbedCfg);
         }
         setSettingsForceHttps(s.force_https ?? false);
+        setSettingsVRisingMapEnabled(s.vrising_map_enabled ?? true);
+        setSettingsVRisingMapURL(s.vrising_map_url ?? "");
         setSteamNewKey("");
         setSteamClear(false);
       }).catch(() => {});
@@ -1969,6 +2008,10 @@ export default function AdminPage() {
             onDiscordRefreshIntervalChange={setDiscordRefreshInterval}
             discordEmbedCfg={discordEmbedCfg}
             onDiscordEmbedCfgChange={(key, val) => setDiscordEmbedCfg((prev) => ({ ...prev, [key]: val }))}
+            vRisingMapEnabled={settingsVRisingMapEnabled}
+            vRisingMapURL={settingsVRisingMapURL}
+            onVRisingMapEnabledChange={setSettingsVRisingMapEnabled}
+            onVRisingMapURLChange={setSettingsVRisingMapURL}
             sslStatus={sslStatus}
             sslStatusLoading={sslStatusLoading}
             forceHttps={settingsForceHttps}
@@ -2006,6 +2049,8 @@ export default function AdminPage() {
                   discord_alert_channel_id: discordAlertChannelID,
                   discord_refresh_interval: discordRefreshInterval,
                   discord_embed_config: JSON.stringify(discordEmbedCfg),
+                  vrising_map_enabled: settingsVRisingMapEnabled,
+                  vrising_map_url: settingsVRisingMapURL,
                 });
                 await refreshSettings();
                 // Refresh Steam key info

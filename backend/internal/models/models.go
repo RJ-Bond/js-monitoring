@@ -131,6 +131,8 @@ type SiteSettings struct {
 	DiscordEmbedConfig      string `gorm:"type:text"                              json:"discord_embed_config"`      // JSON: EmbedFieldConfig
 	DiscordAlertChannelID   string `gorm:"type:varchar(32)"                       json:"discord_alert_channel_id"`  // канал для алертов оффлайн/онлайн
 	DiscordRefreshInterval  int    `gorm:"default:60"                             json:"discord_refresh_interval"`  // интервал авто-обновления embed, секунды
+	VRisingMapEnabled       bool   `gorm:"default:true"                           json:"vrising_map_enabled"`       // показывать вкладку «Живая карта» на V Rising серверах
+	VRisingMapURL           string `gorm:"type:varchar(500)"                      json:"vrising_map_url"`           // URL карты Вардорана (пусто = /vrising-map.png)
 }
 
 // DiscordEmbed — хранит активные embed-сообщения бота для восстановления после перезапуска.

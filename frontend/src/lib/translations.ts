@@ -436,6 +436,12 @@ export const translations = {
     adminEmbedFieldAverage24h: "Average 24h",
     adminEmbedFieldUniqueToday: "Unique Players Today",
     adminEmbedFieldPlayerList: "Player List",
+    // V Rising Map
+    adminSettingsVRisingMap: "V Rising — Live Map",
+    adminSettingsVRisingMapEnabled: "Enable Live Map tab",
+    adminSettingsVRisingMapEnabledHint: "Shows the \"Live Map\" tab on V Rising server cards. Requires the JSMonitor BepInEx plugin on the server.",
+    adminSettingsVRisingMapURL: "Map Image URL",
+    adminSettingsVRisingMapURLHint: "URL of the Vardoran map texture. Leave empty to use the local file frontend/public/vrising-map.png.",
     // SSL / HTTPS
     adminSslSection: "Security & SSL",
     adminSslMode: "SSL Mode",
@@ -965,6 +971,12 @@ export const translations = {
     adminEmbedFieldAverage24h: "Среднее 24ч",
     adminEmbedFieldUniqueToday: "Игроков сегодня",
     adminEmbedFieldPlayerList: "Список игроков",
+    // V Rising Map
+    adminSettingsVRisingMap: "V Rising — Живая карта",
+    adminSettingsVRisingMapEnabled: "Включить вкладку «Живая карта»",
+    adminSettingsVRisingMapEnabledHint: "Показывает вкладку «Живая карта» на карточках V Rising серверов. Требует BepInEx плагин JSMonitor на сервере.",
+    adminSettingsVRisingMapURL: "URL изображения карты",
+    adminSettingsVRisingMapURLHint: "URL текстуры карты Вардорана. Оставьте пустым, чтобы использовать локальный файл frontend/public/vrising-map.png.",
     // SSL / HTTPS
     adminSslSection: "Безопасность и SSL",
     adminSslMode: "Режим SSL",

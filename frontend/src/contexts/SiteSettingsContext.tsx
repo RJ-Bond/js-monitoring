@@ -7,6 +7,8 @@ interface SiteSettingsCtx {
   siteName: string;
   logoData: string;
   steamEnabled: boolean;
+  vRisingMapEnabled: boolean;
+  vRisingMapURL: string;
   refresh: () => Promise<void>;
 }
 
@@ -14,6 +16,8 @@ const DEFAULT: SiteSettingsCtx = {
   siteName: "JSMonitor",
   logoData: "",
   steamEnabled: false,
+  vRisingMapEnabled: true,
+  vRisingMapURL: "",
   refresh: async () => {},
 };
 
@@ -29,6 +33,8 @@ export function SiteSettingsProvider({ children }: { children: React.ReactNode }
     registration_enabled: true,
     force_https: false,
     default_theme: "dark",
+    vrising_map_enabled: true,
+    vrising_map_url: "",
   });
 
   const load = useCallback(async () => {
@@ -62,6 +68,8 @@ export function SiteSettingsProvider({ children }: { children: React.ReactNode }
         siteName: settings.site_name,
         logoData: settings.logo_data,
         steamEnabled: settings.steam_enabled,
+        vRisingMapEnabled: settings.vrising_map_enabled ?? true,
+        vRisingMapURL: settings.vrising_map_url ?? "",
         refresh: load,
       }}
     >

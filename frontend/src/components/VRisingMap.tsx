@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useSiteSettings } from "@/contexts/SiteSettingsContext";
 import { api } from "@/lib/api";
 import type { VRisingMapData, VRisingPlayer, VRisingCastle } from "@/lib/api";
 
@@ -16,11 +17,6 @@ const WORLD_Z_MAX =  3400; // north
 
 const WORLD_X_RANGE = WORLD_X_MAX - WORLD_X_MIN;
 const WORLD_Z_RANGE = WORLD_Z_MAX - WORLD_Z_MIN;
-
-// Map image: place the Vardoran map at /vrising-map.png (frontend/public/)
-// or set NEXT_PUBLIC_VRISING_MAP_URL env variable.
-const MAP_IMAGE_URL =
-  process.env.NEXT_PUBLIC_VRISING_MAP_URL ?? "/vrising-map.png";
 
 const SVG_SIZE = 600;
 
@@ -43,6 +39,8 @@ interface TooltipState { x: number; y: number; content: string }
 
 export default function VRisingMap({ serverId }: { serverId: number }) {
   const { t, locale } = useLanguage();
+  const { vRisingMapURL } = useSiteSettings();
+  const MAP_IMAGE_URL = vRisingMapURL || "/vrising-map.png";
 
   const [data,       setData]       = useState<VRisingMapData | null>(null);
   const [loading,    setLoading]    = useState(true);

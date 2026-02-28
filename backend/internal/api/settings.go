@@ -33,6 +33,8 @@ func GetSettings(c echo.Context) error {
 			"steam_enabled":        envKey != "",
 			"app_url":              "",
 			"registration_enabled": true,
+			"vrising_map_enabled":  true,
+			"vrising_map_url":      "",
 		})
 	}
 	effectiveKey := s.SteamAPIKey
@@ -52,6 +54,8 @@ func GetSettings(c echo.Context) error {
 		"registration_enabled": s.RegistrationEnabled,
 		"force_https":          s.ForceHTTPS,
 		"default_theme":        dt,
+		"vrising_map_enabled":  s.VRisingMapEnabled,
+		"vrising_map_url":      s.VRisingMapURL,
 	})
 }
 
@@ -105,6 +109,8 @@ func GetAdminSettings(c echo.Context) error {
 		"discord_embed_config":        s.DiscordEmbedConfig,
 		"discord_alert_channel_id":    s.DiscordAlertChannelID,
 		"discord_refresh_interval":    s.DiscordRefreshInterval,
+		"vrising_map_enabled":         s.VRisingMapEnabled,
+		"vrising_map_url":             s.VRisingMapURL,
 	})
 }
 
@@ -129,6 +135,8 @@ func UpdateSettings(c echo.Context) error {
 		DiscordEmbedConfig      string `json:"discord_embed_config"`
 		DiscordAlertChannelID   string `json:"discord_alert_channel_id"`
 		DiscordRefreshInterval  int    `json:"discord_refresh_interval"`
+		VRisingMapEnabled       *bool  `json:"vrising_map_enabled"`
+		VRisingMapURL           string `json:"vrising_map_url"`
 	}
 	if err := c.Bind(&payload); err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid payload"})
@@ -187,6 +195,10 @@ func UpdateSettings(c echo.Context) error {
 		s.DiscordEmbedConfig = payload.DiscordEmbedConfig
 	}
 	s.DiscordAlertChannelID = payload.DiscordAlertChannelID
+	s.VRisingMapURL = payload.VRisingMapURL
+	if payload.VRisingMapEnabled != nil {
+		s.VRisingMapEnabled = *payload.VRisingMapEnabled
+	}
 	if payload.DiscordRefreshInterval >= 10 {
 		s.DiscordRefreshInterval = payload.DiscordRefreshInterval
 	} else if payload.DiscordRefreshInterval == 0 && s.DiscordRefreshInterval == 0 {

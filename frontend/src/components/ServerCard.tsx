@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Users, Map, Wifi, Terminal, ExternalLink, Trash2, ChevronDown, Pencil, Star, Copy, Share2 } from "lucide-react";
 import { cn, formatPlayers, formatPing, buildJoinLink, gameTypeLabel } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useSiteSettings } from "@/contexts/SiteSettingsContext";
 import { useServerPlayers } from "@/hooks/useServers";
 import { toast } from "@/lib/toast";
 import StatusIndicator from "./StatusIndicator";
@@ -46,6 +47,7 @@ const PLAYER_SUPPORTED: Server["game_type"][] = [
 
 export default function ServerCard({ server, onDelete, onEdit, isFavorite, onToggleFavorite }: ServerCardProps) {
   const { t, locale } = useLanguage();
+  const { vRisingMapEnabled } = useSiteSettings();
   const [expanded, setExpanded] = useState(false);
   const [chartTab, setChartTab] = useState<"history" | "leaderboard" | "vrmap">("history");
   const [rconOpen, setRconOpen] = useState(false);
@@ -54,7 +56,7 @@ export default function ServerCard({ server, onDelete, onEdit, isFavorite, onTog
 
   const showPlayers = expanded && online && (status?.players_now ?? 0) > 0 && PLAYER_SUPPORTED.includes(server.game_type);
   const showLeaderboard = PLAYER_SUPPORTED.includes(server.game_type);
-  const isVRising = server.game_type === "vrising";
+  const isVRising = server.game_type === "vrising" && vRisingMapEnabled;
   const { data: players, isLoading: playersLoading } = useServerPlayers(server.id, showPlayers);
   const { data: uptimeData } = useUptime(server.id);
 
