@@ -110,10 +110,11 @@ func (b *DiscordBot) registerCommands() {
 		Description: "Показать статус игрового сервера",
 		Options: []*discordgo.ApplicationCommandOption{
 			{
-				Type:        discordgo.ApplicationCommandOptionString,
-				Name:        "id",
-				Description: "ID сервера (число). Если не указан — покажет список.",
-				Required:    false,
+				Type:         discordgo.ApplicationCommandOptionString,
+				Name:         "id",
+				Description:  "Выбери сервер из списка или введи его ID",
+				Required:     false,
+				Autocomplete: true,
 			},
 		},
 	}
@@ -228,6 +229,10 @@ func (b *DiscordBot) handleInteraction(s *discordgo.Session, i *discordgo.Intera
 			b.handleStatsCommand(s, i)
 		case "top":
 			b.handleTopCommand(s, i)
+		}
+	case discordgo.InteractionApplicationCommandAutocomplete:
+		if i.ApplicationCommandData().Name == "addserver" {
+			b.handleAddServerAutocomplete(s, i)
 		}
 	case discordgo.InteractionMessageComponent:
 		cid := i.MessageComponentData().CustomID
@@ -404,10 +409,48 @@ func (b *DiscordBot) handleAdminButton(s *discordgo.Session, i *discordgo.Intera
 	})
 }
 
+// serverDisplayName возвращает имя сервера для отображения:
+// приоритет: имя из игры (status.server_name) → title → IP:Port
+func serverDisplayName(srv *models.Server) string {
+	if srv.Status != nil && srv.Status.ServerName != "" {
+		return srv.Status.ServerName
+	}
+	if srv.Title != "" {
+		return srv.Title
+	}
+	return fmt.Sprintf("%s:%d", srv.IP, srv.Port)
+}
+
+// handleAddServerAutocomplete возвращает список серверов при вводе /addserver id:
+func (b *DiscordBot) handleAddServerAutocomplete(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	var servers []models.Server
+	b.db.Preload("Status").Limit(25).Find(&servers)
+
+	var choices []*discordgo.ApplicationCommandOptionChoice
+	for _, srv := range servers {
+		name := serverDisplayName(&srv)
+		label := fmt.Sprintf("%s:%d | %s", srv.IP, srv.Port, name)
+		if len(label) > 100 {
+			label = label[:97] + "…"
+		}
+		choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
+			Name:  label,
+			Value: fmt.Sprintf("%d", srv.ID),
+		})
+	}
+
+	_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionApplicationCommandAutocompleteResult,
+		Data: &discordgo.InteractionResponseData{
+			Choices: choices,
+		},
+	})
+}
+
 // replyServerList edits the deferred response with a list of configured servers.
 func (b *DiscordBot) replyServerList(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	var servers []models.Server
-	b.db.Limit(10).Find(&servers)
+	b.db.Preload("Status").Limit(25).Find(&servers)
 
 	var content string
 	if len(servers) == 0 {
@@ -415,17 +458,10 @@ func (b *DiscordBot) replyServerList(s *discordgo.Session, i *discordgo.Interact
 	} else {
 		var lines []string
 		for _, srv := range servers {
-			name := srv.Title
-			if name == "" {
-				name = fmt.Sprintf("%s:%d", srv.IP, srv.Port)
-			}
-			addr := srv.IP
-			if srv.DisplayIP != "" {
-				addr = srv.DisplayIP
-			}
-			lines = append(lines, fmt.Sprintf("`%d` — **%s** (`%s:%d`)", srv.ID, name, addr, srv.Port))
+			name := serverDisplayName(&srv)
+			lines = append(lines, fmt.Sprintf("`%d` — `%s:%d` | **%s**", srv.ID, srv.IP, srv.Port, name))
 		}
-		content = "**Серверы:**\n" + strings.Join(lines, "\n") + "\n\nИспользуй `/addserver id:<номер>`"
+		content = "**Серверы:**\n" + strings.Join(lines, "\n") + "\n\nВыбери через автодополнение или укажи `/addserver id:<номер>`"
 	}
 	b.retryEdit(s, i, &discordgo.WebhookEdit{Content: &content})
 }
