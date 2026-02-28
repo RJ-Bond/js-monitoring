@@ -53,6 +53,7 @@ export function SiteSettingsProvider({ children }: { children: React.ReactNode }
     vrising_world_z_max: 640,
     vrising_castle_icon_url: "",
     vrising_player_icon_url: "",
+    vrising_hide_admins: false,
   });
 
   const load = useCallback(async () => {
