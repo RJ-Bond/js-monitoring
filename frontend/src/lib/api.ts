@@ -37,6 +37,14 @@ export interface NewsPage {
   total: number;
 }
 
+export interface NewsTag {
+  id: number;
+  name: string;
+  icon?: string; // base64 data URL
+  created_at: string;
+  updated_at: string;
+}
+
 export interface NewsFormData {
   title: string;
   content: string;
@@ -237,6 +245,14 @@ export const api = {
     fetchJSON<void>(`/api/v1/admin/news/${id}`, { method: "DELETE" }),
   trackView: (id: number): Promise<void> =>
     fetchJSON<void>(`/api/v1/news/${id}/view`, { method: "POST" }),
+  getNewsTags: () =>
+    fetchJSON<NewsTag[]>("/api/v1/news/tags"),
+  createNewsTag: (data: { name: string; icon?: string }) =>
+    fetchJSON<NewsTag>("/api/v1/admin/news/tags", { method: "POST", body: JSON.stringify(data) }),
+  updateNewsTag: (id: number, data: { name: string; icon?: string }) =>
+    fetchJSON<NewsTag>(`/api/v1/admin/news/tags/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteNewsTag: (id: number): Promise<void> =>
+    fetchJSON<void>(`/api/v1/admin/news/tags/${id}`, { method: "DELETE" }),
 
   // Uptime
   getUptime: (serverID: number) =>

@@ -6,7 +6,7 @@ import { Newspaper, Plus, Pencil, Trash2, X, Save, User, Pin, Eye, Copy, Clock }
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { api } from "@/lib/api";
-import type { NewsFormData } from "@/lib/api";
+import type { NewsFormData, NewsTag } from "@/lib/api";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import SiteBrand from "@/components/SiteBrand";
 import type { NewsItem } from "@/types/server";
@@ -181,11 +181,78 @@ export default function AdminNewsPage() {
   const [previewTab, setPreviewTab]   = useState<"markdown" | "discord" | "telegram">("markdown");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // ── Tag management state ──────────────────────────────────────────────────
+  const [tags,           setTags]           = useState<NewsTag[]>([]);
+  const [tagModalOpen,   setTagModalOpen]   = useState(false);
+  const [editTag,        setEditTag]        = useState<NewsTag | null>(null);
+  const [tagForm,        setTagForm]        = useState({ name: "", icon: "" });
+  const [tagSaving,      setTagSaving]      = useState(false);
+  const [tagDeleteConfirm, setTagDeleteConfirm] = useState<NewsTag | null>(null);
+
   useEffect(() => {
     if (isLoading) return;
     if (!isAuthenticated || user?.role !== "admin") { router.replace("/"); return; }
     fetchNews();
+    fetchTags();
   }, [isAuthenticated, isLoading, user, router]);
+
+  const fetchTags = async () => {
+    try { setTags(await api.getNewsTags()); } catch { /* ignore */ }
+  };
+
+  const openCreateTag = () => {
+    setEditTag(null);
+    setTagForm({ name: "", icon: "" });
+    setTagModalOpen(true);
+  };
+
+  const openEditTag = (tag: NewsTag) => {
+    setEditTag(tag);
+    setTagForm({ name: tag.name, icon: tag.icon ?? "" });
+    setTagModalOpen(true);
+  };
+
+  const handleTagIconUpload = (file: File) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 64; canvas.height = 64;
+    const ctx = canvas.getContext("2d")!;
+    const img = new Image();
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0, 64, 64);
+      setTagForm(f => ({ ...f, icon: canvas.toDataURL("image/png") }));
+    };
+    img.src = URL.createObjectURL(file);
+  };
+
+  const saveTag = async () => {
+    if (!tagForm.name.trim()) return;
+    setTagSaving(true);
+    try {
+      if (editTag) {
+        const updated = await api.updateNewsTag(editTag.id, tagForm);
+        setTags(ts => ts.map(t => t.id === updated.id ? updated : t));
+      } else {
+        const created = await api.createNewsTag(tagForm);
+        setTags(ts => [...ts, created].sort((a, b) => a.name.localeCompare(b.name)));
+      }
+      setTagModalOpen(false);
+    } catch { /* ignore */ }
+    finally { setTagSaving(false); }
+  };
+
+  const deleteTag = async (tag: NewsTag) => {
+    await api.deleteNewsTag(tag.id);
+    setTags(ts => ts.filter(t => t.id !== tag.id));
+    setTagDeleteConfirm(null);
+  };
+
+  /** Toggle tag in news form input */
+  const toggleTagInForm = (tagName: string) => {
+    const current = (form.tags ?? "").split(",").map(s => s.trim()).filter(Boolean);
+    const idx = current.indexOf(tagName);
+    if (idx >= 0) current.splice(idx, 1); else current.push(tagName);
+    setField("tags", current.join(", "));
+  };
 
   const fetchNews = async () => {
     setLoading(true);
@@ -369,6 +436,46 @@ export default function AdminNewsPage() {
           </div>
         ) : (
           <>
+            {/* ── Tags management ─────────────────────────────────────────── */}
+            <div className="glass-card rounded-2xl p-4 mb-5 border border-white/[0.06]">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  🏷️ {t.newsTagsManage}
+                </span>
+                <button
+                  onClick={openCreateTag}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-neon-blue/10 text-neon-blue border border-neon-blue/20 hover:bg-neon-blue/20 transition-colors"
+                >
+                  <Plus className="w-3 h-3" />
+                  {t.newsTagAdd}
+                </button>
+              </div>
+              {tags.length === 0 ? (
+                <p className="text-xs text-muted-foreground/50">{t.newsTagsEmpty}</p>
+              ) : (
+                <div className="flex gap-2 flex-wrap">
+                  {tags.map(tag => (
+                    <div key={tag.id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 border border-white/10 group">
+                      {tag.icon && <img src={tag.icon} alt="" className="w-4 h-4 object-contain rounded-sm flex-shrink-0" />}
+                      <span className="text-xs text-foreground">{tag.name}</span>
+                      <button
+                        onClick={() => openEditTag(tag)}
+                        className="p-0.5 rounded text-muted-foreground/40 hover:text-neon-blue transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={() => setTagDeleteConfirm(tag)}
+                        className="p-0.5 rounded text-muted-foreground/40 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Stats bar */}
             <div className="flex items-center gap-2.5 text-xs mb-5 px-1 flex-wrap">
               <span className="font-semibold text-foreground">{news.length} статей</span>
@@ -549,6 +656,117 @@ export default function AdminNewsPage() {
         </div>
       )}
 
+      {/* ── Tag create/edit modal ────────────────────────────────────────── */}
+      {tagModalOpen && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setTagModalOpen(false); }}
+        >
+          <div className="w-full max-w-sm glass-card rounded-2xl p-6 flex flex-col gap-4 border border-white/[0.08]">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-sm">{editTag ? t.newsTagEdit : t.newsTagCreate}</h2>
+              <button onClick={() => setTagModalOpen(false)} className="p-1.5 rounded-lg hover:bg-white/10 text-muted-foreground transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Icon preview + upload */}
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-xl border border-white/10 bg-white/5 flex items-center justify-center overflow-hidden flex-shrink-0">
+                {tagForm.icon
+                  ? <img src={tagForm.icon} alt="" className="w-12 h-12 object-contain" />
+                  : <span className="text-2xl">🏷️</span>
+                }
+              </div>
+              <div className="flex flex-col gap-1.5 flex-1">
+                <label className="px-3 py-2 rounded-xl text-xs border border-white/10 bg-white/5 hover:bg-white/10 cursor-pointer transition-colors text-center">
+                  {t.newsTagIconUpload}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleTagIconUpload(f); }}
+                  />
+                </label>
+                {tagForm.icon && (
+                  <button
+                    type="button"
+                    onClick={() => setTagForm(f => ({ ...f, icon: "" }))}
+                    className="text-xs text-muted-foreground hover:text-red-400 transition-colors text-center"
+                  >
+                    {t.newsTagIconRemove}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Name input */}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-muted-foreground uppercase tracking-wide">{t.newsTagName}</label>
+              <input
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-foreground outline-none focus:border-neon-green/50 transition-all placeholder:text-muted-foreground"
+                placeholder="Важно"
+                value={tagForm.name}
+                onChange={(e) => setTagForm(f => ({ ...f, name: e.target.value }))}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); saveTag(); } }}
+                autoFocus
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setTagModalOpen(false)}
+                className="flex-1 px-4 py-2.5 rounded-xl text-sm text-muted-foreground border border-white/10 hover:border-white/20 hover:text-foreground transition-all"
+              >
+                {t.newsCancel}
+              </button>
+              <button
+                type="button"
+                disabled={tagSaving || !tagForm.name.trim()}
+                onClick={saveTag}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-neon-green text-black hover:bg-neon-green/90 transition-all disabled:opacity-50"
+              >
+                <Save className="w-4 h-4" />
+                {tagSaving ? t.newsSaving : t.newsSave}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Tag delete confirm ──────────────────────────────────────────────── */}
+      {tagDeleteConfirm && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setTagDeleteConfirm(null); }}
+        >
+          <div className="w-full max-w-sm glass-card rounded-2xl p-6 flex flex-col gap-4 border border-red-500/20">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center flex-shrink-0">
+                <Trash2 className="w-5 h-5 text-red-400" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm">{t.newsTagDeleteConfirm(tagDeleteConfirm.name)}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{t.deleteModalTitle}</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setTagDeleteConfirm(null)} className="flex-1 px-4 py-2.5 rounded-xl text-sm text-muted-foreground border border-white/10 hover:border-white/20 transition-all">
+                {t.newsCancel}
+              </button>
+              <button
+                onClick={() => deleteTag(tagDeleteConfirm)}
+                className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-all"
+              >
+                {t.newsDelete}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Editor modal */}
       {modalOpen && (
         <div
@@ -612,13 +830,27 @@ export default function AdminNewsPage() {
                     value={form.tags ?? ""}
                     onChange={(e) => setField("tags", e.target.value)}
                   />
-                  {tagPills.length > 0 && (
-                    <div className="flex gap-1 flex-wrap mt-0.5">
-                      {tagPills.map((tag) => (
-                        <span key={tag} className="px-2 py-0.5 rounded-full text-[11px] bg-neon-blue/10 text-neon-blue border border-neon-blue/20">
-                          {tag}
-                        </span>
-                      ))}
+                  {/* Available tags — click to toggle */}
+                  {tags.length > 0 && (
+                    <div className="flex gap-1 flex-wrap mt-1">
+                      {tags.map((tag) => {
+                        const active = tagPills.includes(tag.name);
+                        return (
+                          <button
+                            key={tag.id}
+                            type="button"
+                            onClick={() => toggleTagInForm(tag.name)}
+                            className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] border transition-all ${
+                              active
+                                ? "bg-neon-blue/15 border-neon-blue/40 text-neon-blue"
+                                : "bg-white/5 border-white/10 text-muted-foreground hover:border-neon-blue/30 hover:text-foreground"
+                            }`}
+                          >
+                            {tag.icon && <img src={tag.icon} alt="" className="w-3 h-3 object-contain" />}
+                            {tag.name}
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

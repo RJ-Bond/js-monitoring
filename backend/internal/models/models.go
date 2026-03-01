@@ -47,6 +47,15 @@ type Server struct {
 	AlertConfig *AlertsConfig `gorm:"foreignKey:ServerID" json:"alert_config,omitempty"`
 }
 
+// NewsTag — тег с необязательной иконкой (base64 data URL)
+type NewsTag struct {
+	ID        uint      `gorm:"primaryKey;autoIncrement"                  json:"id"`
+	Name      string    `gorm:"type:varchar(100);uniqueIndex;not null"    json:"name"`
+	Icon      string    `gorm:"type:mediumtext"                           json:"icon,omitempty"` // base64 data URL
+	CreatedAt time.Time `                                                 json:"created_at"`
+	UpdatedAt time.Time `                                                 json:"updated_at"`
+}
+
 // NewsItem — новость / объявление (создаётся администратором)
 type NewsItem struct {
 	ID        uint       `gorm:"primaryKey;autoIncrement"   json:"id"`

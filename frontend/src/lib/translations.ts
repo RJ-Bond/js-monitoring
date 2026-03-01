@@ -174,6 +174,16 @@ export const translations = {
     newsSearchPlaceholder: "Search announcements…",
     newsLoadMore: "Load more",
     newsFilterPinned: "Pinned only",
+    // News tags
+    newsTagsManage: "Tag Management",
+    newsTagAdd: "Add tag",
+    newsTagsEmpty: "No tags yet",
+    newsTagEdit: "Edit tag",
+    newsTagCreate: "Create tag",
+    newsTagName: "Tag name",
+    newsTagIconUpload: "Upload icon",
+    newsTagIconRemove: "Remove",
+    newsTagDeleteConfirm: (name: string) => `Delete tag "${name}"?`,
     // Uptime
     cardUptime: "Uptime 24h",
     // Alerts
@@ -731,6 +741,16 @@ export const translations = {
     newsSearchPlaceholder: "Поиск по объявлениям…",
     newsLoadMore: "Загрузить ещё",
     newsFilterPinned: "Только закреплённые",
+    // News tags
+    newsTagsManage: "Управление тегами",
+    newsTagAdd: "Добавить тег",
+    newsTagsEmpty: "Теги не созданы",
+    newsTagEdit: "Редактировать тег",
+    newsTagCreate: "Создать тег",
+    newsTagName: "Название тега",
+    newsTagIconUpload: "Загрузить иконку",
+    newsTagIconRemove: "Удалить",
+    newsTagDeleteConfirm: (name: string) => `Удалить тег "${name}"?`,
     // Uptime
     cardUptime: "Аптайм 24ч",
     // Alerts

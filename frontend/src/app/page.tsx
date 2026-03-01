@@ -28,6 +28,7 @@ import GameIcon from "@/components/GameIcon";
 import SiteBrand from "@/components/SiteBrand";
 import { ToastContainer } from "@/components/Toast";
 import type { GameType, Server, NewsItem } from "@/types/server";
+import type { NewsTag } from "@/lib/api";
 import { parseTags } from "@/types/server";
 import { GAME_META } from "@/lib/utils";
 import { APP_VERSION } from "@/lib/version";
@@ -158,6 +159,13 @@ export default function Home() {
     allNews.forEach((n) => parseTags(n).forEach((tag) => tagSet.add(tag)));
     return Array.from(tagSet);
   }, [allNews]);
+
+  // NewsTag metadata (icons) — loaded once on mount
+  const [newsTagMeta, setNewsTagMeta] = useState<NewsTag[]>([]);
+  useEffect(() => {
+    api.getNewsTags().then(setNewsTagMeta).catch(() => {});
+  }, []);
+  const tagIcon = (name: string) => newsTagMeta.find(t => t.name === name)?.icon;
 
   // Local pinned filter (backend already orders pinned first)
   const visibleNews = newsFilterPinned ? allNews.filter((n) => n.pinned) : allNews;
@@ -427,12 +435,13 @@ export default function Home() {
                   <button
                     key={tag}
                     onClick={() => setNewsTag(newsTag === tag ? "" : tag)}
-                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium border transition-all ${
+                    className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border transition-all ${
                       newsTag === tag
                         ? "bg-neon-blue/15 border-neon-blue/40 text-neon-blue"
                         : "border-white/10 text-muted-foreground hover:text-foreground hover:border-white/20"
                     }`}
                   >
+                    {tagIcon(tag) && <img src={tagIcon(tag)} alt="" className="w-3 h-3 object-contain" />}
                     {tag}
                   </button>
                 ))}
@@ -484,8 +493,9 @@ export default function Home() {
                         <span
                           key={tag}
                           onClick={(e) => { e.stopPropagation(); setNewsTag(newsTag === tag ? "" : tag); }}
-                          className="px-2 py-0.5 rounded-full text-[10px] bg-neon-blue/10 text-neon-blue border border-neon-blue/20 cursor-pointer hover:bg-neon-blue/20 transition-colors"
+                          className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-neon-blue/10 text-neon-blue border border-neon-blue/20 cursor-pointer hover:bg-neon-blue/20 transition-colors"
                         >
+                          {tagIcon(tag) && <img src={tagIcon(tag)} alt="" className="w-3 h-3 object-contain" />}
                           {tag}
                         </span>
                       ))}
@@ -552,8 +562,9 @@ export default function Home() {
                             <span
                               key={tag}
                               onClick={(e) => { e.stopPropagation(); setNewsTag(newsTag === tag ? "" : tag); }}
-                              className="px-1.5 py-0.5 rounded-full text-[10px] bg-white/5 text-muted-foreground border border-white/10 cursor-pointer hover:border-neon-blue/30 hover:text-neon-blue transition-colors"
+                              className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] bg-white/5 text-muted-foreground border border-white/10 cursor-pointer hover:border-neon-blue/30 hover:text-neon-blue transition-colors"
                             >
+                              {tagIcon(tag) && <img src={tagIcon(tag)} alt="" className="w-3 h-3 object-contain" />}
                               {tag}
                             </span>
                           ))}
@@ -786,8 +797,9 @@ export default function Home() {
                       <span
                         key={tag}
                         onClick={() => { setNewsModal(null); setNewsTag(newsTag === tag ? "" : tag); }}
-                        className="px-2 py-0.5 rounded-full text-[10px] bg-neon-blue/10 text-neon-blue border border-neon-blue/20 cursor-pointer hover:bg-neon-blue/20 transition-colors"
+                        className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-neon-blue/10 text-neon-blue border border-neon-blue/20 cursor-pointer hover:bg-neon-blue/20 transition-colors"
                       >
+                        {tagIcon(tag) && <img src={tagIcon(tag)} alt="" className="w-3.5 h-3.5 object-contain" />}
                         {tag}
                       </span>
                     ))}
