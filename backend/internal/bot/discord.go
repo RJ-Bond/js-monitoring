@@ -1046,36 +1046,47 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 		}
 	}
 
-	// Stats over last 24 hours from PlayerHistory.
+	// Stats window: determined by selected period.
 	now := time.Now()
-	since24h := now.Add(-24 * time.Hour)
+	var sinceTime time.Time
+	var periodLabel string
+	switch period {
+	case "7d":
+		sinceTime = now.Add(-7 * 24 * time.Hour)
+		periodLabel = "7д"
+	case "30d":
+		sinceTime = now.Add(-30 * 24 * time.Hour)
+		periodLabel = "30д"
+	default: // "24h"
+		sinceTime = now.Add(-24 * time.Hour)
+		periodLabel = "24ч"
+	}
 
 	var peak int
 	b.db.Model(&models.PlayerHistory{}).
 		Select("COALESCE(MAX(count), 0)").
-		Where("server_id = ? AND timestamp > ? AND is_online = true", srv.ID, since24h).
+		Where("server_id = ? AND timestamp > ? AND is_online = true", srv.ID, sinceTime).
 		Scan(&peak)
 
 	var totalH, onlineH int64
 	b.db.Model(&models.PlayerHistory{}).
-		Where("server_id = ? AND timestamp > ?", srv.ID, since24h).
+		Where("server_id = ? AND timestamp > ?", srv.ID, sinceTime).
 		Count(&totalH)
 	b.db.Model(&models.PlayerHistory{}).
-		Where("server_id = ? AND timestamp > ? AND is_online = true", srv.ID, since24h).
+		Where("server_id = ? AND timestamp > ? AND is_online = true", srv.ID, sinceTime).
 		Count(&onlineH)
 
 	var avgOnline float64
 	b.db.Model(&models.PlayerHistory{}).
 		Select("COALESCE(AVG(count), 0)").
-		Where("server_id = ? AND timestamp > ? AND is_online = true", srv.ID, since24h).
+		Where("server_id = ? AND timestamp > ? AND is_online = true", srv.ID, sinceTime).
 		Scan(&avgOnline)
 
-	// Unique players today (midnight to now) from PlayerSession.
-	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	// Unique players over the selected period from PlayerSession.
 	var uniqueToday int64
 	b.db.Model(&models.PlayerSession{}).
 		Select("COUNT(DISTINCT player_name)").
-		Where("server_id = ? AND started_at >= ?", srv.ID, today).
+		Where("server_id = ? AND started_at >= ?", srv.ID, sinceTime).
 		Scan(&uniqueToday)
 
 	uptimeVal := "—"
@@ -1127,16 +1138,16 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 		fields = append(fields, &discordgo.MessageEmbedField{Name: "👥 Игроков", Value: playersVal, Inline: false})
 	}
 	if embedCfg.Peak24h {
-		fields = append(fields, &discordgo.MessageEmbedField{Name: "📈 Пик 24ч", Value: peakVal, Inline: true})
+		fields = append(fields, &discordgo.MessageEmbedField{Name: fmt.Sprintf("📈 Пик %s", periodLabel), Value: peakVal, Inline: true})
 	}
 	if embedCfg.Uptime24h {
-		fields = append(fields, &discordgo.MessageEmbedField{Name: "⏱️ Аптайм 24ч", Value: uptimeVal, Inline: true})
+		fields = append(fields, &discordgo.MessageEmbedField{Name: fmt.Sprintf("⏱️ Аптайм %s", periodLabel), Value: uptimeVal, Inline: true})
 	}
 	if embedCfg.Average24h {
-		fields = append(fields, &discordgo.MessageEmbedField{Name: "📊 Среднее 24ч", Value: avgVal, Inline: true})
+		fields = append(fields, &discordgo.MessageEmbedField{Name: fmt.Sprintf("📊 Среднее %s", periodLabel), Value: avgVal, Inline: true})
 	}
 	if embedCfg.UniqueToday {
-		fields = append(fields, &discordgo.MessageEmbedField{Name: "👤 Игроков сегодня", Value: uniqueVal, Inline: false})
+		fields = append(fields, &discordgo.MessageEmbedField{Name: fmt.Sprintf("👤 Игроков за %s", periodLabel), Value: uniqueVal, Inline: false})
 	}
 
 	// Player list from active sessions (ended_at IS NULL)
@@ -1194,39 +1205,35 @@ func (b *DiscordBot) buildServerEmbed(srv *models.Server, period string) *discor
 }
 
 // buildComponents builds the action rows of buttons for a server embed.
-// The period selector is a single cycle button: 24h → 7d → 30d → 24h.
-// Clicking it switches to the next period; the label shows the current period.
+// Three period buttons (24h / 7d / 30d) are shown; the active one is
+// highlighted (Primary + disabled) and the rest are Secondary.
 func (b *DiscordBot) buildComponents(serverID uint, activePeriod string) []discordgo.MessageComponent {
-	// Cycle order: 24h → 7d → 30d → 24h
-	nextPeriod := map[string]string{"24h": "7d", "7d": "30d", "30d": "24h"}
-	periodLabel := map[string]string{"24h": "📊 24ч", "7d": "📊 7д", "30d": "📊 30д"}
-
-	next := nextPeriod[activePeriod]
-	if next == "" {
-		next = "7d"
-	}
-	label := periodLabel[activePeriod]
-	if label == "" {
-		label = "📊 24ч"
+	type periodDef struct{ label, period string }
+	defs := []periodDef{
+		{"📊 24ч", "24h"},
+		{"📅 7д", "7d"},
+		{"📆 30д", "30d"},
 	}
 
-	// Single row: period cycle button + admin panel button side by side.
-	// Note: Discord only allows http/https/discord schemes in button URLs,
-	// so steam:// connect links are not possible here.
-	row := discordgo.ActionsRow{
-		Components: []discordgo.MessageComponent{
-			discordgo.Button{
-				Label:    label,
-				Style:    discordgo.PrimaryButton,
-				CustomID: fmt.Sprintf("chart_%d_%s", serverID, next),
-			},
-			discordgo.Button{
-				Label:    "⚙️ Админка",
-				Style:    discordgo.DangerButton,
-				CustomID: "admin_panel",
-			},
-		},
+	components := make([]discordgo.MessageComponent, 0, len(defs)+1)
+	for _, d := range defs {
+		active := d.period == activePeriod
+		style := discordgo.SecondaryButton
+		if active {
+			style = discordgo.PrimaryButton
+		}
+		components = append(components, discordgo.Button{
+			Label:    d.label,
+			Style:    style,
+			Disabled: active,
+			CustomID: fmt.Sprintf("chart_%d_%s", serverID, d.period),
+		})
 	}
+	components = append(components, discordgo.Button{
+		Label:    "⚙️ Админка",
+		Style:    discordgo.DangerButton,
+		CustomID: "admin_panel",
+	})
 
-	return []discordgo.MessageComponent{row}
+	return []discordgo.MessageComponent{discordgo.ActionsRow{Components: components}}
 }
