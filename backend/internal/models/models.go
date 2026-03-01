@@ -102,7 +102,7 @@ type PlayerHistory struct {
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	ServerID  uint      `gorm:"index;not null"           json:"server_id"`
 	Count     int       `gorm:"not null"                 json:"count"`
-	IsOnline  bool      `gorm:"default:true"             json:"is_online"`
+	IsOnline  bool      `gorm:"not null"                 json:"is_online"`
 	PingMS    int       `gorm:"default:0"                json:"ping_ms"`
 	Timestamp time.Time `gorm:"index;not null"           json:"timestamp"`
 }

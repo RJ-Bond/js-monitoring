@@ -375,7 +375,9 @@ func (p *Poller) flushHistoryBuffer() {
 	p.historyBuf = p.historyBuf[:0]
 	p.historyMu.Unlock()
 
-	if err := database.DB.CreateInBatches(batch, batchSize).Error; err != nil {
+	// Explicitly list columns so GORM doesn't skip is_online=false (zero-value bool).
+	if err := database.DB.Select("server_id", "count", "is_online", "ping_ms", "timestamp").
+		CreateInBatches(batch, batchSize).Error; err != nil {
 		log.Printf("[Poller] batch history insert error: %v", err)
 	} else {
 		log.Printf("[Poller] flushed %d history records", len(batch))
