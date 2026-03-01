@@ -262,35 +262,32 @@ export default function ServerCard({ server, onDelete, onEdit, isFavorite, onTog
             <button
               onClick={() => { setChartTab("history"); setExpanded((v) => chartTab === "history" ? !v : true); }}
               title={t.chartTabHistory}
-              className={cn("flex items-center gap-1 px-2 py-1 rounded-lg text-xs transition-colors",
+              className={cn("p-1.5 rounded-lg transition-colors",
                 expanded && chartTab === "history" ? "text-foreground bg-white/8" : "text-muted-foreground hover:text-foreground hover:bg-white/5"
               )}
             >
-              <BarChart2 className="w-3.5 h-3.5" />
-              {t.viewChart}
+              <BarChart2 className="w-4 h-4" />
             </button>
             {showLeaderboard && (
               <button
                 onClick={() => { setChartTab("leaderboard"); setExpanded((v) => chartTab === "leaderboard" ? !v : true); }}
                 title={t.chartTabLeaderboard}
-                className={cn("flex items-center gap-1 px-2 py-1 rounded-lg text-xs transition-colors",
+                className={cn("p-1.5 rounded-lg transition-colors",
                   expanded && chartTab === "leaderboard" ? "text-yellow-400 bg-yellow-400/8" : "text-muted-foreground hover:text-yellow-400 hover:bg-yellow-400/5"
                 )}
               >
-                <Trophy className="w-3.5 h-3.5" />
-                {t.chartTabLeaderboard}
+                <Trophy className="w-4 h-4" />
               </button>
             )}
             {isVRising && (
               <button
                 onClick={() => { setChartTab("vrmap"); setExpanded((v) => chartTab === "vrmap" ? !v : true); }}
                 title={t.chartTabMap}
-                className={cn("flex items-center gap-1 px-2 py-1 rounded-lg text-xs transition-colors",
+                className={cn("p-1.5 rounded-lg transition-colors",
                   expanded && chartTab === "vrmap" ? "text-neon-green bg-neon-green/8" : "text-muted-foreground hover:text-neon-green hover:bg-neon-green/5"
                 )}
               >
-                <Map className="w-3.5 h-3.5" />
-                {t.chartTabMap}
+                <Map className="w-4 h-4" />
               </button>
             )}
           </div>
