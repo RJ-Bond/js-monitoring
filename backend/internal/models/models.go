@@ -149,6 +149,7 @@ type SiteSettings struct {
 	VRisingWorldZMax        int    `gorm:"default:640"                            json:"vrising_world_z_max"`       // северная граница мира (максимальный Z)
 	VRisingCastleIcon       string `gorm:"type:longtext"                          json:"-"`                         // base64 кастомной иконки замка
 	VRisingPlayerIcon       string `gorm:"type:longtext"                          json:"-"`                         // base64 кастомной иконки игрока
+	VRisingFreePlotIcon     string `gorm:"type:longtext"                          json:"-"`                         // base64 кастомной иконки свободного участка
 	VRisingHideAdmins       bool   `gorm:"default:false"                          json:"vrising_hide_admins"`       // скрывать администраторов с живой карты
 	MaintenanceMode         bool   `gorm:"default:false"                          json:"maintenance_mode"`          // режим обслуживания — закрывает сайт для не-админов
 }

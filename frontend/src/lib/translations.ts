@@ -475,6 +475,11 @@ export const translations = {
     adminSettingsVRisingPlayerIconHint: "Custom icon for player positions on the live map. PNG/WebP, max 1 MB. Leave empty to use the default dot.",
     adminSettingsVRisingPlayerIconUploaded: "Player icon uploaded",
     adminSettingsVRisingPlayerIconClear: "Remove player icon",
+    adminSettingsVRisingFreePlotIcon: "Free Plot Icon",
+    adminSettingsVRisingFreePlotIconUpload: "Upload free plot icon",
+    adminSettingsVRisingFreePlotIconHint: "Custom icon for free castle spots on the live map. PNG/WebP, max 1 MB. Leave empty to use the default circle.",
+    adminSettingsVRisingFreePlotIconUploaded: "Free plot icon uploaded",
+    adminSettingsVRisingFreePlotIconClear: "Remove free plot icon",
     // SSL / HTTPS
     adminSslSection: "Security & SSL",
     adminSslMode: "SSL Mode",
@@ -1077,6 +1082,11 @@ export const translations = {
     adminSettingsVRisingPlayerIconHint: "Кастомная иконка для позиций игроков на живой карте. PNG/WebP, максимум 1 МБ. Оставьте пустым — будет использована стандартная точка.",
     adminSettingsVRisingPlayerIconUploaded: "Иконка игрока загружена",
     adminSettingsVRisingPlayerIconClear: "Удалить иконку игрока",
+    adminSettingsVRisingFreePlotIcon: "Иконка свободного участка",
+    adminSettingsVRisingFreePlotIconUpload: "Загрузить иконку участка",
+    adminSettingsVRisingFreePlotIconHint: "Кастомная иконка для свободных мест под замки на живой карте. PNG/WebP, максимум 1 МБ. Оставьте пустым — будет использован стандартный круг.",
+    adminSettingsVRisingFreePlotIconUploaded: "Иконка участка загружена",
+    adminSettingsVRisingFreePlotIconClear: "Удалить иконку участка",
     // SSL / HTTPS
     adminSslSection: "Безопасность и SSL",
     adminSslMode: "Режим SSL",

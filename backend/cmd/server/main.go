@@ -121,6 +121,7 @@ func main() {
 	v1.GET("/vrising/map-image", api.GetVRisingMapImage)
 	v1.GET("/vrising/castle-icon", api.GetVRisingCastleIcon)
 	v1.GET("/vrising/player-icon", api.GetVRisingPlayerIcon)
+	v1.GET("/vrising/free-plot-icon", api.GetVRisingFreePlotIcon)
 
 	// ── Auth ─────────────────────────────────────────────────────────────────
 	authG := v1.Group("/auth")

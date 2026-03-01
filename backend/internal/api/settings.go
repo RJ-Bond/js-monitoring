@@ -60,8 +60,9 @@ func GetSettings(c echo.Context) error {
 		"vrising_world_x_max":      effectiveWorldBound(s.VRisingWorldXMax, 160),
 		"vrising_world_z_min":      effectiveWorldBound(s.VRisingWorldZMin, -2400),
 		"vrising_world_z_max":      effectiveWorldBound(s.VRisingWorldZMax, 640),
-		"vrising_castle_icon_url":  effectiveIconURL(s.VRisingCastleIcon, "/api/v1/vrising/castle-icon"),
-		"vrising_player_icon_url":  effectiveIconURL(s.VRisingPlayerIcon, "/api/v1/vrising/player-icon"),
+		"vrising_castle_icon_url":    effectiveIconURL(s.VRisingCastleIcon, "/api/v1/vrising/castle-icon"),
+		"vrising_player_icon_url":    effectiveIconURL(s.VRisingPlayerIcon, "/api/v1/vrising/player-icon"),
+		"vrising_free_plot_icon_url": effectiveIconURL(s.VRisingFreePlotIcon, "/api/v1/vrising/free-plot-icon"),
 		"vrising_hide_admins":      s.VRisingHideAdmins,
 		"maintenance_mode":         s.MaintenanceMode,
 	})
@@ -126,6 +127,7 @@ func GetAdminSettings(c echo.Context) error {
 		"vrising_world_z_max":         effectiveWorldBound(s.VRisingWorldZMax, 640),
 		"vrising_castle_icon_set":     s.VRisingCastleIcon != "",
 		"vrising_player_icon_set":     s.VRisingPlayerIcon != "",
+		"vrising_free_plot_icon_set":  s.VRisingFreePlotIcon != "",
 		"vrising_hide_admins":         s.VRisingHideAdmins,
 		"maintenance_mode":            s.MaintenanceMode,
 	})
@@ -160,8 +162,9 @@ func UpdateSettings(c echo.Context) error {
 		VRisingWorldXMax        *int   `json:"vrising_world_x_max"`
 		VRisingWorldZMin        *int   `json:"vrising_world_z_min"`
 		VRisingWorldZMax        *int   `json:"vrising_world_z_max"`
-		VRisingCastleIcon       string `json:"vrising_castle_icon"` // "" = no change, "__CLEAR__" = delete, "data:..." = save
-		VRisingPlayerIcon       string `json:"vrising_player_icon"` // "" = no change, "__CLEAR__" = delete, "data:..." = save
+		VRisingCastleIcon       string `json:"vrising_castle_icon"`    // "" = no change, "__CLEAR__" = delete, "data:..." = save
+		VRisingPlayerIcon       string `json:"vrising_player_icon"`    // "" = no change, "__CLEAR__" = delete, "data:..." = save
+		VRisingFreePlotIcon     string `json:"vrising_free_plot_icon"` // "" = no change, "__CLEAR__" = delete, "data:..." = save
 		SSLMode                 string `json:"ssl_mode"`   // none|letsencrypt|custom
 		SSLDomain               string `json:"ssl_domain"`
 		MaintenanceMode         *bool  `json:"maintenance_mode"`
@@ -274,6 +277,17 @@ func UpdateSettings(c echo.Context) error {
 			return c.JSON(http.StatusBadRequest, echo.Map{"error": "player icon too large (max 1 MB)"})
 		}
 		s.VRisingPlayerIcon = payload.VRisingPlayerIcon
+	}
+	switch payload.VRisingFreePlotIcon {
+	case "":
+		// no change
+	case "__CLEAR__":
+		s.VRisingFreePlotIcon = ""
+	default:
+		if len(payload.VRisingFreePlotIcon) > 1_500_000 { // 1 MB base64 limit
+			return c.JSON(http.StatusBadRequest, echo.Map{"error": "free plot icon too large (max 1 MB)"})
+		}
+		s.VRisingFreePlotIcon = payload.VRisingFreePlotIcon
 	}
 	if payload.DiscordRefreshInterval >= 10 {
 		s.DiscordRefreshInterval = payload.DiscordRefreshInterval
@@ -434,6 +448,31 @@ func GetVRisingPlayerIcon(c echo.Context) error {
 	}
 	header := s.VRisingPlayerIcon[:comma]
 	encoded := s.VRisingPlayerIcon[comma+1:]
+	mime := "image/png"
+	if semi := strings.Index(header, ";"); semi > 5 {
+		mime = header[5:semi]
+	}
+	data, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	c.Response().Header().Set("Cache-Control", "public, max-age=3600")
+	return c.Blob(http.StatusOK, mime, data)
+}
+
+// GetVRisingFreePlotIcon GET /api/v1/vrising/free-plot-icon — public
+// Serves the custom free plot icon uploaded via admin settings.
+func GetVRisingFreePlotIcon(c echo.Context) error {
+	var s models.SiteSettings
+	if database.DB.First(&s, 1).Error != nil || s.VRisingFreePlotIcon == "" {
+		return c.NoContent(http.StatusNotFound)
+	}
+	comma := strings.Index(s.VRisingFreePlotIcon, ",")
+	if comma < 0 {
+		return c.NoContent(http.StatusNotFound)
+	}
+	header := s.VRisingFreePlotIcon[:comma]
+	encoded := s.VRisingFreePlotIcon[comma+1:]
 	mime := "image/png"
 	if semi := strings.Index(header, ";"); semi > 5 {
 		mime = header[5:semi]

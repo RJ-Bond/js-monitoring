@@ -97,8 +97,12 @@ func buildVRisingMapPNG(payload VRisingMapPayload, s models.SiteSettings) ([]byt
 	}
 
 	// Draw free plots (green outline circles, below castles/players)
+	// Skip plots outside configured world bounds (territories on other parts of the map)
 	freePlotCol := color.RGBA{34, 197, 94, 160} // green-500
 	for _, plot := range payload.FreePlots {
+		if plot.X < xMin || plot.X > xMax || plot.Z < zMin || plot.Z > zMax {
+			continue
+		}
 		px, py := toPixel(plot.X, plot.Z)
 		vrDrawCircleOutline(img, px, py, 10, 2, freePlotCol)
 	}

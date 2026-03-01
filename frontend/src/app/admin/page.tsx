@@ -177,12 +177,16 @@ interface SettingsTabProps {
   onVRisingWorldZMaxChange: (v: number) => void;
   vRisingCastleIconSet: boolean;
   vRisingPlayerIconSet: boolean;
+  vRisingFreePlotIconSet: boolean;
   vRisingCastleIconNew: string;
   vRisingPlayerIconNew: string;
+  vRisingFreePlotIconNew: string;
   onVRisingCastleIconChange: (v: string) => void;
   onVRisingPlayerIconChange: (v: string) => void;
+  onVRisingFreePlotIconChange: (v: string) => void;
   onVRisingCastleIconClear: () => void;
   onVRisingPlayerIconClear: () => void;
+  onVRisingFreePlotIconClear: () => void;
   sslStatus: SSLStatus | null;
   sslStatusLoading: boolean;
   forceHttps: boolean;
@@ -235,8 +239,10 @@ function SettingsTab({
   onVRisingMapEnabledChange, onVRisingHideAdminsChange, onVRisingMapURLChange, onVRisingMapImageChange, onVRisingMapImageClear,
   vRisingWorldXMin, vRisingWorldXMax, vRisingWorldZMin, vRisingWorldZMax,
   onVRisingWorldXMinChange, onVRisingWorldXMaxChange, onVRisingWorldZMinChange, onVRisingWorldZMaxChange,
-  vRisingCastleIconSet, vRisingPlayerIconSet, vRisingCastleIconNew, vRisingPlayerIconNew,
-  onVRisingCastleIconChange, onVRisingPlayerIconChange, onVRisingCastleIconClear, onVRisingPlayerIconClear,
+  vRisingCastleIconSet, vRisingPlayerIconSet, vRisingFreePlotIconSet,
+  vRisingCastleIconNew, vRisingPlayerIconNew, vRisingFreePlotIconNew,
+  onVRisingCastleIconChange, onVRisingPlayerIconChange, onVRisingFreePlotIconChange,
+  onVRisingCastleIconClear, onVRisingPlayerIconClear, onVRisingFreePlotIconClear,
   sslStatus, sslStatusLoading, forceHttps, onForceHttpsChange, onRefreshSsl,
   sslMode, sslDomain, onSslModeChange, onSslDomainChange,
   maintenanceMode, onMaintenanceModeChange,
@@ -1034,6 +1040,44 @@ function SettingsTab({
           </div>
           <p className="text-xs text-muted-foreground mt-1">{t.adminSettingsVRisingPlayerIconHint}</p>
         </div>
+
+        {/* Free plot icon */}
+        <div>
+          <label className="text-xs text-muted-foreground mb-2 block">{t.adminSettingsVRisingFreePlotIcon}</label>
+          <div className="flex items-center gap-2 flex-wrap">
+            <label className="px-3 py-2 rounded-xl text-sm border border-white/10 bg-white/5 hover:bg-white/10 cursor-pointer transition-colors">
+              {t.adminSettingsVRisingFreePlotIconUpload}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = () => onVRisingFreePlotIconChange(reader.result as string);
+                  reader.readAsDataURL(file);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+            {(vRisingFreePlotIconSet || vRisingFreePlotIconNew) && vRisingFreePlotIconNew !== "__CLEAR__" && (
+              <button
+                type="button"
+                onClick={onVRisingFreePlotIconClear}
+                className="px-3 py-2 rounded-xl text-sm border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors"
+              >
+                🗑 {t.adminSettingsVRisingFreePlotIconClear}
+              </button>
+            )}
+            {vRisingFreePlotIconNew && vRisingFreePlotIconNew !== "__CLEAR__" ? (
+              <img src={vRisingFreePlotIconNew} alt="free plot icon" className="w-10 h-10 object-contain rounded border border-white/10" />
+            ) : (vRisingFreePlotIconSet && !vRisingFreePlotIconNew) ? (
+              <span className="text-xs text-neon-green">✓ {t.adminSettingsVRisingFreePlotIconUploaded}</span>
+            ) : null}
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">{t.adminSettingsVRisingFreePlotIconHint}</p>
+        </div>
       </div>
 
       {/* Save */}
@@ -1113,8 +1157,10 @@ export default function AdminPage() {
   const [settingsVRisingWorldZMax, setSettingsVRisingWorldZMax] = useState(640);
   const [settingsVRisingCastleIconSet, setSettingsVRisingCastleIconSet] = useState(false);
   const [settingsVRisingPlayerIconSet, setSettingsVRisingPlayerIconSet] = useState(false);
+  const [settingsVRisingFreePlotIconSet, setSettingsVRisingFreePlotIconSet] = useState(false);
   const [settingsVRisingCastleIconNew, setSettingsVRisingCastleIconNew] = useState("");
   const [settingsVRisingPlayerIconNew, setSettingsVRisingPlayerIconNew] = useState("");
+  const [settingsVRisingFreePlotIconNew, setSettingsVRisingFreePlotIconNew] = useState("");
   const [settingsForceHttps, setSettingsForceHttps] = useState(false);
   const [settingsSslMode, setSettingsSslMode] = useState("none");
   const [settingsSslDomain, setSettingsSslDomain] = useState("");
@@ -1248,8 +1294,10 @@ export default function AdminPage() {
         setSettingsVRisingWorldZMax(s.vrising_world_z_max ?? 640);
         setSettingsVRisingCastleIconSet(s.vrising_castle_icon_set ?? false);
         setSettingsVRisingPlayerIconSet(s.vrising_player_icon_set ?? false);
+        setSettingsVRisingFreePlotIconSet(s.vrising_free_plot_icon_set ?? false);
         setSettingsVRisingCastleIconNew("");
         setSettingsVRisingPlayerIconNew("");
+        setSettingsVRisingFreePlotIconNew("");
         setSteamNewKey("");
         setSteamClear(false);
       }).catch(() => {});
@@ -2505,10 +2553,13 @@ export default function AdminPage() {
             onVRisingWorldZMaxChange={setSettingsVRisingWorldZMax}
             vRisingCastleIconSet={settingsVRisingCastleIconSet}
             vRisingPlayerIconSet={settingsVRisingPlayerIconSet}
+            vRisingFreePlotIconSet={settingsVRisingFreePlotIconSet}
             vRisingCastleIconNew={settingsVRisingCastleIconNew}
             vRisingPlayerIconNew={settingsVRisingPlayerIconNew}
+            vRisingFreePlotIconNew={settingsVRisingFreePlotIconNew}
             onVRisingCastleIconChange={setSettingsVRisingCastleIconNew}
             onVRisingPlayerIconChange={setSettingsVRisingPlayerIconNew}
+            onVRisingFreePlotIconChange={setSettingsVRisingFreePlotIconNew}
             onVRisingCastleIconClear={() => {
               if (settingsVRisingCastleIconSet) setSettingsVRisingCastleIconNew("__CLEAR__");
               else setSettingsVRisingCastleIconNew("");
@@ -2518,6 +2569,11 @@ export default function AdminPage() {
               if (settingsVRisingPlayerIconSet) setSettingsVRisingPlayerIconNew("__CLEAR__");
               else setSettingsVRisingPlayerIconNew("");
               setSettingsVRisingPlayerIconSet(false);
+            }}
+            onVRisingFreePlotIconClear={() => {
+              if (settingsVRisingFreePlotIconSet) setSettingsVRisingFreePlotIconNew("__CLEAR__");
+              else setSettingsVRisingFreePlotIconNew("");
+              setSettingsVRisingFreePlotIconSet(false);
             }}
             sslStatus={sslStatus}
             sslStatusLoading={sslStatusLoading}
@@ -2577,6 +2633,7 @@ export default function AdminPage() {
                   vrising_world_z_max: settingsVRisingWorldZMax,
                   vrising_castle_icon: settingsVRisingCastleIconNew === "__CLEAR__" ? "__CLEAR__" : settingsVRisingCastleIconNew || "",
                   vrising_player_icon: settingsVRisingPlayerIconNew === "__CLEAR__" ? "__CLEAR__" : settingsVRisingPlayerIconNew || "",
+                  vrising_free_plot_icon: settingsVRisingFreePlotIconNew === "__CLEAR__" ? "__CLEAR__" : settingsVRisingFreePlotIconNew || "",
                 });
                 await refreshSettings();
                 // Refresh Steam key info

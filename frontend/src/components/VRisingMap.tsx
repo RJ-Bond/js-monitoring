@@ -46,6 +46,7 @@ export default function VRisingMap({ serverId }: { serverId: number }) {
     vRisingWorldZMax,
     vRisingCastleIconURL,
     vRisingPlayerIconURL,
+    vRisingFreePlotIconURL,
   } = useSiteSettings();
   const MAP_IMAGE_URL = vRisingMapURL || "/vrising-map.png";
 
@@ -134,7 +135,10 @@ export default function VRisingMap({ serverId }: { serverId: number }) {
 
   const players:   VRisingPlayer[]   = data.players    ?? [];
   const castles:   VRisingCastle[]   = data.castles    ?? [];
-  const freePlots: VRisingFreePlot[] = data.free_plots ?? [];
+  // Filter free plots to only those within configured world bounds (territories outside bounds are not visible on the map)
+  const freePlots: VRisingFreePlot[] = (data.free_plots ?? []).filter(
+    (p) => p.x >= vRisingWorldXMin && p.x <= vRisingWorldXMax && p.z >= vRisingWorldZMin && p.z <= vRisingWorldZMax,
+  );
 
   // In fullscreen the browser makes containerRef fill 100vw × 100vh.
   // Constrain the map to a square fitting within the viewport height.
@@ -268,8 +272,14 @@ export default function VRisingMap({ serverId }: { serverId: number }) {
                   onMouseMove={(e) => showTooltip(e, t.vRisingMapFreePlot)}
                   onMouseLeave={hideTooltip}
                 >
-                  <circle cx={x} cy={y} r={14} fill="#22c55e" opacity="0.08" />
-                  <circle cx={x} cy={y} r={10} fill="none" stroke="#22c55e" strokeWidth="1.5" opacity="0.65" />
+                  {vRisingFreePlotIconURL ? (
+                    <image href={vRisingFreePlotIconURL} x={x - 10} y={y - 10} width={20} height={20} />
+                  ) : (
+                    <>
+                      <circle cx={x} cy={y} r={14} fill="#22c55e" opacity="0.08" />
+                      <circle cx={x} cy={y} r={10} fill="none" stroke="#22c55e" strokeWidth="1.5" opacity="0.65" />
+                    </>
+                  )}
                 </g>
               );
             })}

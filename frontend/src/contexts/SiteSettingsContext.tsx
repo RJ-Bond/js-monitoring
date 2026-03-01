@@ -16,6 +16,7 @@ interface SiteSettingsCtx {
   vRisingWorldZMax: number;
   vRisingCastleIconURL: string;
   vRisingPlayerIconURL: string;
+  vRisingFreePlotIconURL: string;
   refresh: () => Promise<void>;
 }
 
@@ -32,6 +33,7 @@ const DEFAULT: SiteSettingsCtx = {
   vRisingWorldZMax: 640,
   vRisingCastleIconURL: "",
   vRisingPlayerIconURL: "",
+  vRisingFreePlotIconURL: "",
   refresh: async () => {},
 };
 
@@ -55,6 +57,7 @@ export function SiteSettingsProvider({ children }: { children: React.ReactNode }
     vrising_world_z_max: 640,
     vrising_castle_icon_url: "",
     vrising_player_icon_url: "",
+    vrising_free_plot_icon_url: "",
     vrising_hide_admins: false,
   });
 
@@ -98,6 +101,7 @@ export function SiteSettingsProvider({ children }: { children: React.ReactNode }
         vRisingWorldZMax: settings.vrising_world_z_max ?? 640,
         vRisingCastleIconURL: settings.vrising_castle_icon_url ?? "",
         vRisingPlayerIconURL: settings.vrising_player_icon_url ?? "",
+        vRisingFreePlotIconURL: settings.vrising_free_plot_icon_url ?? "",
         refresh: load,
       }}
     >
