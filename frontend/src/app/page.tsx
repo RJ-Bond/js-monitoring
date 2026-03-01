@@ -717,7 +717,7 @@ export default function Home() {
           </div>
         ) : (
           <>
-            <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 transition-opacity duration-300 ${isRefetching ? "opacity-60" : "opacity-100"}`}>
+            <div className={`transition-opacity duration-300 ${isRefetching ? "opacity-60" : "opacity-100"} ${viewMode === "list" ? "flex flex-col gap-2" : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"}`}>
               {sorted.map((srv) => {
                 const canManage = user?.role === "admin" || user?.id === srv.owner_id;
                 const inCompare = compareIDs.has(srv.id);
@@ -729,23 +729,26 @@ export default function Home() {
                       onToggleFavorite={() => toggleFavorite(srv.id)}
                       onEdit={canManage ? (s) => setModalServer(s) : undefined}
                       onDelete={canManage ? () => setDeleteTarget(srv) : undefined}
+                      compact={viewMode === "list"}
                     />
-                    <button
-                      onClick={() => setCompareIDs((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(srv.id)) next.delete(srv.id);
-                        else if (next.size < 4) next.add(srv.id);
-                        return next;
-                      })}
-                      title={t.compareAdd}
-                      className={`absolute top-3 right-3 p-1.5 rounded-lg border transition-all z-10 ${
-                        inCompare
-                          ? "bg-neon-blue/20 border-neon-blue/40 text-neon-blue"
-                          : "bg-black/40 border-white/10 text-muted-foreground hover:text-neon-blue hover:border-neon-blue/30 sm:opacity-0 sm:group-hover:opacity-100"
-                      }`}
-                    >
-                      <GitCompare className="w-3.5 h-3.5" />
-                    </button>
+                    {viewMode === "grid" && (
+                      <button
+                        onClick={() => setCompareIDs((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(srv.id)) next.delete(srv.id);
+                          else if (next.size < 4) next.add(srv.id);
+                          return next;
+                        })}
+                        title={t.compareAdd}
+                        className={`absolute top-3 right-3 p-1.5 rounded-lg border transition-all z-10 ${
+                          inCompare
+                            ? "bg-neon-blue/20 border-neon-blue/40 text-neon-blue"
+                            : "bg-black/40 border-white/10 text-muted-foreground hover:text-neon-blue hover:border-neon-blue/30 sm:opacity-0 sm:group-hover:opacity-100"
+                        }`}
+                      >
+                        <GitCompare className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 );
               })}

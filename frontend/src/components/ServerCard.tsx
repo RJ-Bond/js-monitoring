@@ -22,6 +22,7 @@ interface ServerCardProps {
   onEdit?: (server: Server) => void;
   isFavorite?: boolean;
   onToggleFavorite?: () => void;
+  compact?: boolean;
 }
 
 function countryFlag(code: string): string {
@@ -45,7 +46,7 @@ const PLAYER_SUPPORTED: Server["game_type"][] = [
   "samp", "minecraft", "minecraft_bedrock",
 ];
 
-export default function ServerCard({ server, onDelete, onEdit, isFavorite, onToggleFavorite }: ServerCardProps) {
+export default function ServerCard({ server, onDelete, onEdit, isFavorite, onToggleFavorite, compact }: ServerCardProps) {
   const { t, locale } = useLanguage();
   const { vRisingMapEnabled } = useSiteSettings();
   const [expanded, setExpanded] = useState(false);
@@ -97,6 +98,88 @@ export default function ServerCard({ server, onDelete, onEdit, isFavorite, onTog
   const lastUpdateTitle = status?.last_update
     ? (locale === "ru" ? `Обновлено ${timeSince(status.last_update, locale)} назад` : `Updated ${timeSince(status.last_update, locale)} ago`)
     : undefined;
+
+  if (compact) {
+    return (
+      <>
+        <div className={cn(
+          "glass-card rounded-xl px-4 py-3 flex items-center gap-3 animate-slide-up",
+          online ? "card-accent-online" : "card-accent-offline",
+          fillRing,
+        )}>
+          <GameIcon gameType={server.game_type} />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm font-semibold text-foreground truncate">
+                {server.title || status?.server_name || server.ip}
+              </span>
+              {server.country_code && (
+                <span className="text-xs text-muted-foreground flex-shrink-0">{countryFlag(server.country_code)}</span>
+              )}
+            </div>
+            <button onClick={copyIP} className="text-xs text-muted-foreground font-mono hover:text-foreground transition-colors truncate block max-w-full">
+              {server.display_ip || server.ip}:{server.port}
+            </button>
+          </div>
+          <StatusIndicator online={online} showLabel />
+          <div className="hidden sm:flex flex-col items-center min-w-[52px]">
+            <span className="text-sm font-bold text-foreground">{online ? formatPlayers(status!.players_now, status!.players_max) : "—"}</span>
+            <span className="text-xs text-muted-foreground">{t.cardPlayers}</span>
+          </div>
+          <div className="hidden md:flex flex-col items-center min-w-[52px]">
+            <span className={cn("flex items-center gap-1 text-sm font-bold", pingColor)}>
+              <span className="relative inline-flex items-center justify-center flex-shrink-0 w-2 h-2">
+                {online && <span className={cn("absolute inline-flex w-full h-full rounded-full opacity-60 animate-ping", pingDotColor)} />}
+                <span className={cn("relative w-1.5 h-1.5 rounded-full", pingDotColor)} />
+              </span>
+              {online ? formatPing(pingMs) : "—"}
+            </span>
+            <span className="text-xs text-muted-foreground">{t.cardPing}</span>
+          </div>
+          <div className="hidden lg:flex flex-col items-center min-w-[72px] overflow-hidden">
+            <span className="text-sm font-bold text-foreground truncate max-w-full px-1">{online && status?.current_map ? status.current_map : "—"}</span>
+            <span className="text-xs text-muted-foreground">{t.cardMap}</span>
+          </div>
+          {uptimeData !== undefined && uptimeData.total > 0 && (
+            <div className="hidden xl:block flex-shrink-0">
+              <span className={cn(
+                "inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-medium",
+                uptimeData.uptime_24h >= 95 ? "border-neon-green/30 text-neon-green bg-neon-green/10"
+                  : uptimeData.uptime_24h >= 70 ? "border-yellow-400/30 text-yellow-400 bg-yellow-400/10"
+                  : "border-red-400/30 text-red-400 bg-red-400/10",
+              )}>
+                ⬆ {uptimeData.uptime_24h.toFixed(1)}%
+              </span>
+            </div>
+          )}
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {onToggleFavorite && (
+              <button onClick={onToggleFavorite} title={isFavorite ? t.favUnpin : t.favPin} className={cn("p-1.5 rounded-lg transition-colors", isFavorite ? "text-yellow-400 hover:bg-yellow-400/10" : "text-muted-foreground hover:text-yellow-400 hover:bg-yellow-400/10")}>
+                <Star className={cn("w-4 h-4", isFavorite && "fill-current")} />
+              </button>
+            )}
+            {online && (
+              <a href={buildJoinLink(server.game_type, server.ip, server.port, server.display_ip)} title={t.playNow} className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-neon-green/20 text-neon-green border border-neon-green/30 hover:bg-neon-green/30 transition-all">
+                <ExternalLink className="w-3 h-3" />
+                <span className="hidden sm:inline">{t.playNow}</span>
+              </a>
+            )}
+            {onEdit && (
+              <button onClick={() => onEdit(server)} title="Edit" className="p-1.5 rounded-lg text-muted-foreground hover:text-neon-blue hover:bg-neon-blue/10 transition-colors">
+                <Pencil className="w-4 h-4" />
+              </button>
+            )}
+            {onDelete && (
+              <button onClick={() => onDelete(server.id)} title={t.deleteServer} className="p-1.5 rounded-lg text-muted-foreground hover:text-red-400 hover:bg-red-400/10 transition-colors">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
+        {rconOpen && <RconConsole serverId={server.id} serverTitle={server.title} apiKey={process.env.NEXT_PUBLIC_API_SECRET_KEY ?? ""} onClose={() => setRconOpen(false)} />}
+      </>
+    );
+  }
 
   return (
     <>
@@ -166,7 +249,10 @@ export default function ServerCard({ server, onDelete, onEdit, isFavorite, onTog
           >
             <Wifi className="w-4 h-4 text-muted-foreground" />
             <span className={cn("flex items-center gap-1.5 text-sm font-bold", pingColor)}>
-              <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", pingDotColor)} />
+              <span className="relative inline-flex items-center justify-center flex-shrink-0 w-2 h-2">
+                {online && <span className={cn("absolute inline-flex w-full h-full rounded-full opacity-60 animate-ping", pingDotColor)} />}
+                <span className={cn("relative w-1.5 h-1.5 rounded-full", pingDotColor)} />
+              </span>
               {online ? formatPing(pingMs) : "—"}
             </span>
             <span className="text-xs text-muted-foreground">{t.cardPing}</span>
