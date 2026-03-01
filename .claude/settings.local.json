@@ -48,7 +48,31 @@
       "Bash(powershell.exe -Command:*)",
       "Bash(git config:*)",
       "Bash(printf:*)",
-      "Bash(\"/c/Program Files/Git/mingw64/bin/git-credential-manager.exe\" get)"
+      "Bash(\"/c/Program Files/Git/mingw64/bin/git-credential-manager.exe\" get)",
+      "Bash(npx --prefix \"/d/Исходники/js-monitoring/frontend\" tsc --noEmit)",
+      "Bash(\"/d/Исходники/js-monitoring/frontend/node_modules/.bin/tsc\" --noEmit -p \"/d/Исходники/js-monitoring/frontend/tsconfig.json\")",
+      "Bash(gh auth status)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(''next:'', d[''dependencies''].get\\(''next'',''''\\)\\); print\\(''typescript:'', d[''devDependencies''].get\\(''typescript'',''''\\)\\)\")",
+      "Bash(cmd /c \"cd /d d:\\\\Исходники\\\\js-monitoring\\\\frontend && npx tsc --noEmit 2>&1\")",
+      "Bash(go get github.com/bwmarrin/discordgo@latest)",
+      "Bash(go get github.com/wcharczuk/go-chart/v2@latest)",
+      "Bash(go vet ./internal/api/...)",
+      "Bash(go vet ./internal/bot/...)",
+      "Bash(go vet ./internal/bot/)",
+      "Bash(cmd /c \"cd d:\\\\Исходники\\\\js-monitoring\\\\backend && go build ./... 2>&1\")",
+      "Bash(go vet ./...)",
+      "Bash(ls \"/c/Program Files \\(x86\\)/Steam/steamapps/common/VRising/\")",
+      "Bash(find \"/c/Program Files \\(x86\\)/Steam/steamapps/common/VRising/\" -name \"*.png\")",
+      "Bash(ls \"/c/Program Files \\(x86\\)/Steam/steamapps/common/VRising/VRising_Server/\")",
+      "Bash(magick --version)",
+      "Bash(convert --version)",
+      "Bash(ffmpeg -version)",
+      "WebFetch(domain:vrising.fandom.com)",
+      "WebFetch(domain:thunderstore.io)",
+      "WebFetch(domain:vrising-map.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:api.github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ]
   }
 }

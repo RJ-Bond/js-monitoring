@@ -103,6 +103,88 @@ func PushVRisingMap(c echo.Context) error {
 	return c.JSON(http.StatusOK, echo.Map{"ok": true})
 }
 
+// ── Events ────────────────────────────────────────────────────────────────────
+
+type vRisingEventEntry struct {
+	Type      string `json:"type"`
+	Player    string `json:"player"`
+	Channel   string `json:"channel"`
+	Message   string `json:"message"`
+	Timestamp int64  `json:"timestamp"` // Unix seconds
+}
+
+type vRisingEventsPayload struct {
+	ServerID int                  `json:"server_id"`
+	Events   []vRisingEventEntry  `json:"events"`
+}
+
+// PushVRisingEvents POST /api/v1/vrising/events
+// Принимает пакет событий от BepInEx плагина (чат, подключения).
+func PushVRisingEvents(c echo.Context) error {
+	userID := uint(c.Get("user_id").(float64))
+	role, _ := c.Get("role").(string)
+
+	var payload vRisingEventsPayload
+	if err := c.Bind(&payload); err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid payload"})
+	}
+	if payload.ServerID <= 0 {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "server_id is required"})
+	}
+	if len(payload.Events) == 0 {
+		return c.JSON(http.StatusOK, echo.Map{"ok": true, "count": 0})
+	}
+
+	var server models.Server
+	if err := database.DB.First(&server, payload.ServerID).Error; err != nil {
+		return c.JSON(http.StatusNotFound, echo.Map{"error": "server not found"})
+	}
+	if role != "admin" && server.OwnerID != userID {
+		return c.JSON(http.StatusForbidden, echo.Map{"error": "not your server"})
+	}
+
+	records := make([]models.VRisingServerEvent, 0, len(payload.Events))
+	for _, ev := range payload.Events {
+		records = append(records, models.VRisingServerEvent{
+			ServerID:  uint(payload.ServerID),
+			Type:      ev.Type,
+			Player:    ev.Player,
+			Channel:   ev.Channel,
+			Message:   ev.Message,
+			EventTime: time.Unix(ev.Timestamp, 0),
+		})
+	}
+	database.DB.Create(&records)
+
+	// Оставляем последние 500 событий на сервер
+	database.DB.Exec(`
+		DELETE FROM v_rising_server_events
+		WHERE server_id = ? AND id NOT IN (
+			SELECT id FROM (
+				SELECT id FROM v_rising_server_events
+				WHERE server_id = ?
+				ORDER BY id DESC LIMIT 500
+			) t
+		)`, payload.ServerID, payload.ServerID)
+
+	return c.JSON(http.StatusOK, echo.Map{"ok": true, "count": len(records)})
+}
+
+// GetVRisingEvents GET /api/v1/servers/:id/vrising/events
+// Публичный эндпоинт, возвращает последние 100 событий сервера.
+func GetVRisingEvents(c echo.Context) error {
+	serverID := c.Param("id")
+
+	var events []models.VRisingServerEvent
+	database.DB.
+		Where("server_id = ?", serverID).
+		Order("id DESC").
+		Limit(100).
+		Find(&events)
+
+	return c.JSON(http.StatusOK, events)
+}
+
 // GetVRisingMap GET /api/v1/servers/:id/vrising/map
 // Публичный эндпоинт, возвращает последние данные карты от плагина
 func GetVRisingMap(c echo.Context) error {
