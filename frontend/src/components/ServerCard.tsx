@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Users, Map, Wifi, Terminal, ExternalLink, Trash2, ChevronDown, Pencil, Star, Copy, Share2 } from "lucide-react";
+import { Users, Map, Wifi, Terminal, ExternalLink, Trash2, BarChart2, Trophy, Pencil, Star, Copy, Share2 } from "lucide-react";
 import { cn, formatPlayers, formatPing, buildJoinLink, gameTypeLabel } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useSiteSettings } from "@/contexts/SiteSettingsContext";
@@ -218,44 +218,6 @@ export default function ServerCard({ server, onDelete, onEdit, isFavorite, onTog
         {/* Expanded: chart + player list */}
         {expanded && (
           <>
-            {(showLeaderboard || isVRising) && (
-              <div className="flex gap-1 border-b border-white/5 pb-2">
-                <button
-                  onClick={() => setChartTab("history")}
-                  className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
-                    chartTab === "history"
-                      ? "text-foreground bg-white/5"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {t.chartTabHistory}
-                </button>
-                {showLeaderboard && (
-                  <button
-                    onClick={() => setChartTab("leaderboard")}
-                    className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
-                      chartTab === "leaderboard"
-                        ? "text-foreground bg-white/5"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {t.chartTabLeaderboard}
-                  </button>
-                )}
-                {isVRising && (
-                  <button
-                    onClick={() => setChartTab("vrmap")}
-                    className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
-                      chartTab === "vrmap"
-                        ? "text-foreground bg-white/5"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    🗺️ {t.chartTabMap}
-                  </button>
-                )}
-              </div>
-            )}
             {chartTab === "vrmap" && isVRising ? (
               <VRisingMap serverId={server.id} />
             ) : chartTab === "history" || !showLeaderboard ? (
@@ -296,10 +258,42 @@ export default function ServerCard({ server, onDelete, onEdit, isFavorite, onTog
 
         {/* Actions */}
         <div className="flex items-center gap-1.5 pt-1 border-t border-white/5">
-          <button onClick={() => setExpanded((v) => !v)} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
-            <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200", expanded && "rotate-180")} />
-            {expanded ? t.hideChart : t.viewChart}
-          </button>
+          <div className="flex items-center gap-0.5">
+            <button
+              onClick={() => { setChartTab("history"); setExpanded((v) => chartTab === "history" ? !v : true); }}
+              title={t.chartTabHistory}
+              className={cn("flex items-center gap-1 px-2 py-1 rounded-lg text-xs transition-colors",
+                expanded && chartTab === "history" ? "text-foreground bg-white/8" : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+              )}
+            >
+              <BarChart2 className="w-3.5 h-3.5" />
+              {t.viewChart}
+            </button>
+            {showLeaderboard && (
+              <button
+                onClick={() => { setChartTab("leaderboard"); setExpanded((v) => chartTab === "leaderboard" ? !v : true); }}
+                title={t.chartTabLeaderboard}
+                className={cn("flex items-center gap-1 px-2 py-1 rounded-lg text-xs transition-colors",
+                  expanded && chartTab === "leaderboard" ? "text-yellow-400 bg-yellow-400/8" : "text-muted-foreground hover:text-yellow-400 hover:bg-yellow-400/5"
+                )}
+              >
+                <Trophy className="w-3.5 h-3.5" />
+                {t.chartTabLeaderboard}
+              </button>
+            )}
+            {isVRising && (
+              <button
+                onClick={() => { setChartTab("vrmap"); setExpanded((v) => chartTab === "vrmap" ? !v : true); }}
+                title={t.chartTabMap}
+                className={cn("flex items-center gap-1 px-2 py-1 rounded-lg text-xs transition-colors",
+                  expanded && chartTab === "vrmap" ? "text-neon-green bg-neon-green/8" : "text-muted-foreground hover:text-neon-green hover:bg-neon-green/5"
+                )}
+              >
+                <Map className="w-3.5 h-3.5" />
+                {t.chartTabMap}
+              </button>
+            )}
+          </div>
           <div className="flex-1" />
           <button onClick={shareServer} title={t.shareServer} className="p-1.5 rounded-lg text-muted-foreground hover:text-neon-blue hover:bg-neon-blue/10 transition-colors">
             <Share2 className="w-4 h-4" />

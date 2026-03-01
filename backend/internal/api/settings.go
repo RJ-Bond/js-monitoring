@@ -160,6 +160,8 @@ func UpdateSettings(c echo.Context) error {
 		VRisingWorldZMax        *int   `json:"vrising_world_z_max"`
 		VRisingCastleIcon       string `json:"vrising_castle_icon"` // "" = no change, "__CLEAR__" = delete, "data:..." = save
 		VRisingPlayerIcon       string `json:"vrising_player_icon"` // "" = no change, "__CLEAR__" = delete, "data:..." = save
+		SSLMode                 string `json:"ssl_mode"`   // none|letsencrypt|custom
+		SSLDomain               string `json:"ssl_domain"`
 	}
 	if err := c.Bind(&payload); err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid payload"})
@@ -193,6 +195,11 @@ func UpdateSettings(c echo.Context) error {
 	}
 	if payload.ForceHTTPS != nil {
 		s.ForceHTTPS = *payload.ForceHTTPS
+	}
+	switch payload.SSLMode {
+	case "letsencrypt", "custom", "none":
+		s.SSLMode = payload.SSLMode
+		s.SSLDomain = strings.TrimSpace(payload.SSLDomain)
 	}
 
 	switch payload.SteamAPIKey {

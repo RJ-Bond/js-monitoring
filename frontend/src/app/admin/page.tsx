@@ -187,6 +187,10 @@ interface SettingsTabProps {
   forceHttps: boolean;
   onForceHttpsChange: (v: boolean) => void;
   onRefreshSsl: () => void;
+  sslMode: string;
+  sslDomain: string;
+  onSslModeChange: (v: string) => void;
+  onSslDomainChange: (v: string) => void;
   onSave: () => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   t: any;
@@ -231,6 +235,7 @@ function SettingsTab({
   vRisingCastleIconSet, vRisingPlayerIconSet, vRisingCastleIconNew, vRisingPlayerIconNew,
   onVRisingCastleIconChange, onVRisingPlayerIconChange, onVRisingCastleIconClear, onVRisingPlayerIconClear,
   sslStatus, sslStatusLoading, forceHttps, onForceHttpsChange, onRefreshSsl,
+  sslMode, sslDomain, onSslModeChange, onSslDomainChange,
   onSave, t,
 }: SettingsTabProps) {
   const [showKey, setShowKey] = useState(false);
@@ -694,6 +699,31 @@ function SettingsTab({
         </div>
         <p className="text-xs text-muted-foreground">{t.adminSslSetupHint}</p>
 
+        {/* SSL mode config */}
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground">{t.adminSslConfigTitle}</p>
+          <div className="flex gap-2 items-center">
+            <select
+              value={sslMode}
+              onChange={(e) => onSslModeChange(e.target.value)}
+              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-neon-green/50 transition-all"
+            >
+              <option value="none">{t.adminSslModeNone}</option>
+              <option value="letsencrypt">{t.adminSslModeLetsEncrypt}</option>
+              <option value="custom">{t.adminSslModeCustom}</option>
+            </select>
+            {sslMode !== "none" && (
+              <input
+                type="text"
+                value={sslDomain}
+                onChange={(e) => onSslDomainChange(e.target.value)}
+                placeholder={t.adminSslDomainPlaceholder}
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-neon-green/50 transition-all flex-1 placeholder:text-muted-foreground"
+              />
+            )}
+          </div>
+        </div>
+
         {sslStatus && (
           <>
             <div className="grid grid-cols-2 gap-2 text-sm">
@@ -1057,6 +1087,8 @@ export default function AdminPage() {
   const [settingsVRisingCastleIconNew, setSettingsVRisingCastleIconNew] = useState("");
   const [settingsVRisingPlayerIconNew, setSettingsVRisingPlayerIconNew] = useState("");
   const [settingsForceHttps, setSettingsForceHttps] = useState(false);
+  const [settingsSslMode, setSettingsSslMode] = useState("none");
+  const [settingsSslDomain, setSettingsSslDomain] = useState("");
   const [backupDownloading, setBackupDownloading] = useState(false);
   const [backupFile, setBackupFile] = useState<File | null>(null);
   const [backupRestoring, setBackupRestoring] = useState(false);
@@ -1160,6 +1192,8 @@ export default function AdminPage() {
           setDiscordEmbedCfg(defaultEmbedCfg);
         }
         setSettingsForceHttps(s.force_https ?? false);
+        setSettingsSslMode(s.ssl_mode || "none");
+        setSettingsSslDomain(s.ssl_domain ?? "");
         setSettingsVRisingMapEnabled(s.vrising_map_enabled ?? true);
         setSettingsVRisingHideAdmins(s.vrising_hide_admins ?? false);
         setSettingsVRisingMapURL(s.vrising_map_url ?? "");
@@ -2281,6 +2315,10 @@ export default function AdminPage() {
             sslStatusLoading={sslStatusLoading}
             forceHttps={settingsForceHttps}
             onForceHttpsChange={setSettingsForceHttps}
+            sslMode={settingsSslMode}
+            sslDomain={settingsSslDomain}
+            onSslModeChange={setSettingsSslMode}
+            onSslDomainChange={setSettingsSslDomain}
             onRefreshSsl={() => {
               setSslStatusLoading(true);
               api.getSSLStatus().then((s) => setSslStatus(s)).catch(() => {}).finally(() => setSslStatusLoading(false));
@@ -2308,6 +2346,8 @@ export default function AdminPage() {
                   news_tg_chat_id: settingsNewsTGChatId,
                   news_tg_thread_id: settingsNewsTGThreadId,
                   force_https: settingsForceHttps,
+                  ssl_mode: settingsSslMode,
+                  ssl_domain: settingsSslDomain,
                   discord_bot_token: discordBotToken,
                   discord_app_id: discordAppID,
                   discord_proxy: discordProxy,

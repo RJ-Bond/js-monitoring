@@ -490,6 +490,10 @@ export const translations = {
     adminSslCertbotLogs: "Certbot logs",
     adminSslRefresh: "Refresh SSL status",
     adminSslSetupHint: "SSL is configured via install.sh. To change SSL mode, re-run the installer.",
+    adminSslConfigTitle: "Configure SSL mode",
+    adminSslModeLabel: "Mode",
+    adminSslDomainLabel: "Domain",
+    adminSslDomainPlaceholder: "example.com",
     // Backup & Restore
     adminBackup: "Backup & Restore",
     adminBackupHint: "Exports all data (users, servers, settings, news) to a JSON file. The file contains all secrets — keep it secure.",
@@ -1057,6 +1061,10 @@ export const translations = {
     adminSslCertbotLogs: "Логи certbot",
     adminSslRefresh: "Обновить статус SSL",
     adminSslSetupHint: "SSL настраивается через install.sh. Для смены режима запустите установщик заново.",
+    adminSslConfigTitle: "Настроить режим SSL",
+    adminSslModeLabel: "Режим",
+    adminSslDomainLabel: "Домен",
+    adminSslDomainPlaceholder: "example.com",
     // Backup & Restore
     adminBackup: "Бекап и восстановление",
     adminBackupHint: "Экспортирует все данные (пользователи, серверы, настройки, новости) в JSON-файл. Файл содержит все секреты — храните его в безопасности.",
