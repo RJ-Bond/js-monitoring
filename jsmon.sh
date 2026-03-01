@@ -75,6 +75,7 @@ if [[ "$JSMON_LANG" == "ru" ]]; then
   HELP_UPDATE="  update            — git pull + пересборка"
   HELP_CONFIG="  config            — открыть .env в редакторе"
   HELP_LANG="  lang <ru|en>      — сохранить язык"
+  HELP_SSL="  ssl               — включить HTTPS (самоподписанный сертификат)"
   HELP_HELP="  help              — показать справку"
 else
   L_MENU_TITLE="🖥️   JS Monitor  ·  Management  ·  ${VERSION}"
@@ -116,6 +117,7 @@ else
   HELP_UPDATE="  update            — git pull + rebuild containers"
   HELP_CONFIG="  config            — open .env in editor"
   HELP_LANG="  lang <ru|en>      — save interface language"
+  HELP_SSL="  ssl               — enable HTTPS with a self-signed certificate"
   HELP_HELP="  help              — show this help"
 fi
 
@@ -226,6 +228,43 @@ cmd_lang() {
   ok "${L_LANG_SET} ${l}"
 }
 
+cmd_ssl() {
+  require_root
+
+  local ssl_dir="${INSTALL_DIR}/nginx/ssl"
+  local cfg_src="${INSTALL_DIR}/nginx/nginx-ssl-custom.conf"
+  local cfg_dst="${INSTALL_DIR}/nginx/nginx.conf"
+
+  [[ -f "$cfg_src" ]] || err "SSL config template not found: ${cfg_src}"
+  command -v openssl >/dev/null 2>&1 || err "openssl not found. Install it first: apt-get install openssl"
+
+  mkdir -p "$ssl_dir"
+
+  if [[ -f "${ssl_dir}/fullchain.pem" && -f "${ssl_dir}/privkey.pem" ]]; then
+    ok "Certificate already exists at ${ssl_dir}/ — skipping generation."
+  else
+    # Extract domain from APP_URL in .env, fall back to hostname
+    local domain
+    domain=$(grep -E "^APP_URL=" "${INSTALL_DIR}/.env" 2>/dev/null \
+      | sed 's|^APP_URL=https\?://||;s|/.*||' || true)
+    [[ -n "$domain" ]] || domain=$(hostname -f 2>/dev/null || echo "jsmonitor")
+
+    info "Generating self-signed certificate for: ${domain}"
+    openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+      -keyout "${ssl_dir}/privkey.pem" \
+      -out    "${ssl_dir}/fullchain.pem" \
+      -subj   "/C=XX/O=JSMonitor/CN=${domain}" 2>/dev/null
+    ok "Certificate generated: ${ssl_dir}/"
+  fi
+
+  cp "$cfg_src" "$cfg_dst"
+  ok "Activated SSL nginx config."
+
+  $DC restart nginx
+  ok "Nginx restarted — HTTPS is now active on port 443."
+  warn "Certificate is self-signed. The BepInEx plugin bypasses cert validation automatically."
+}
+
 show_help() {
   echo
   echo -e "${BOX_TOP}"
@@ -241,6 +280,7 @@ show_help() {
   echo -e "${BOX_L}  ${HELP_UPDATE}"
   echo -e "${BOX_L}  ${HELP_CONFIG}"
   echo -e "${BOX_L}  ${HELP_LANG}"
+  echo -e "${BOX_L}  ${HELP_SSL}"
   echo -e "${BOX_L}  ${HELP_HELP}"
   echo -e "${BOX_BOT}"
   echo
@@ -306,6 +346,7 @@ case "$CMD" in
   update)        cmd_update       ;;
   config)        cmd_config       ;;
   lang)          cmd_lang "$@"    ;;
+  ssl)           cmd_ssl          ;;
   help|--help|-h) show_help       ;;
   *)
     warn "Unknown command: ${CMD}"
