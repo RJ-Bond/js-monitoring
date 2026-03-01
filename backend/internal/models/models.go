@@ -150,6 +150,7 @@ type SiteSettings struct {
 	VRisingCastleIcon       string `gorm:"type:longtext"                          json:"-"`                         // base64 кастомной иконки замка
 	VRisingPlayerIcon       string `gorm:"type:longtext"                          json:"-"`                         // base64 кастомной иконки игрока
 	VRisingHideAdmins       bool   `gorm:"default:false"                          json:"vrising_hide_admins"`       // скрывать администраторов с живой карты
+	MaintenanceMode         bool   `gorm:"default:false"                          json:"maintenance_mode"`          // режим обслуживания — закрывает сайт для не-админов
 }
 
 // DiscordEmbed — хранит активные embed-сообщения бота для восстановления после перезапуска.
@@ -193,6 +194,18 @@ type VRisingMapData struct {
 	ServerID  uint      `gorm:"uniqueIndex;not null"     json:"server_id"`
 	Data      string    `gorm:"type:longtext"            json:"data"` // JSON payload от плагина
 	UpdatedAt time.Time `                                json:"updated_at"`
+}
+
+// VRisingServerEvent — событие игрового сервера V Rising (чат, подключения)
+type VRisingServerEvent struct {
+	ID        uint      `gorm:"primaryKey;autoIncrement"  json:"id"`
+	ServerID  uint      `gorm:"index;not null"            json:"server_id"`
+	Type      string    `gorm:"type:varchar(20);not null" json:"type"`              // connect|disconnect|chat
+	Player    string    `gorm:"type:varchar(100)"         json:"player"`
+	Channel   string    `gorm:"type:varchar(20)"          json:"channel,omitempty"` // global|clan|whisper|local
+	Message   string    `gorm:"type:text"                 json:"message,omitempty"`
+	EventTime time.Time `gorm:"index"                     json:"event_time"`
+	CreatedAt time.Time `                                 json:"created_at"`
 }
 
 // PasswordReset — токен для сброса пароля (генерируется администратором)

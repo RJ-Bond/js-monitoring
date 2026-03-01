@@ -9,6 +9,7 @@ import {
   Trash2, AlertTriangle, Settings, Eye, EyeOff, ExternalLink, Tag,
   Bell, KeyRound, ClipboardList, Copy, X, MessageSquare, Download, CheckSquare, Square,
   CalendarDays, Mail, UserCheck, Lock, Database, Upload,
+  LayoutDashboard, Cpu, Wrench, Wifi, Activity,
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -17,7 +18,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useSiteSettings } from "@/contexts/SiteSettingsContext";
-import { api, type AdminSiteSettings, type SSLStatus } from "@/lib/api";
+import { api, type AdminSiteSettings, type SSLStatus, type DashboardData, type SystemHealth } from "@/lib/api";
 import { toast } from "@/lib/toast";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -31,7 +32,7 @@ import { DiscordIcon, TelegramIcon } from "@/components/BrandIcons";
 import type { User, AdminServer, AuditLogEntry } from "@/types/server";
 import { GAME_META } from "@/lib/utils";
 
-type AdminTab = "users" | "servers" | "stats" | "settings" | "audit";
+type AdminTab = "overview" | "users" | "servers" | "stats" | "settings" | "audit";
 type SortKey = "username" | "role" | "created_at" | "server_count";
 type RoleFilter = "all" | "admin" | "user" | "banned";
 
@@ -191,6 +192,8 @@ interface SettingsTabProps {
   sslDomain: string;
   onSslModeChange: (v: string) => void;
   onSslDomainChange: (v: string) => void;
+  maintenanceMode: boolean;
+  onMaintenanceModeChange: (v: boolean) => void;
   onSave: () => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   t: any;
@@ -236,6 +239,7 @@ function SettingsTab({
   onVRisingCastleIconChange, onVRisingPlayerIconChange, onVRisingCastleIconClear, onVRisingPlayerIconClear,
   sslStatus, sslStatusLoading, forceHttps, onForceHttpsChange, onRefreshSsl,
   sslMode, sslDomain, onSslModeChange, onSslDomainChange,
+  maintenanceMode, onMaintenanceModeChange,
   onSave, t,
 }: SettingsTabProps) {
   const [showKey, setShowKey] = useState(false);
@@ -681,6 +685,31 @@ function SettingsTab({
         </div>
       </div>
 
+      {/* Maintenance Mode */}
+      <div className="glass-card p-4 flex flex-col gap-3">
+        <div className="flex items-center gap-2">
+          <Wrench className="w-4 h-4 text-yellow-400" />
+          <span className="text-sm font-semibold">{t.adminMaintenanceMode}</span>
+        </div>
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={maintenanceMode}
+            onChange={(e) => onMaintenanceModeChange(e.target.checked)}
+            className="w-4 h-4 rounded accent-yellow-400"
+          />
+          <div>
+            <span className="text-sm">{t.adminMaintenanceMode}</span>
+            <p className="text-xs text-muted-foreground">{t.adminMaintenanceModeHint}</p>
+          </div>
+        </label>
+        {maintenanceMode && (
+          <p className="text-xs text-yellow-400 bg-yellow-400/10 rounded-lg px-3 py-2">
+            ⚠️ {t.adminMaintenanceModeWarn}
+          </p>
+        )}
+      </div>
+
       {/* SSL / HTTPS */}
       <div className="glass-card p-4 flex flex-col gap-3">
         <div className="flex items-center justify-between">
@@ -1025,7 +1054,7 @@ export default function AdminPage() {
   const { t, locale } = useLanguage();
   const { siteName, logoData, refresh: refreshSettings } = useSiteSettings();
 
-  const [tab, setTab] = useState<AdminTab>("users");
+  const [tab, setTab] = useState<AdminTab>("overview");
 
   // GitHub release check state
   const [ghRelease, setGhRelease] = useState<{ version: string; url: string; body: string } | null>(null);
@@ -1095,6 +1124,11 @@ export default function AdminPage() {
   const [backupRestoreResult, setBackupRestoreResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [sslStatus, setSslStatus] = useState<SSLStatus | null>(null);
   const [sslStatusLoading, setSslStatusLoading] = useState(false);
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [dashboardLoading, setDashboardLoading] = useState(false);
+  const [health, setHealth] = useState<SystemHealth | null>(null);
+  const [healthLoading, setHealthLoading] = useState(false);
+  const [settingsMaintenanceMode, setSettingsMaintenanceMode] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSaved, setSettingsSaved] = useState(false);
 
@@ -1140,7 +1174,7 @@ export default function AdminPage() {
   // Read tab from URL on mount
   useEffect(() => {
     const param = new URLSearchParams(window.location.search).get("tab") as AdminTab;
-    if (param && ["users", "servers", "stats", "settings", "audit"].includes(param)) {
+    if (param && ["overview", "users", "servers", "stats", "settings", "audit"].includes(param)) {
       setTab(param);
     }
   }, []);
@@ -1160,6 +1194,14 @@ export default function AdminPage() {
 
   // Lazy-load servers when tab is activated
   useEffect(() => {
+    if (tab === "overview") {
+      if (users.length === 0) fetchUsers();
+      if (servers.length === 0) fetchServers();
+      setDashboardLoading(true);
+      api.getDashboard().then(setDashboardData).catch(() => {}).finally(() => setDashboardLoading(false));
+      setHealthLoading(true);
+      api.getSystemHealth().then(setHealth).catch(() => {}).finally(() => setHealthLoading(false));
+    }
     if (tab === "servers" && servers.length === 0 && !loadingServers) {
       fetchServers();
     }
@@ -1192,6 +1234,7 @@ export default function AdminPage() {
           setDiscordEmbedCfg(defaultEmbedCfg);
         }
         setSettingsForceHttps(s.force_https ?? false);
+        setSettingsMaintenanceMode(s.maintenance_mode ?? false);
         setSettingsSslMode(s.ssl_mode || "none");
         setSettingsSslDomain(s.ssl_domain ?? "");
         setSettingsVRisingMapEnabled(s.vrising_map_enabled ?? true);
@@ -1225,6 +1268,15 @@ export default function AdminPage() {
         .catch(() => {})
         .finally(() => { setGhChecking(false); setGhChecked(true); });
     }
+  }, [tab]);
+
+  // Auto-refresh health every 15s when on overview tab
+  useEffect(() => {
+    if (tab !== "overview") return;
+    const id = setInterval(() => {
+      api.getSystemHealth().then(setHealth).catch(() => {});
+    }, 15000);
+    return () => clearInterval(id);
   }, [tab]);
 
   const fetchUsers = async () => {
@@ -1428,6 +1480,7 @@ export default function AdminPage() {
   const inputCls = "bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-neon-green/50 focus:shadow-[0_0_0_3px_rgba(0,200,120,0.08)] transition-all placeholder:text-muted-foreground";
 
   const tabs: { key: AdminTab; label: string; icon: React.ReactNode; badge?: number }[] = [
+    { key: "overview", label: t.adminTabOverview, icon: <LayoutDashboard className="w-4 h-4" /> },
     { key: "users",    label: t.adminTabUsers,    icon: <Users className="w-4 h-4" />,        badge: users.length || undefined },
     { key: "servers",  label: t.adminTabServers,  icon: <Server className="w-4 h-4" />,       badge: servers.length || undefined },
     { key: "stats",    label: t.adminTabStats,    icon: <BarChart2 className="w-4 h-4" /> },
@@ -1964,6 +2017,161 @@ export default function AdminPage() {
           </>
         )}
 
+        {/* ── OVERVIEW TAB ── */}
+        {tab === "overview" && (
+          <div className="flex flex-col gap-6">
+            {/* Quick stats */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {[
+                { label: t.adminOverviewServersOnline, value: stats.onlineServers,  color: "text-neon-green",  bg: "bg-neon-green/10",  icon: <Activity className="w-5 h-5 text-neon-green" /> },
+                { label: t.adminOverviewPlayersOnline, value: dashboardData?.players_online ?? "—", color: "text-neon-blue",  bg: "bg-neon-blue/10",  icon: <Users className="w-5 h-5 text-neon-blue" /> },
+                { label: t.adminOverviewTotalUsers,    value: stats.totalUsers,    color: "text-neon-purple", bg: "bg-neon-purple/10", icon: <UserCheck className="w-5 h-5 text-neon-purple" /> },
+                { label: t.adminOverviewTotalServers,  value: stats.totalServers,  color: "text-yellow-400",  bg: "bg-yellow-400/10",  icon: <Server className="w-5 h-5 text-yellow-400" /> },
+              ].map((card) => (
+                <div key={card.label} className="glass-card rounded-2xl px-5 py-4 flex flex-col gap-2">
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${card.bg}`}>{card.icon}</div>
+                  <div className={`text-2xl font-black tabular-nums tracking-tight ${card.color}`}>{dashboardLoading && card.label === t.adminOverviewPlayersOnline ? "…" : card.value}</div>
+                  <div className="text-xs text-muted-foreground leading-tight">{card.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Mini stats row */}
+            {dashboardData && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="glass-card rounded-2xl px-5 py-3 flex items-center gap-3">
+                  <Server className="w-4 h-4 text-neon-blue flex-shrink-0" />
+                  <div>
+                    <div className="text-lg font-bold text-neon-blue">{dashboardData.servers_added_week}</div>
+                    <div className="text-xs text-muted-foreground">{t.adminOverviewServersWeek}</div>
+                  </div>
+                </div>
+                <div className="glass-card rounded-2xl px-5 py-3 flex items-center gap-3">
+                  <Users className="w-4 h-4 text-neon-green flex-shrink-0" />
+                  <div>
+                    <div className="text-lg font-bold text-neon-green">{dashboardData.users_joined_today}</div>
+                    <div className="text-xs text-muted-foreground">{t.adminOverviewUsersToday}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Top servers + Recent registrations */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Top servers */}
+              <div className="glass-card rounded-2xl p-5 space-y-3">
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                  <Activity className="w-3.5 h-3.5" /> {t.adminOverviewTopServers}
+                </h2>
+                {dashboardLoading ? (
+                  <div className="space-y-2">{Array.from({length:3}).map((_,i) => <div key={i} className="h-8 bg-white/5 rounded-lg animate-pulse" />)}</div>
+                ) : dashboardData?.top_servers.length ? (
+                  <div className="space-y-2">
+                    {dashboardData.top_servers.map((s) => (
+                      <div key={s.id} className="flex items-center justify-between gap-2">
+                        <span className="text-sm truncate flex-1" title={s.title}>{s.title}</span>
+                        <span className="text-xs text-neon-green font-medium tabular-nums whitespace-nowrap">{s.players_now}/{s.max_players}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">{t.adminOverviewNoTopServers}</p>
+                )}
+              </div>
+
+              {/* Recent registrations */}
+              <div className="glass-card rounded-2xl p-5 space-y-3">
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                  <Users className="w-3.5 h-3.5" /> {t.adminOverviewRecentUsers}
+                </h2>
+                {users.length === 0 ? (
+                  <div className="space-y-2">{Array.from({length:3}).map((_,i) => <div key={i} className="h-6 bg-white/5 rounded-lg animate-pulse" />)}</div>
+                ) : (
+                  <div className="space-y-2">
+                    {[...users].sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0,5).map((u) => (
+                      <div key={u.id} className="flex items-center justify-between gap-2">
+                        <span className="text-sm truncate flex-1">{u.username}</span>
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">{new Date(u.created_at).toLocaleDateString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Recent audit */}
+            <div className="glass-card rounded-2xl p-5 space-y-3">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <ClipboardList className="w-3.5 h-3.5" /> {t.adminOverviewRecentActivity}
+              </h2>
+              {dashboardLoading ? (
+                <div className="space-y-2">{Array.from({length:3}).map((_,i) => <div key={i} className="h-6 bg-white/5 rounded-lg animate-pulse" />)}</div>
+              ) : dashboardData?.recent_audit.length ? (
+                <div className="space-y-2">
+                  {dashboardData.recent_audit.map((e) => (
+                    <div key={e.id} className="flex items-start justify-between gap-2 text-xs">
+                      <span className="text-muted-foreground">{e.actor_name}</span>
+                      <span className="flex-1 text-foreground/70 truncate">{e.action} {e.entity_type} {e.details ? `· ${e.details.slice(0,40)}` : ""}</span>
+                      <span className="text-muted-foreground whitespace-nowrap">{new Date(e.created_at).toLocaleDateString()}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">{t.adminOverviewNoActivity}</p>
+              )}
+            </div>
+
+            {/* System Health */}
+            <div className="glass-card rounded-2xl p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                  <Cpu className="w-3.5 h-3.5" /> {t.adminHealthTitle}
+                </h2>
+                <button
+                  onClick={() => { setHealthLoading(true); api.getSystemHealth().then(setHealth).catch(()=>{}).finally(()=>setHealthLoading(false)); }}
+                  disabled={healthLoading}
+                  className="text-xs text-neon-blue hover:underline disabled:opacity-50"
+                >
+                  {healthLoading ? "…" : <RefreshCw className="w-3 h-3" />}
+                </button>
+              </div>
+              {health ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+                  <div className="space-y-0.5">
+                    <p className="text-xs text-muted-foreground">{t.adminHealthUptime}</p>
+                    <p className="font-medium">{Math.floor(health.uptime_seconds/3600)}h {Math.floor((health.uptime_seconds%3600)/60)}m</p>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-xs text-muted-foreground">{t.adminHealthMemory}</p>
+                    <p className="font-medium">{health.memory_alloc_mb} / {health.memory_sys_mb} MB</p>
+                    <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                      <div className="h-full bg-neon-blue rounded-full transition-all" style={{width:`${Math.min(100,Math.round(health.memory_alloc_mb/health.memory_sys_mb*100))}%`}} />
+                    </div>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-xs text-muted-foreground">{t.adminHealthGoroutines}</p>
+                    <p className={`font-medium ${health.goroutines >= 500 ? "text-red-400" : health.goroutines >= 100 ? "text-yellow-400" : "text-neon-green"}`}>{health.goroutines}</p>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-xs text-muted-foreground">{t.adminHealthWsConns}</p>
+                    <p className="font-medium">{health.ws_connections}</p>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-xs text-muted-foreground">{t.adminHealthDb}</p>
+                    <p className="text-xs">{health.db_open_conns} {t.adminHealthDbOpen} · {health.db_in_use} {t.adminHealthDbInUse} · {health.db_idle} {t.adminHealthDbIdle}</p>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-xs text-muted-foreground">{t.adminHealthGoVersion}</p>
+                    <p className="font-medium text-xs font-mono">{health.go_version}</p>
+                  </div>
+                </div>
+              ) : healthLoading ? (
+                <div className="grid grid-cols-3 gap-4">{Array.from({length:6}).map((_,i)=><div key={i} className="h-10 bg-white/5 rounded-lg animate-pulse"/>)}</div>
+              ) : null}
+            </div>
+          </div>
+        )}
+
         {/* ── STATS TAB ── */}
         {tab === "stats" && (
           <div className="flex flex-col gap-6">
@@ -2319,6 +2527,8 @@ export default function AdminPage() {
             sslDomain={settingsSslDomain}
             onSslModeChange={setSettingsSslMode}
             onSslDomainChange={setSettingsSslDomain}
+            maintenanceMode={settingsMaintenanceMode}
+            onMaintenanceModeChange={setSettingsMaintenanceMode}
             onRefreshSsl={() => {
               setSslStatusLoading(true);
               api.getSSLStatus().then((s) => setSslStatus(s)).catch(() => {}).finally(() => setSslStatusLoading(false));
@@ -2346,6 +2556,7 @@ export default function AdminPage() {
                   news_tg_chat_id: settingsNewsTGChatId,
                   news_tg_thread_id: settingsNewsTGThreadId,
                   force_https: settingsForceHttps,
+                  maintenance_mode: settingsMaintenanceMode,
                   ssl_mode: settingsSslMode,
                   ssl_domain: settingsSslDomain,
                   discord_bot_token: discordBotToken,

@@ -7,6 +7,7 @@ interface SiteSettingsCtx {
   siteName: string;
   logoData: string;
   steamEnabled: boolean;
+  maintenanceMode: boolean;
   vRisingMapEnabled: boolean;
   vRisingMapURL: string;
   vRisingWorldXMin: number;
@@ -22,6 +23,7 @@ const DEFAULT: SiteSettingsCtx = {
   siteName: "JSMonitor",
   logoData: "",
   steamEnabled: false,
+  maintenanceMode: false,
   vRisingMapEnabled: true,
   vRisingMapURL: "",
   vRisingWorldXMin: -2880,
@@ -87,6 +89,7 @@ export function SiteSettingsProvider({ children }: { children: React.ReactNode }
         siteName: settings.site_name,
         logoData: settings.logo_data,
         steamEnabled: settings.steam_enabled,
+        maintenanceMode: settings.maintenance_mode ?? false,
         vRisingMapEnabled: settings.vrising_map_enabled ?? true,
         vRisingMapURL: settings.vrising_map_url ?? "",
         vRisingWorldXMin: settings.vrising_world_x_min ?? -2880,

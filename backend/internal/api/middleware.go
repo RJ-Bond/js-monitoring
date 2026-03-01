@@ -106,3 +106,21 @@ func BanCheckMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 		return next(c)
 	}
 }
+
+// MaintenanceMiddleware returns 503 for all non-admin/non-auth routes when maintenance mode is on.
+func MaintenanceMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		var s models.SiteSettings
+		if database.DB.Select("maintenance_mode").First(&s, 1).Error != nil || !s.MaintenanceMode {
+			return next(c)
+		}
+		path := c.Request().URL.Path
+		if strings.HasPrefix(path, "/api/v1/admin") ||
+			path == "/api/v1/settings" ||
+			path == "/api/v1/auth/login" ||
+			path == "/api/v1/auth/2fa" {
+			return next(c)
+		}
+		return c.JSON(http.StatusServiceUnavailable, echo.Map{"error": "maintenance", "maintenance": true})
+	}
+}

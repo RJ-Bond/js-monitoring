@@ -89,6 +89,7 @@ func main() {
 	}))
 
 	v1 := e.Group("/api/v1")
+	v1.Use(api.MaintenanceMiddleware)
 
 	// ── Setup (первый запуск) ─────────────────────────────────────────────────
 	v1.GET("/setup/status", api.SetupStatus)
@@ -115,6 +116,7 @@ func main() {
 	v1.GET("/players/:name", api.GetPlayerProfile)
 	v1.GET("/chart/:serverID", api.GetServerChart)
 	v1.GET("/servers/:id/vrising/map", api.GetVRisingMap)
+	v1.GET("/servers/:id/vrising/events", api.GetVRisingEvents)
 	v1.GET("/servers/:id/vrising/map-render", api.RenderVRisingMapPNG)
 	v1.GET("/vrising/map-image", api.GetVRisingMapImage)
 	v1.GET("/vrising/castle-icon", api.GetVRisingCastleIcon)
@@ -139,6 +141,7 @@ func main() {
 	protected.PUT("/profile/avatar", api.UpdateAvatar)
 	protected.POST("/profile/token", api.GenerateAPIToken)
 	protected.POST("/vrising/push", api.PushVRisingMap)
+	protected.POST("/vrising/events", api.PushVRisingEvents)
 	protected.DELETE("/profile", api.DeleteProfile)
 	protected.POST("/profile/delete-cancel", api.CancelDeleteProfile)
 	protected.GET("/profile/servers", api.GetProfileServers)
@@ -181,6 +184,8 @@ func main() {
 	admin.GET("/ssl/status", api.GetSSLStatus)
 	admin.GET("/backup", api.GetBackup)
 	admin.POST("/restore", api.RestoreBackup)
+	admin.GET("/dashboard", api.GetDashboard)
+	admin.GET("/health", api.GetSystemHealth)
 
 	// ── Graceful shutdown context ─────────────────────────────────────────────
 	ctx, cancel := context.WithCancel(context.Background())

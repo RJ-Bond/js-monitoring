@@ -6,6 +6,7 @@ import {
   Plus, RefreshCw, Zap, LogOut, User, Shield, Newspaper,
   CalendarDays, Menu, X, Download, ArrowUpRight, Clock, Pencil,
   Eye, Search, Pin, Rss, GitCompare, Link2, ChevronLeft, ChevronRight,
+  LayoutGrid, LayoutList,
 } from "lucide-react";
 import { useServers, useDeleteServer } from "@/hooks/useServers";
 import { useServerWebSocket } from "@/hooks/useWebSocket";
@@ -26,6 +27,7 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ThemeToggle from "@/components/ThemeToggle";
 import GameIcon from "@/components/GameIcon";
 import SiteBrand from "@/components/SiteBrand";
+import MaintenancePage from "@/components/MaintenancePage";
 import { ToastContainer } from "@/components/Toast";
 import type { GameType, Server, NewsItem } from "@/types/server";
 import type { NewsTag } from "@/lib/api";
@@ -82,7 +84,7 @@ export default function Home() {
   const router = useRouter();
   const { t, locale } = useLanguage();
   const { user, logout, isAuthenticated } = useAuth();
-  const { siteName } = useSiteSettings();
+  const { siteName, maintenanceMode } = useSiteSettings();
   const { data: servers, isLoading, refetch, isRefetching } = useServers();
   const { mutate: deleteServer } = useDeleteServer();
   const qc = useQueryClient();
@@ -98,6 +100,13 @@ export default function Home() {
   const [favOnly, setFavOnly] = useState(false);
   const [newsModal, setNewsModal] = useState<NewsItem | null>(null);
   const [readProgress, setReadProgress] = useState(0);
+  const [viewMode, setViewMode] = useState<"grid" | "list">(() =>
+    (typeof window !== "undefined" ? localStorage.getItem("jsmon-view-mode") : null) as "grid" | "list" ?? "grid"
+  );
+  const changeViewMode = (mode: "grid" | "list") => {
+    setViewMode(mode);
+    localStorage.setItem("jsmon-view-mode", mode);
+  };
   const articleBodyRef = useRef<HTMLDivElement>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
@@ -266,6 +275,10 @@ export default function Home() {
     { key: "ping",    label: t.sortPing },
     { key: "name",    label: t.sortName },
   ];
+
+  if (maintenanceMode && user?.role !== "admin") {
+    return <MaintenancePage />;
+  }
 
   return (
     <div className="min-h-screen bg-background bg-grid">
@@ -662,6 +675,14 @@ export default function Home() {
               ★ {t.favOnly}{favOnly && favorites.length > 0 ? ` (${favorites.length})` : ""}
             </button>
           </div>
+          <div className="flex gap-0.5 bg-white/5 rounded-xl p-1">
+            <button onClick={() => changeViewMode("grid")} title="Grid view" className={`p-1.5 rounded-lg transition-colors ${viewMode === "grid" ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+              <LayoutGrid className="w-3.5 h-3.5" />
+            </button>
+            <button onClick={() => changeViewMode("list")} title="List view" className={`p-1.5 rounded-lg transition-colors ${viewMode === "list" ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+              <LayoutList className="w-3.5 h-3.5" />
+            </button>
+          </div>
           <button onClick={exportJSON} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs text-muted-foreground hover:text-foreground border border-white/10 hover:border-white/20 transition-all">
             <Download className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">{t.exportJson}</span>
@@ -670,7 +691,7 @@ export default function Home() {
 
         {/* Server grid */}
         {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className={viewMode === "list" ? "flex flex-col gap-2" : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"}>
             {Array.from({ length: 6 }).map((_, i) => <ServerCardSkeleton key={i} />)}
           </div>
         ) : sorted.length === 0 && favOnly ? (

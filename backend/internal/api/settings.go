@@ -63,6 +63,7 @@ func GetSettings(c echo.Context) error {
 		"vrising_castle_icon_url":  effectiveIconURL(s.VRisingCastleIcon, "/api/v1/vrising/castle-icon"),
 		"vrising_player_icon_url":  effectiveIconURL(s.VRisingPlayerIcon, "/api/v1/vrising/player-icon"),
 		"vrising_hide_admins":      s.VRisingHideAdmins,
+		"maintenance_mode":         s.MaintenanceMode,
 	})
 }
 
@@ -126,6 +127,7 @@ func GetAdminSettings(c echo.Context) error {
 		"vrising_castle_icon_set":     s.VRisingCastleIcon != "",
 		"vrising_player_icon_set":     s.VRisingPlayerIcon != "",
 		"vrising_hide_admins":         s.VRisingHideAdmins,
+		"maintenance_mode":            s.MaintenanceMode,
 	})
 }
 
@@ -162,6 +164,7 @@ func UpdateSettings(c echo.Context) error {
 		VRisingPlayerIcon       string `json:"vrising_player_icon"` // "" = no change, "__CLEAR__" = delete, "data:..." = save
 		SSLMode                 string `json:"ssl_mode"`   // none|letsencrypt|custom
 		SSLDomain               string `json:"ssl_domain"`
+		MaintenanceMode         *bool  `json:"maintenance_mode"`
 	}
 	if err := c.Bind(&payload); err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid payload"})
@@ -195,6 +198,9 @@ func UpdateSettings(c echo.Context) error {
 	}
 	if payload.ForceHTTPS != nil {
 		s.ForceHTTPS = *payload.ForceHTTPS
+	}
+	if payload.MaintenanceMode != nil {
+		s.MaintenanceMode = *payload.MaintenanceMode
 	}
 	switch payload.SSLMode {
 	case "letsencrypt", "custom", "none":

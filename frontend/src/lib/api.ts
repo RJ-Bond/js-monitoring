@@ -101,6 +101,28 @@ export interface SiteSettings {
   vrising_castle_icon_url: string;
   vrising_player_icon_url: string;
   vrising_hide_admins: boolean;
+  maintenance_mode?: boolean;
+}
+
+export interface DashboardData {
+  players_online: number;
+  servers_added_week: number;
+  users_joined_today: number;
+  top_servers: { id: number; title: string; game_type: string; players_now: number; max_players: number }[];
+  recent_audit: { id: number; actor_name: string; action: string; entity_type: string; details: string; created_at: string }[];
+}
+
+export interface SystemHealth {
+  uptime_seconds: number;
+  goroutines: number;
+  memory_alloc_mb: number;
+  memory_sys_mb: number;
+  gc_runs: number;
+  ws_connections: number;
+  db_open_conns: number;
+  db_in_use: number;
+  db_idle: number;
+  go_version: string;
 }
 
 export interface AdminSiteSettings {
@@ -137,6 +159,7 @@ export interface AdminSiteSettings {
   vrising_castle_icon_set?: boolean;
   vrising_player_icon_set?: boolean;
   vrising_hide_admins?: boolean;
+  maintenance_mode?: boolean;
 }
 
 export interface SSLStatus {
@@ -328,7 +351,7 @@ export const api = {
     fetchJSON("/api/v1/admin/servers/bulk", { method: "POST", body: JSON.stringify({ action, ids }) }),
 
   // Update settings with registration_enabled and news webhook
-  updateSettingsFull: (data: { site_name?: string; logo_data?: string; app_url?: string; steam_api_key?: string; registration_enabled?: boolean; news_webhook_url?: string; news_role_id?: string; news_tg_bot_token?: string; news_tg_chat_id?: string; news_tg_thread_id?: string; force_https?: boolean; default_theme?: string; discord_bot_token?: string; discord_app_id?: string; discord_proxy?: string; discord_embed_config?: string; discord_alert_channel_id?: string; discord_refresh_interval?: number; vrising_map_enabled?: boolean; vrising_map_url?: string; vrising_map_image?: string; vrising_world_x_min?: number; vrising_world_x_max?: number; vrising_world_z_min?: number; vrising_world_z_max?: number; vrising_castle_icon?: string; vrising_player_icon?: string; vrising_hide_admins?: boolean; ssl_mode?: string; ssl_domain?: string }) =>
+  updateSettingsFull: (data: { site_name?: string; logo_data?: string; app_url?: string; steam_api_key?: string; registration_enabled?: boolean; news_webhook_url?: string; news_role_id?: string; news_tg_bot_token?: string; news_tg_chat_id?: string; news_tg_thread_id?: string; force_https?: boolean; default_theme?: string; discord_bot_token?: string; discord_app_id?: string; discord_proxy?: string; discord_embed_config?: string; discord_alert_channel_id?: string; discord_refresh_interval?: number; vrising_map_enabled?: boolean; vrising_map_url?: string; vrising_map_image?: string; vrising_world_x_min?: number; vrising_world_x_max?: number; vrising_world_z_min?: number; vrising_world_z_max?: number; vrising_castle_icon?: string; vrising_player_icon?: string; vrising_hide_admins?: boolean; ssl_mode?: string; ssl_domain?: string; maintenance_mode?: boolean }) =>
     fetchJSON<SiteSettings>("/api/v1/admin/settings", { method: "PUT", body: JSON.stringify(data) }),
 
   testNewsWebhook: () => fetchJSON<{ ok: boolean }>("/api/v1/admin/news/webhook/test", { method: "POST" }),
@@ -352,4 +375,7 @@ export const api = {
       "/api/v1/admin/restore",
       { method: "POST", body: JSON.stringify(data) }
     ),
+
+  getDashboard: () => fetchJSON<DashboardData>("/api/v1/admin/dashboard"),
+  getSystemHealth: () => fetchJSON<SystemHealth>("/api/v1/admin/health"),
 };
