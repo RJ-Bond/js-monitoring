@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import QueryProvider from "@/providers/QueryProvider";
@@ -13,12 +13,15 @@ export const metadata: Metadata = {
   description: "High-End Game Server Monitoring Dashboard",
   icons: { icon: "/favicon.ico" },
   manifest: "/manifest.json",
-  themeColor: "#00ff88",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "JSMonitor",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#00ff88",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
