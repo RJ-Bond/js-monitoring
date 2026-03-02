@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, use } from "react";
 import { Users, Map, Wifi, ArrowLeft, ExternalLink, Star, Copy } from "lucide-react";
 import { useServer, useHistory, useLeaderboard, useServerPlayers } from "@/hooks/useServers";
 import { useUptime } from "@/hooks/useUptime";
@@ -29,8 +29,9 @@ function formatSeconds(sec: number): string {
   return `${m}m`;
 }
 
-export default function ServerDetailPage({ params }: { params: { id: string } }) {
-  const serverId = parseInt(params.id, 10);
+export default function ServerDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const serverId = parseInt(id, 10);
   const { t, locale } = useLanguage();
   const { favorites, toggle: toggleFavorite } = useFavorites();
   const [tab, setTab] = useState<"history" | "leaderboard" | "players">("history");
