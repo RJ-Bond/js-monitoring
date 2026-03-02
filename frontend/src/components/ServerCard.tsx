@@ -5,7 +5,7 @@ import { Users, Map, Wifi, Terminal, ExternalLink, Trash2, BarChart2, Trophy, Pe
 import { cn, formatPlayers, formatPing, buildJoinLink, gameTypeLabel } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useSiteSettings } from "@/contexts/SiteSettingsContext";
-import { useServerPlayers } from "@/hooks/useServers";
+import { useServerPlayers, useHistory } from "@/hooks/useServers";
 import { toast } from "@/lib/toast";
 import StatusIndicator from "./StatusIndicator";
 import PlayerChart from "./PlayerChart";
@@ -41,6 +41,24 @@ function timeSince(dateStr: string, locale: string): string {
   return locale === "ru" ? `${Math.floor(h / 24)} д` : `${Math.floor(h / 24)}d`;
 }
 
+function gameTypeColor(g: Server["game_type"]): string {
+  switch (g) {
+    case "source":             return "linear-gradient(90deg,#f0b429,#e07b00)";
+    case "minecraft":
+    case "minecraft_bedrock":  return "linear-gradient(90deg,#4ade80,#16a34a)";
+    case "fivem":              return "linear-gradient(90deg,#3b82f6,#1d4ed8)";
+    case "samp":               return "linear-gradient(90deg,#f97316,#c2410c)";
+    case "valheim":            return "linear-gradient(90deg,#a78bfa,#7c3aed)";
+    case "terraria":           return "linear-gradient(90deg,#86efac,#22c55e)";
+    case "dayz":               return "linear-gradient(90deg,#84cc16,#4d7c0f)";
+    case "squad":              return "linear-gradient(90deg,#94a3b8,#475569)";
+    case "gmod":               return "linear-gradient(90deg,#fb923c,#ea580c)";
+    case "vrising":            return "linear-gradient(90deg,#f87171,#991b1b)";
+    case "icarus":             return "linear-gradient(90deg,#38bdf8,#0284c7)";
+    default:                   return "linear-gradient(90deg,#6b7280,#374151)";
+  }
+}
+
 const PLAYER_SUPPORTED: Server["game_type"][] = [
   "source", "fivem", "gmod", "valheim", "dayz", "squad", "vrising", "terraria",
   "samp", "minecraft", "minecraft_bedrock",
@@ -60,16 +78,15 @@ export default function ServerCard({ server, onDelete, onEdit, isFavorite, onTog
   const isVRising = server.game_type === "vrising" && vRisingMapEnabled;
   const { data: players, isLoading: playersLoading } = useServerPlayers(server.id, showPlayers);
   const { data: uptimeData } = useUptime(server.id);
+  const { data: historyData } = useHistory(server.id, "24h");
 
   const serverNameDiffers = online && status?.server_name && status.server_name !== server.title;
 
-  // MOTD для Minecraft: очищаем §-коды цветов
   const isMinecraft = server.game_type === "minecraft" || server.game_type === "minecraft_bedrock";
   const motd = isMinecraft && status?.server_name
     ? status.server_name.replace(/§./g, "").trim()
     : null;
 
-  // Occupancy ring when server is getting full
   const fillRatio = online && status?.players_max ? status.players_now / status.players_max : 0;
   const fillRing =
     fillRatio >= 0.95 ? "ring-1 ring-red-400/50" :
@@ -84,10 +101,36 @@ export default function ServerCard({ server, onDelete, onEdit, isFavorite, onTog
     : pingMs < 50 ? "bg-neon-green"
     : pingMs < 120 ? "bg-yellow-400"
     : "bg-red-400";
+  const pingBg = !online ? ""
+    : pingMs < 50 ? "bg-neon-green/10"
+    : pingMs < 120 ? "bg-yellow-400/10"
+    : "bg-red-400/10";
+
+  // Mini ping sparkline from 24h history
+  const pingHistory = (historyData ?? [])
+    .filter(h => (h.ping_ms ?? 0) > 0)
+    .slice(-12);
+  const maxPingHistory = pingHistory.length > 0
+    ? Math.max(...pingHistory.map(h => h.ping_ms ?? 0))
+    : 1;
+
+  // Circular SVG progress for players block
+  const circleR = 14;
+  const circleCirc = 2 * Math.PI * circleR;
+  const playerCircleOffset = online && fillRatio > 0
+    ? circleCirc * (1 - Math.min(fillRatio, 1))
+    : circleCirc;
+  const playerCircleColor = fillRatio > 0.9 ? "#f87171" : fillRatio > 0.6 ? "#facc15" : "#00ff88";
 
   const copyIP = () => {
     const text = `${server.display_ip || server.ip}:${server.port}`;
     navigator.clipboard.writeText(text).then(() => toast(t.toastCopied));
+  };
+
+  const copyMap = () => {
+    if (status?.current_map) {
+      navigator.clipboard.writeText(status.current_map).then(() => toast(t.toastCopied));
+    }
   };
 
   const shareServer = () => {
@@ -122,8 +165,16 @@ export default function ServerCard({ server, onDelete, onEdit, isFavorite, onTog
             </button>
           </div>
           <StatusIndicator online={online} showLabel />
-          <div className="hidden sm:flex flex-col items-center min-w-[52px]">
+          <div className="hidden sm:flex flex-col items-center min-w-[56px] gap-0.5">
             <span className="text-sm font-bold text-foreground">{online ? formatPlayers(status!.players_now, status!.players_max) : "—"}</span>
+            {online && status!.players_max > 0 && (
+              <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                <div className="h-full rounded-full transition-all duration-1000" style={{
+                  width: `${Math.min(100, fillRatio * 100)}%`,
+                  background: fillRatio > 0.9 ? "#f87171" : fillRatio > 0.6 ? "#facc15" : "#00ff88",
+                }} />
+              </div>
+            )}
             <span className="text-xs text-muted-foreground">{t.cardPlayers}</span>
           </div>
           <div className="hidden md:flex flex-col items-center min-w-[52px]">
@@ -184,10 +235,16 @@ export default function ServerCard({ server, onDelete, onEdit, isFavorite, onTog
   return (
     <>
       <div className={cn(
-        "glass-card rounded-2xl p-5 flex flex-col gap-4 animate-slide-up",
+        "glass-card rounded-2xl p-5 flex flex-col gap-4 animate-slide-up relative overflow-hidden",
         online ? "card-glow-online card-accent-online" : "card-glow-offline card-accent-offline",
         fillRing,
       )}>
+        {/* Game type color stripe */}
+        <div
+          className="absolute top-0 left-0 right-0 h-0.5"
+          style={{ background: gameTypeColor(server.game_type) }}
+        />
+
         {/* Header */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
@@ -235,33 +292,84 @@ export default function ServerCard({ server, onDelete, onEdit, isFavorite, onTog
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-3">
-          <div className="flex flex-col items-center gap-1 bg-white/5 rounded-xl p-2.5">
-            <Users className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm font-bold text-foreground">{online ? formatPlayers(status!.players_now, status!.players_max) : "—"}</span>
+          {/* Players: circular SVG progress around icon */}
+          <div className="flex flex-col items-center gap-1.5 bg-white/5 rounded-xl p-4">
+            <div className="relative flex items-center justify-center w-9 h-9">
+              <svg width="36" height="36" viewBox="0 0 36 36" className="absolute inset-0">
+                <circle
+                  cx="18" cy="18" r={circleR}
+                  fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="2"
+                />
+                {online && fillRatio > 0 && (
+                  <circle
+                    cx="18" cy="18" r={circleR}
+                    fill="none"
+                    stroke={playerCircleColor}
+                    strokeWidth="2"
+                    strokeDasharray={circleCirc}
+                    strokeDashoffset={playerCircleOffset}
+                    strokeLinecap="round"
+                    transform="rotate(-90 18 18)"
+                    style={{ transition: "stroke-dashoffset 1s ease" }}
+                  />
+                )}
+              </svg>
+              <Users className="w-4 h-4 text-muted-foreground" />
+            </div>
+            <span className="text-base font-bold text-foreground">{online ? formatPlayers(status!.players_now, status!.players_max) : "—"}</span>
             <span className="text-xs text-muted-foreground">{t.cardPlayers}</span>
           </div>
+
+          {/* Ping: colored background + mini sparkline */}
           <div
-            className="flex flex-col items-center gap-1 bg-white/5 rounded-xl p-2.5"
+            className={cn("flex flex-col items-center gap-1.5 bg-white/5 rounded-xl p-4 transition-colors", pingBg)}
             title={online ? (
               pingMs < 50 ? "< 50 ms — excellent" :
               pingMs < 120 ? "< 120 ms — good" : "> 120 ms — high"
             ) : undefined}
           >
-            <Wifi className="w-4 h-4 text-muted-foreground" />
-            <span className={cn("flex items-center gap-1.5 text-sm font-bold", pingColor)}>
+            <Wifi className="w-5 h-5 text-muted-foreground" />
+            <span className={cn("flex items-center gap-1.5 text-base font-bold", pingColor)}>
               <span className="relative inline-flex items-center justify-center flex-shrink-0 w-2 h-2">
                 {online && <span className={cn("absolute inline-flex w-full h-full rounded-full opacity-60 animate-ping", pingDotColor)} />}
                 <span className={cn("relative w-1.5 h-1.5 rounded-full", pingDotColor)} />
               </span>
               {online ? formatPing(pingMs) : "—"}
             </span>
+            {online && pingHistory.length > 1 && (
+              <svg width="52" height="14" viewBox="0 0 52 14" className={cn("opacity-60", pingColor)}>
+                <polyline
+                  points={pingHistory.map((h, i) => {
+                    const x = (i / (pingHistory.length - 1)) * 52;
+                    const y = 13 - ((h.ping_ms ?? 0) / maxPingHistory) * 12;
+                    return `${x.toFixed(1)},${y.toFixed(1)}`;
+                  }).join(" ")}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            )}
             <span className="text-xs text-muted-foreground">{t.cardPing}</span>
           </div>
-          <div className="flex flex-col items-center gap-1 bg-white/5 rounded-xl p-2.5 overflow-hidden">
-            <Map className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-            <span className="text-sm font-bold text-foreground truncate max-w-full px-1">{online && status?.current_map ? status.current_map : "—"}</span>
+
+          {/* Map: clickable to copy name */}
+          <button
+            onClick={copyMap}
+            disabled={!online || !status?.current_map}
+            className="flex flex-col items-center gap-1.5 bg-white/5 rounded-xl p-4 overflow-hidden group w-full disabled:cursor-default"
+          >
+            <Map className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+            <span className="text-base font-bold text-foreground flex items-center gap-1 max-w-full">
+              <span className="truncate px-1">{online && status?.current_map ? status.current_map : "—"}</span>
+              {online && status?.current_map && (
+                <Copy className="w-3 h-3 opacity-0 group-hover:opacity-50 transition-opacity flex-shrink-0" />
+              )}
+            </span>
             <span className="text-xs text-muted-foreground">{t.cardMap}</span>
-          </div>
+          </button>
         </div>
 
         {/* Uptime badge */}
