@@ -1,0 +1,19 @@
+{
+  "name": "JS Monitor — Game Server Dashboard",
+  "short_name": "JSMonitor",
+  "description": "High-End Game Server Monitoring Dashboard",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0f",
+  "theme_color": "#00ff88",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    }
+  ],
+  "categories": ["utilities", "games"],
+  "lang": "ru"
+}

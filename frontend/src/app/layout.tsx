@@ -12,6 +12,13 @@ export const metadata: Metadata = {
   title: "JS Monitor — Game Server Dashboard",
   description: "High-End Game Server Monitoring Dashboard",
   icons: { icon: "/favicon.ico" },
+  manifest: "/manifest.json",
+  themeColor: "#00ff88",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "JSMonitor",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

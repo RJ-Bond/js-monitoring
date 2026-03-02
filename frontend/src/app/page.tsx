@@ -38,6 +38,8 @@ import { useQueryClient } from "@tanstack/react-query";
 
 type SortMode = "default" | "players" | "ping" | "name" | "status";
 
+const SERVERS_PER_PAGE = 12;
+
 function relativeTime(dateStr: string, locale: string): string {
   const diffMs = Date.now() - new Date(dateStr).getTime();
   const m = Math.floor(diffMs / 60000);
@@ -98,6 +100,7 @@ export default function Home() {
   const [search, setSearch] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("default");
   const [favOnly, setFavOnly] = useState(false);
+  const [serverPage, setServerPage] = useState(1);
   const [newsModal, setNewsModal] = useState<NewsItem | null>(null);
   const [readProgress, setReadProgress] = useState(0);
   const [viewMode, setViewMode] = useState<"grid" | "list">(() =>
@@ -126,6 +129,36 @@ export default function Home() {
     const timer = setTimeout(() => setNewsSearch(newsSearchInput), 300);
     return () => clearTimeout(timer);
   }, [newsSearchInput]);
+
+  // Read filter state from URL on mount
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const p = new URLSearchParams(window.location.search);
+    const q = p.get("q"); if (q) setSearch(q);
+    const sort = p.get("sort") as SortMode;
+    if (sort && ["default","players","ping","name","status"].includes(sort)) setSortMode(sort);
+    const status = p.get("status") as "all"|"online"|"offline";
+    if (status && ["all","online","offline"].includes(status)) setStatusFilter(status);
+    const game = p.get("game");
+    if (game) setGameFilter(game as GameType | "all");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Sync filter state to URL
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const p = new URLSearchParams(window.location.search);
+    ["q","sort","status","game"].forEach(k => p.delete(k));
+    if (search) p.set("q", search);
+    if (sortMode !== "default") p.set("sort", sortMode);
+    if (statusFilter !== "all") p.set("status", statusFilter);
+    if (gameFilter !== "all") p.set("game", gameFilter as string);
+    const str = p.toString();
+    router.replace(str ? `?${str}` : window.location.pathname, { scroll: false });
+  }, [search, sortMode, statusFilter, gameFilter]);
+
+  // Reset server page on filter change
+  useEffect(() => { setServerPage(1); }, [search, sortMode, statusFilter, gameFilter, favOnly]);
 
   const fetchNews = useCallback(async (page: number, search: string, tag: string) => {
     setNewsLoadingMore(true);
@@ -239,6 +272,9 @@ export default function Home() {
     const rest = base.filter((s) => !favorites.includes(s.id));
     return [...sortFn(favs), ...sortFn(rest)];
   }, [filtered, sortMode, favorites, favOnly]);
+
+  const totalServerPages = Math.ceil(sorted.length / SERVERS_PER_PAGE);
+  const paginated = sorted.slice((serverPage - 1) * SERVERS_PER_PAGE, serverPage * SERVERS_PER_PAGE);
 
   const onlineCount = (servers ?? []).filter((s) => s.status?.online_status).length;
   const newsModalIdx = newsModal ? visibleNews.findIndex((n) => n.id === newsModal.id) : -1;
@@ -718,7 +754,7 @@ export default function Home() {
         ) : (
           <>
             <div className={`transition-opacity duration-300 ${isRefetching ? "opacity-60" : "opacity-100"} ${viewMode === "list" ? "flex flex-col gap-2" : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"}`}>
-              {sorted.map((srv) => {
+              {paginated.map((srv) => {
                 const canManage = user?.role === "admin" || user?.id === srv.owner_id;
                 const inCompare = compareIDs.has(srv.id);
                 return (
@@ -753,6 +789,40 @@ export default function Home() {
                 );
               })}
             </div>
+
+            {totalServerPages > 1 && (
+              <div className="flex items-center justify-center gap-2 pt-2">
+                <button
+                  onClick={() => setServerPage((p) => Math.max(1, p - 1))}
+                  disabled={serverPage === 1}
+                  className="px-3 py-1.5 rounded-xl text-xs font-medium border border-white/10 text-muted-foreground hover:text-foreground hover:border-white/20 transition-all disabled:opacity-30 disabled:cursor-default"
+                >
+                  {t.pagePrev}
+                </button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalServerPages }, (_, i) => i + 1).map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setServerPage(p)}
+                      className={`w-8 h-8 rounded-lg text-xs font-medium transition-all ${
+                        p === serverPage
+                          ? "bg-neon-green/20 text-neon-green border border-neon-green/30"
+                          : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setServerPage((p) => Math.min(totalServerPages, p + 1))}
+                  disabled={serverPage === totalServerPages}
+                  className="px-3 py-1.5 rounded-xl text-xs font-medium border border-white/10 text-muted-foreground hover:text-foreground hover:border-white/20 transition-all disabled:opacity-30 disabled:cursor-default"
+                >
+                  {t.pageNext}
+                </button>
+              </div>
+            )}
 
             {compareIDs.size >= 2 && (
               <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">

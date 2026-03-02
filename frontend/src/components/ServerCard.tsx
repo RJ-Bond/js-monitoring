@@ -114,6 +114,14 @@ export default function ServerCard({ server, onDelete, onEdit, isFavorite, onTog
     ? Math.max(...pingHistory.map(h => h.ping_ms ?? 0))
     : 1;
 
+  // Player trend: compare current vs avg of last 5 history points
+  const recentCounts = (historyData ?? []).slice(-6);
+  const avgRecent = recentCounts.length >= 2
+    ? recentCounts.slice(0, -1).reduce((s, h) => s + h.count, 0) / (recentCounts.length - 1)
+    : null;
+  const trendUp = online && avgRecent !== null && (status?.players_now ?? 0) > avgRecent + 0.5;
+  const trendDown = online && avgRecent !== null && (status?.players_now ?? 0) < avgRecent - 0.5;
+
   // Circular SVG progress for players block
   const circleR = 14;
   const circleCirc = 2 * Math.PI * circleR;
@@ -235,7 +243,7 @@ export default function ServerCard({ server, onDelete, onEdit, isFavorite, onTog
   return (
     <>
       <div className={cn(
-        "glass-card rounded-2xl p-5 flex flex-col gap-4 animate-slide-up relative overflow-hidden",
+        "glass-card rounded-2xl p-5 flex flex-col gap-4 animate-slide-up relative overflow-hidden hover:scale-[1.01] transition-transform duration-200",
         online ? "card-glow-online card-accent-online" : "card-glow-offline card-accent-offline",
         fillRing,
       )}>
@@ -316,7 +324,11 @@ export default function ServerCard({ server, onDelete, onEdit, isFavorite, onTog
               </svg>
               <Users className="w-4 h-4 text-muted-foreground" />
             </div>
-            <span className="text-base font-bold text-foreground">{online ? formatPlayers(status!.players_now, status!.players_max) : "—"}</span>
+            <span className="text-base font-bold text-foreground flex items-center gap-1">
+              {online ? formatPlayers(status!.players_now, status!.players_max) : "—"}
+              {trendUp && <span className="text-neon-green text-xs leading-none">↑</span>}
+              {trendDown && <span className="text-red-400 text-xs leading-none">↓</span>}
+            </span>
             <span className="text-xs text-muted-foreground">{t.cardPlayers}</span>
           </div>
 
@@ -390,8 +402,18 @@ export default function ServerCard({ server, onDelete, onEdit, isFavorite, onTog
         {/* Occupancy bar */}
         {online && status && status.players_max > 0 && (
           <div className="flex flex-col gap-1">
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>{t.cardOccupancy}</span>
+            <div className="flex justify-between text-xs text-muted-foreground items-center">
+              <span className="flex items-center gap-1.5">
+                {t.cardOccupancy}
+                {status!.players_now === 0
+                  ? <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-white/8 text-muted-foreground">{t.fillEmpty}</span>
+                  : fillRatio >= 0.95
+                    ? <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-red-400/15 text-red-400 border border-red-400/25">{t.fillFull}</span>
+                    : fillRatio >= 0.85
+                      ? <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-orange-400/15 text-orange-400 border border-orange-400/25">{t.fillAlmostFull}</span>
+                      : null
+                }
+              </span>
               <span className={fillRatio >= 0.85 ? "text-orange-400 font-semibold" : ""}>
                 {Math.round(fillRatio * 100)}%
               </span>

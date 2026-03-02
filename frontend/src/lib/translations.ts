@@ -606,6 +606,19 @@ export const translations = {
     twoFaLoginVerify: "Verify",
     twoFaLoginVerifying: "Verifying…",
     twoFaLoginBack: "← Back to login",
+    // Fill status
+    fillEmpty: "Empty",
+    fillAlmostFull: "Almost Full",
+    fillFull: "Full",
+    // Pagination
+    pagePrev: "← Prev",
+    pageNext: "Next →",
+    pageOfTotal: (page: number, total: number) => `Page ${page} of ${total}`,
+    // Server detail
+    serverDetailBack: "← Back",
+    serverDetailOnlinePlayers: "Online players",
+    serverDetailHistory: "Player history",
+    serverDetailLeaderboard: "Top players",
   },
 
   ru: {
@@ -1213,6 +1226,19 @@ export const translations = {
     twoFaLoginVerify: "Подтвердить",
     twoFaLoginVerifying: "Проверка…",
     twoFaLoginBack: "← Назад",
+    // Fill status
+    fillEmpty: "Пусто",
+    fillAlmostFull: "Почти полный",
+    fillFull: "Полный",
+    // Pagination
+    pagePrev: "← Назад",
+    pageNext: "Далее →",
+    pageOfTotal: (page: number, total: number) => `Страница ${page} из ${total}`,
+    // Server detail
+    serverDetailBack: "← Назад",
+    serverDetailOnlinePlayers: "Игроки онлайн",
+    serverDetailHistory: "История игроков",
+    serverDetailLeaderboard: "Топ игроков",
   },
 } as const;
 
