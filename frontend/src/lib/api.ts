@@ -107,9 +107,15 @@ export interface SiteSettings {
 
 export interface DashboardData {
   players_online: number;
+  servers_offline: number;
+  peak_players_today: number;
   servers_added_week: number;
+  servers_added_prev_week: number;
   users_joined_today: number;
+  users_joined_yesterday: number;
   top_servers: { id: number; title: string; game_type: string; players_now: number; max_players: number }[];
+  top_offline: { id: number; title: string; game_type: string }[];
+  online_24h: { hour: string; count: number }[];
   recent_audit: { id: number; actor_name: string; action: string; entity_type: string; details: string; created_at: string }[];
 }
 

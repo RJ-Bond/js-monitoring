@@ -1174,6 +1174,7 @@ export default function AdminPage() {
   const [dashboardLoading, setDashboardLoading] = useState(false);
   const [health, setHealth] = useState<SystemHealth | null>(null);
   const [healthLoading, setHealthLoading] = useState(false);
+  const [healthCountdown, setHealthCountdown] = useState(15);
   const [settingsMaintenanceMode, setSettingsMaintenanceMode] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSaved, setSettingsSaved] = useState(false);
@@ -1318,13 +1319,18 @@ export default function AdminPage() {
     }
   }, [tab]);
 
-  // Auto-refresh health every 15s when on overview tab
+  // Auto-refresh health every 15s when on overview tab, with countdown
   useEffect(() => {
     if (tab !== "overview") return;
-    const id = setInterval(() => {
+    setHealthCountdown(15);
+    const refreshId = setInterval(() => {
       api.getSystemHealth().then(setHealth).catch(() => {});
+      setHealthCountdown(15);
     }, 15000);
-    return () => clearInterval(id);
+    const tickId = setInterval(() => {
+      setHealthCountdown((c) => Math.max(0, c - 1));
+    }, 1000);
+    return () => { clearInterval(refreshId); clearInterval(tickId); };
   }, [tab]);
 
   const fetchUsers = async () => {
@@ -1521,6 +1527,23 @@ export default function AdminPage() {
       .map(([game, count]) => ({ game: GAME_META[game as keyof typeof GAME_META]?.label ?? game, count }))
       .sort((a, b) => b.count - a.count);
   }, [servers]);
+
+  // System alerts (derived from dashboardData + health)
+  const alerts = useMemo(() => {
+    const result: { type: "warn" | "error"; message: string }[] = [];
+    if (dashboardData && stats.totalServers > 0) {
+      const ratio = dashboardData.servers_offline / stats.totalServers;
+      if (ratio > 0.5)
+        result.push({ type: "error", message: t.adminAlertOfflineCritical.replace("{n}", String(dashboardData.servers_offline)).replace("{total}", String(stats.totalServers)) });
+      else if (ratio > 0.25)
+        result.push({ type: "warn", message: t.adminAlertOfflineWarn.replace("{n}", String(dashboardData.servers_offline)) });
+    }
+    if (health && health.goroutines >= 500)
+      result.push({ type: "error", message: t.adminAlertGoroutines.replace("{n}", String(health.goroutines)) });
+    if (health && health.memory_sys_mb > 0 && health.memory_alloc_mb / health.memory_sys_mb > 0.85)
+      result.push({ type: "warn", message: t.adminAlertMemory.replace("{used}", String(health.memory_alloc_mb)).replace("{total}", String(health.memory_sys_mb)) });
+    return result;
+  }, [dashboardData, health, stats, t]);
 
   // User detail modal
   const [userDetailUser, setUserDetailUser] = useState<User | null>(null);
@@ -2068,57 +2091,155 @@ export default function AdminPage() {
         {/* ── OVERVIEW TAB ── */}
         {tab === "overview" && (
           <div className="flex flex-col gap-6">
-            {/* Quick stats */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+
+            {/* 6 Quick stat cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
               {[
-                { label: t.adminOverviewServersOnline, value: stats.onlineServers,  color: "text-neon-green",  bg: "bg-neon-green/10",  icon: <Activity className="w-5 h-5 text-neon-green" /> },
-                { label: t.adminOverviewPlayersOnline, value: dashboardData?.players_online ?? "—", color: "text-neon-blue",  bg: "bg-neon-blue/10",  icon: <Users className="w-5 h-5 text-neon-blue" /> },
-                { label: t.adminOverviewTotalUsers,    value: stats.totalUsers,    color: "text-neon-purple", bg: "bg-neon-purple/10", icon: <UserCheck className="w-5 h-5 text-neon-purple" /> },
-                { label: t.adminOverviewTotalServers,  value: stats.totalServers,  color: "text-yellow-400",  bg: "bg-yellow-400/10",  icon: <Server className="w-5 h-5 text-yellow-400" /> },
+                { label: t.adminOverviewServersOnline,  value: stats.onlineServers,                               color: "text-neon-green",  bg: "bg-neon-green/10",  icon: <Activity   className="w-5 h-5 text-neon-green"  /> },
+                { label: t.adminOverviewServersOffline, value: dashboardData?.servers_offline ?? "—",             color: "text-red-400",     bg: "bg-red-400/10",     icon: <Wifi       className="w-5 h-5 text-red-400"    /> },
+                { label: t.adminOverviewPlayersOnline,  value: dashboardData?.players_online ?? "—",             color: "text-neon-blue",   bg: "bg-neon-blue/10",   icon: <Users      className="w-5 h-5 text-neon-blue"  /> },
+                { label: t.adminOverviewPeakPlayers,    value: dashboardData?.peak_players_today ?? "—",         color: "text-neon-purple", bg: "bg-neon-purple/10", icon: <BarChart2  className="w-5 h-5 text-neon-purple"/> },
+                { label: t.adminOverviewTotalUsers,     value: stats.totalUsers,                                  color: "text-yellow-400",  bg: "bg-yellow-400/10",  icon: <UserCheck  className="w-5 h-5 text-yellow-400" /> },
+                { label: t.adminOverviewTotalServers,   value: stats.totalServers,                                color: "text-muted-foreground", bg: "bg-white/5", icon: <Server    className="w-5 h-5 text-muted-foreground"/> },
               ].map((card) => (
-                <div key={card.label} className="glass-card rounded-2xl px-5 py-4 flex flex-col gap-2">
+                <div key={card.label} className="glass-card rounded-2xl px-4 py-4 flex flex-col gap-2">
                   <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${card.bg}`}>{card.icon}</div>
-                  <div className={`text-2xl font-black tabular-nums tracking-tight ${card.color}`}>{dashboardLoading && card.label === t.adminOverviewPlayersOnline ? "…" : card.value}</div>
+                  <div className={`text-2xl font-black tabular-nums tracking-tight ${card.color}`}>
+                    {dashboardLoading && (card.label === t.adminOverviewPlayersOnline || card.label === t.adminOverviewServersOffline || card.label === t.adminOverviewPeakPlayers) ? "…" : card.value}
+                  </div>
                   <div className="text-xs text-muted-foreground leading-tight">{card.label}</div>
                 </div>
               ))}
             </div>
 
-            {/* Mini stats row */}
+            {/* Alerts */}
+            {alerts.length > 0 && (
+              <div className="flex flex-col gap-2">
+                {alerts.map((a, i) => (
+                  <div key={i} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm border ${a.type === "error" ? "bg-red-400/10 border-red-400/30 text-red-400" : "bg-yellow-400/10 border-yellow-400/30 text-yellow-400"}`}>
+                    <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                    <span>{a.message}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Quick Actions */}
+            <div className="glass-card rounded-2xl p-4">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
+                <Wrench className="w-3.5 h-3.5" /> {t.adminOverviewQuickActions}
+              </h2>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { label: t.adminTabServers,    icon: <Server className="w-3.5 h-3.5" />,        action: () => setTab("servers") },
+                  { label: t.adminQaNews,        icon: <Newspaper className="w-3.5 h-3.5" />,     action: () => router.push("/admin/news") },
+                  { label: t.exportServers,      icon: <Download className="w-3.5 h-3.5" />,      action: () => window.open("/api/v1/admin/export/servers.csv") },
+                  { label: t.exportPlayers,      icon: <Download className="w-3.5 h-3.5" />,      action: () => window.open("/api/v1/admin/export/players.csv") },
+                  { label: t.adminTabSettings,   icon: <Settings className="w-3.5 h-3.5" />,      action: () => setTab("settings") },
+                  { label: t.adminQaAudit,       icon: <ClipboardList className="w-3.5 h-3.5" />, action: () => setTab("audit") },
+                ].map((btn) => (
+                  <button
+                    key={btn.label}
+                    onClick={btn.action}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs border border-white/10 hover:border-white/25 hover:bg-white/5 text-muted-foreground hover:text-foreground transition-all"
+                  >
+                    {btn.icon} {btn.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Mini stats with trend */}
             {dashboardData && (
               <div className="grid grid-cols-2 gap-4">
-                <div className="glass-card rounded-2xl px-5 py-3 flex items-center gap-3">
-                  <Server className="w-4 h-4 text-neon-blue flex-shrink-0" />
-                  <div>
-                    <div className="text-lg font-bold text-neon-blue">{dashboardData.servers_added_week}</div>
-                    <div className="text-xs text-muted-foreground">{t.adminOverviewServersWeek}</div>
-                  </div>
-                </div>
-                <div className="glass-card rounded-2xl px-5 py-3 flex items-center gap-3">
-                  <Users className="w-4 h-4 text-neon-green flex-shrink-0" />
-                  <div>
-                    <div className="text-lg font-bold text-neon-green">{dashboardData.users_joined_today}</div>
-                    <div className="text-xs text-muted-foreground">{t.adminOverviewUsersToday}</div>
-                  </div>
+                {(() => {
+                  const srvTrend = dashboardData.servers_added_week - dashboardData.servers_added_prev_week;
+                  const usrTrend = dashboardData.users_joined_today - dashboardData.users_joined_yesterday;
+                  return (
+                    <>
+                      <div className="glass-card rounded-2xl px-5 py-3 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <Server className="w-4 h-4 text-neon-blue flex-shrink-0" />
+                          <div>
+                            <div className="text-lg font-bold text-neon-blue">{dashboardData.servers_added_week}</div>
+                            <div className="text-xs text-muted-foreground">{t.adminOverviewServersWeek}</div>
+                          </div>
+                        </div>
+                        {srvTrend !== 0 && (
+                          <span className={`text-xs font-semibold ${srvTrend > 0 ? "text-neon-green" : "text-red-400"}`}>
+                            {srvTrend > 0 ? "↑" : "↓"} {Math.abs(srvTrend)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="glass-card rounded-2xl px-5 py-3 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <Users className="w-4 h-4 text-neon-green flex-shrink-0" />
+                          <div>
+                            <div className="text-lg font-bold text-neon-green">{dashboardData.users_joined_today}</div>
+                            <div className="text-xs text-muted-foreground">{t.adminOverviewUsersToday}</div>
+                          </div>
+                        </div>
+                        {usrTrend !== 0 && (
+                          <span className={`text-xs font-semibold ${usrTrend > 0 ? "text-neon-green" : "text-red-400"}`}>
+                            {usrTrend > 0 ? "↑" : "↓"} {Math.abs(usrTrend)}
+                          </span>
+                        )}
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* Players online 24h chart */}
+            {dashboardData && dashboardData.online_24h.length > 0 && (
+              <div className="glass-card rounded-2xl p-5 space-y-3">
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                  <Activity className="w-3.5 h-3.5" /> {t.adminOverviewPlayers24h}
+                </h2>
+                <div className="h-36">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={dashboardData.online_24h} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="players24hGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%"  stopColor="#00d4ff" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="#00d4ff" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                      <XAxis dataKey="hour" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                      <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} allowDecimals={false} />
+                      <Tooltip
+                        contentStyle={{ background: "hsl(var(--card))", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, fontSize: 12 }}
+                        labelStyle={{ color: "hsl(var(--muted-foreground))" }}
+                        itemStyle={{ color: "#00d4ff" }}
+                      />
+                      <Area type="monotone" dataKey="count" stroke="#00d4ff" strokeWidth={2} fill="url(#players24hGrad)" dot={false} name={t.chartLabelPlayers} />
+                    </AreaChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
             )}
 
-            {/* Top servers + Recent registrations */}
+            {/* Top servers online | Top offline servers */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Top servers */}
               <div className="glass-card rounded-2xl p-5 space-y-3">
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                  <Activity className="w-3.5 h-3.5" /> {t.adminOverviewTopServers}
+                  <Activity className="w-3.5 h-3.5 text-neon-green" /> {t.adminOverviewTopServers}
                 </h2>
                 {dashboardLoading ? (
                   <div className="space-y-2">{Array.from({length:3}).map((_,i) => <div key={i} className="h-8 bg-white/5 rounded-lg animate-pulse" />)}</div>
                 ) : dashboardData?.top_servers.length ? (
                   <div className="space-y-2">
                     {dashboardData.top_servers.map((s) => (
-                      <div key={s.id} className="flex items-center justify-between gap-2">
+                      <div key={s.id} className="flex items-center gap-2">
                         <span className="text-sm truncate flex-1" title={s.title}>{s.title}</span>
-                        <span className="text-xs text-neon-green font-medium tabular-nums whitespace-nowrap">{s.players_now}/{s.max_players}</span>
+                        <div className="flex-shrink-0 flex items-center gap-1.5">
+                          <div className="h-1 w-16 bg-white/10 rounded-full overflow-hidden">
+                            <div className="h-full bg-neon-green rounded-full" style={{width: s.max_players > 0 ? `${Math.min(100, Math.round(s.players_now / s.max_players * 100))}%` : "0%"}} />
+                          </div>
+                          <span className="text-xs text-neon-green font-medium tabular-nums">{s.players_now}/{s.max_players}</span>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -2127,7 +2248,30 @@ export default function AdminPage() {
                 )}
               </div>
 
-              {/* Recent registrations */}
+              <div className="glass-card rounded-2xl p-5 space-y-3">
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                  <Wifi className="w-3.5 h-3.5 text-red-400" /> {t.adminOverviewTopOffline}
+                </h2>
+                {dashboardLoading ? (
+                  <div className="space-y-2">{Array.from({length:3}).map((_,i) => <div key={i} className="h-6 bg-white/5 rounded-lg animate-pulse" />)}</div>
+                ) : dashboardData?.top_offline.length ? (
+                  <div className="space-y-2">
+                    {dashboardData.top_offline.map((s) => (
+                      <div key={s.id} className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0" />
+                        <span className="text-sm truncate flex-1 text-foreground/70" title={s.title}>{s.title}</span>
+                        <span className="text-xs text-muted-foreground flex-shrink-0">{GAME_META[s.game_type as keyof typeof GAME_META]?.label ?? s.game_type}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-neon-green">{t.adminOverviewNoOfflineServers}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Recent registrations | Recent audit */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="glass-card rounded-2xl p-5 space-y-3">
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                   <Users className="w-3.5 h-3.5" /> {t.adminOverviewRecentUsers}
@@ -2145,28 +2289,27 @@ export default function AdminPage() {
                   </div>
                 )}
               </div>
-            </div>
 
-            {/* Recent audit */}
-            <div className="glass-card rounded-2xl p-5 space-y-3">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                <ClipboardList className="w-3.5 h-3.5" /> {t.adminOverviewRecentActivity}
-              </h2>
-              {dashboardLoading ? (
-                <div className="space-y-2">{Array.from({length:3}).map((_,i) => <div key={i} className="h-6 bg-white/5 rounded-lg animate-pulse" />)}</div>
-              ) : dashboardData?.recent_audit.length ? (
-                <div className="space-y-2">
-                  {dashboardData.recent_audit.map((e) => (
-                    <div key={e.id} className="flex items-start justify-between gap-2 text-xs">
-                      <span className="text-muted-foreground">{e.actor_name}</span>
-                      <span className="flex-1 text-foreground/70 truncate">{e.action} {e.entity_type} {e.details ? `· ${e.details.slice(0,40)}` : ""}</span>
-                      <span className="text-muted-foreground whitespace-nowrap">{new Date(e.created_at).toLocaleDateString()}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground">{t.adminOverviewNoActivity}</p>
-              )}
+              <div className="glass-card rounded-2xl p-5 space-y-3">
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                  <ClipboardList className="w-3.5 h-3.5" /> {t.adminOverviewRecentActivity}
+                </h2>
+                {dashboardLoading ? (
+                  <div className="space-y-2">{Array.from({length:3}).map((_,i) => <div key={i} className="h-6 bg-white/5 rounded-lg animate-pulse" />)}</div>
+                ) : dashboardData?.recent_audit.length ? (
+                  <div className="space-y-2">
+                    {dashboardData.recent_audit.map((e) => (
+                      <div key={e.id} className="flex items-start justify-between gap-2 text-xs">
+                        <span className="text-muted-foreground whitespace-nowrap">{e.actor_name}</span>
+                        <span className="flex-1 text-foreground/70 truncate">{e.action} {e.entity_type}{e.details ? ` · ${e.details.slice(0,30)}` : ""}</span>
+                        <span className="text-muted-foreground whitespace-nowrap">{new Date(e.created_at).toLocaleDateString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">{t.adminOverviewNoActivity}</p>
+                )}
+              </div>
             </div>
 
             {/* System Health */}
@@ -2175,13 +2318,19 @@ export default function AdminPage() {
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                   <Cpu className="w-3.5 h-3.5" /> {t.adminHealthTitle}
                 </h2>
-                <button
-                  onClick={() => { setHealthLoading(true); api.getSystemHealth().then(setHealth).catch(()=>{}).finally(()=>setHealthLoading(false)); }}
-                  disabled={healthLoading}
-                  className="text-xs text-neon-blue hover:underline disabled:opacity-50"
-                >
-                  {healthLoading ? "…" : <RefreshCw className="w-3 h-3" />}
-                </button>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-muted-foreground">{t.adminHealthRefreshIn} {healthCountdown}s</span>
+                  <div className="w-16 h-1 bg-white/10 rounded-full overflow-hidden">
+                    <div className="h-full bg-neon-blue rounded-full transition-all duration-1000" style={{width: `${(healthCountdown / 15) * 100}%`}} />
+                  </div>
+                  <button
+                    onClick={() => { setHealthLoading(true); setHealthCountdown(15); api.getSystemHealth().then(setHealth).catch(()=>{}).finally(()=>setHealthLoading(false)); }}
+                    disabled={healthLoading}
+                    className="text-xs text-neon-blue hover:underline disabled:opacity-50"
+                  >
+                    {healthLoading ? "…" : <RefreshCw className="w-3 h-3" />}
+                  </button>
+                </div>
               </div>
               {health ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
@@ -2251,7 +2400,7 @@ export default function AdminPage() {
             {users.length > 0 && (
               <div className="glass-card rounded-2xl p-5 space-y-3">
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  {locale === "ru" ? "Регистрации по неделям" : "Registrations by week"}
+                  {t.adminStatsRegByWeek}
                 </h2>
                 <div className="h-40">
                   <ResponsiveContainer width="100%" height="100%">
@@ -2270,7 +2419,7 @@ export default function AdminPage() {
                         labelStyle={{ color: "hsl(var(--muted-foreground))" }}
                         itemStyle={{ color: "#00d4ff" }}
                       />
-                      <Area type="monotone" dataKey="count" stroke="#00d4ff" strokeWidth={2} fill="url(#regGrad)" dot={false} name={locale === "ru" ? "Регистрации" : "Registrations"} />
+                      <Area type="monotone" dataKey="count" stroke="#00d4ff" strokeWidth={2} fill="url(#regGrad)" dot={false} name={t.chartLabelRegistrations} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
@@ -2281,7 +2430,7 @@ export default function AdminPage() {
             {gameTypeDist.length > 0 && (
               <div className="glass-card rounded-2xl p-5 space-y-3">
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  {locale === "ru" ? "Серверы по типу игры" : "Servers by game type"}
+                  {t.adminStatsGameDist}
                 </h2>
                 <div className="h-40">
                   <ResponsiveContainer width="100%" height="100%">
@@ -2294,7 +2443,7 @@ export default function AdminPage() {
                         labelStyle={{ color: "hsl(var(--muted-foreground))" }}
                         itemStyle={{ color: "#a855f7" }}
                       />
-                      <Bar dataKey="count" fill="#a855f7" fillOpacity={0.8} radius={[4, 4, 0, 0]} name={locale === "ru" ? "Серверов" : "Servers"} />
+                      <Bar dataKey="count" fill="#a855f7" fillOpacity={0.8} radius={[4, 4, 0, 0]} name={t.chartLabelServers} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
