@@ -269,7 +269,7 @@ export default function VRisingMap({ serverId }: { serverId: number }) {
               return (
                 <g key={`fp-${i}`}
                   style={{ cursor: "pointer" }}
-                  onMouseMove={(e) => showTooltip(e, t.vRisingMapFreePlot)}
+                  onMouseMove={(e) => showTooltip(e, `${t.vRisingMapFreePlot} (${Math.round(plot.x)}, ${Math.round(plot.z)})`)}
                   onMouseLeave={hideTooltip}
                 >
                   {vRisingFreePlotIconURL ? (
