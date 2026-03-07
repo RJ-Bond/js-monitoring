@@ -67,5 +67,7 @@ func AutoMigrate() error {
 		&models.DiscordEmbed{},
 		&models.VRisingMapData{},
 		&models.VRisingServerEvent{},
+		&models.VRisingBan{},
+		&models.VRisingModCommand{},
 	)
 }

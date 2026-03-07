@@ -32,6 +32,17 @@ export interface VRisingMapData {
   stale_data: boolean;
 }
 
+export interface VRisingBan {
+  id: number;
+  server_id: number;
+  steam_id: string;
+  name: string;
+  reason: string;
+  banned_by: string;
+  banned_at: string;
+  expires_at: string | null;
+}
+
 export interface NewsPage {
   items: NewsItem[];
   total: number;
@@ -386,4 +397,12 @@ export const api = {
 
   getDashboard: () => fetchJSON<DashboardData>("/api/v1/admin/dashboard"),
   getSystemHealth: () => fetchJSON<SystemHealth>("/api/v1/admin/health"),
+
+  // V Rising moderation (admin)
+  getVRisingBans: (serverID: number) =>
+    fetchJSON<VRisingBan[]>(`/api/v1/admin/vrising/${serverID}/bans`),
+  queueModCommand: (serverID: number, data: { type: string; player_name?: string; steam_id?: string; reason?: string; duration_seconds?: number }) =>
+    fetchJSON<{ ok: boolean; id: number }>(`/api/v1/admin/vrising/${serverID}/mod-command`, { method: "POST", body: JSON.stringify(data) }),
+  unbanPlayer: (serverID: number, steamID: string) =>
+    fetchJSON<{ ok: boolean }>(`/api/v1/admin/vrising/${serverID}/bans/${steamID}`, { method: "DELETE" }),
 };

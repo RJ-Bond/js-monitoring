@@ -37,12 +37,23 @@ type VRisingFreePlot struct {
 	Z float32 `json:"z"`
 }
 
+// VRisingBanPayload — запись бана от плагина
+type VRisingBanPayload struct {
+	SteamID   string  `json:"steam_id"`
+	Name      string  `json:"name"`
+	Reason    string  `json:"reason"`
+	BannedBy  string  `json:"banned_by"`
+	BannedAt  int64   `json:"banned_at"`  // Unix seconds
+	ExpiresAt *int64  `json:"expires_at"` // nil = permanent
+}
+
 // VRisingMapPayload — данные, присылаемые плагином
 type VRisingMapPayload struct {
-	ServerID  int               `json:"server_id"`
-	Players   []VRisingPlayer   `json:"players"`
-	Castles   []VRisingCastle   `json:"castles"`
-	FreePlots []VRisingFreePlot `json:"free_plots,omitempty"`
+	ServerID  int                 `json:"server_id"`
+	Players   []VRisingPlayer     `json:"players"`
+	Castles   []VRisingCastle     `json:"castles"`
+	FreePlots []VRisingFreePlot   `json:"free_plots,omitempty"`
+	Bans      []VRisingBanPayload `json:"bans,omitempty"`
 }
 
 // VRisingMapResponse — ответ на запрос карты с метаинформацией
@@ -85,7 +96,6 @@ func PushVRisingMap(c echo.Context) error {
 	var existing models.VRisingMapData
 	result := database.DB.Where("server_id = ?", payload.ServerID).First(&existing)
 	if result.Error != nil {
-		// Создаём новую запись
 		newData := models.VRisingMapData{
 			ServerID:  uint(payload.ServerID),
 			Data:      string(dataJSON),
@@ -93,14 +103,19 @@ func PushVRisingMap(c echo.Context) error {
 		}
 		database.DB.Create(&newData)
 	} else {
-		// Обновляем существующую
 		database.DB.Model(&existing).Updates(map[string]interface{}{
 			"data":       string(dataJSON),
 			"updated_at": time.Now(),
 		})
 	}
 
-	return c.JSON(http.StatusOK, echo.Map{"ok": true})
+	// Синхронизируем список банов от плагина
+	syncBans(uint(payload.ServerID), payload.Bans)
+
+	// Возвращаем очередь ожидающих команд и сразу помечаем их как выполненные
+	commands := fetchAndAckCommands(uint(payload.ServerID))
+
+	return c.JSON(http.StatusOK, echo.Map{"ok": true, "commands": commands})
 }
 
 // ── Events ────────────────────────────────────────────────────────────────────

@@ -2040,6 +2040,15 @@ export default function AdminPage() {
                           </td>
                           <td className="px-5 py-3">
                             <div className="flex justify-end gap-1">
+                              {s.game_type === "vrising" && (
+                                <button
+                                  onClick={() => router.push(`/admin/vrising/${s.id}/bans`)}
+                                  title="V Rising Bans"
+                                  className="p-2 rounded-xl text-muted-foreground hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                                >
+                                  <Ban className="w-4 h-4" />
+                                </button>
+                              )}
                               <button
                                 onClick={() => { setDiscordServerID(s.id); setDiscordServerName(s.title || s.ip); }}
                                 title={t.discordTitle}

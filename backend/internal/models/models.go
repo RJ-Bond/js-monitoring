@@ -209,6 +209,34 @@ type VRisingServerEvent struct {
 	CreatedAt time.Time `                                 json:"created_at"`
 }
 
+// VRisingBan — запись о бане игрока, синхронизируется из плагина
+type VRisingBan struct {
+	ID        uint       `gorm:"primaryKey;autoIncrement"                         json:"id"`
+	ServerID  uint       `gorm:"uniqueIndex:idx_vrban_server_steam;index;not null" json:"server_id"`
+	SteamID   string     `gorm:"uniqueIndex:idx_vrban_server_steam;type:varchar(32);not null" json:"steam_id"`
+	Name      string     `gorm:"type:varchar(100)"                                json:"name"`
+	Reason    string     `gorm:"type:varchar(500)"                                json:"reason"`
+	BannedBy  string     `gorm:"type:varchar(100)"                                json:"banned_by"`
+	BannedAt  time.Time  `gorm:"not null"                                         json:"banned_at"`
+	ExpiresAt *time.Time `                                                         json:"expires_at"` // nil = permanent
+	CreatedAt time.Time  `                                                         json:"created_at"`
+	UpdatedAt time.Time  `                                                         json:"updated_at"`
+}
+
+// VRisingModCommand — команда модерации из веб-панели, ожидает выполнения плагином
+type VRisingModCommand struct {
+	ID              uint       `gorm:"primaryKey;autoIncrement" json:"id"`
+	ServerID        uint       `gorm:"index;not null"           json:"server_id"`
+	Type            string     `gorm:"type:varchar(20)"         json:"type"`          // kick | ban | unban
+	PlayerName      string     `gorm:"type:varchar(100)"        json:"player_name"`
+	SteamID         string     `gorm:"type:varchar(32)"         json:"steam_id"`
+	Reason          string     `gorm:"type:varchar(500)"        json:"reason"`
+	DurationSeconds int64      `gorm:"default:0"                json:"duration_seconds"`
+	IssuedBy        string     `gorm:"type:varchar(100)"        json:"issued_by"`
+	CreatedAt       time.Time  `                                json:"created_at"`
+	ExecutedAt      *time.Time `                                json:"executed_at"`
+}
+
 // PasswordReset — токен для сброса пароля (генерируется администратором)
 type PasswordReset struct {
 	ID        uint      `gorm:"primaryKey;autoIncrement"`

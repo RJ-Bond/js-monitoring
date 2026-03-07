@@ -187,6 +187,10 @@ func main() {
 	admin.POST("/restore", api.RestoreBackup)
 	admin.GET("/dashboard", api.GetDashboard)
 	admin.GET("/health", api.GetSystemHealth)
+	// V Rising moderation
+	admin.GET("/vrising/:serverID/bans", api.GetVRisingBans)
+	admin.POST("/vrising/:serverID/mod-command", api.QueueVRisingModCommand)
+	admin.DELETE("/vrising/:serverID/bans/:steamID", api.UnbanVRisingPlayer)
 
 	// ── Graceful shutdown context ─────────────────────────────────────────────
 	ctx, cancel := context.WithCancel(context.Background())
