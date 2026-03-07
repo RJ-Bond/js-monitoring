@@ -18,7 +18,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useSiteSettings } from "@/contexts/SiteSettingsContext";
-import { api, type AdminSiteSettings, type SSLStatus, type DashboardData, type SystemHealth } from "@/lib/api";
+import { api, type AdminSiteSettings, type SSLStatus, type DashboardData, type SystemHealth, type VRisingPlayer } from "@/lib/api";
 import { toast } from "@/lib/toast";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -53,6 +53,14 @@ function UserAvatar({ username, role }: { username: string; role: string }) {
       {username[0]?.toUpperCase() ?? "?"}
     </div>
   );
+}
+
+function parseModDuration(s: string): number {
+  const t = s.trim().toLowerCase();
+  if (t === "0" || t === "" || t === "permanent") return 0;
+  const m = t.match(/^(\d+)([hd])$/);
+  if (!m) return 0;
+  return parseInt(m[1], 10) * (m[2] === "h" ? 3600 : 86400);
 }
 
 // Audit action badge color
@@ -1205,6 +1213,52 @@ export default function AdminPage() {
   const [discordServerID, setDiscordServerID] = useState<number | null>(null);
   const [discordServerName, setDiscordServerName] = useState("");
 
+  // V Rising moderation modal
+  const [modServerID,   setModServerID]   = useState<number | null>(null);
+  const [modServerName, setModServerName] = useState("");
+  const [modPlayers,    setModPlayers]    = useState<VRisingPlayer[]>([]);
+  const [modLoading,    setModLoading]    = useState(false);
+  const [modTarget,     setModTarget]     = useState<{ player: VRisingPlayer; mode: "kick" | "ban" } | null>(null);
+  const [modReason,     setModReason]     = useState("");
+  const [modDuration,   setModDuration]   = useState("0");
+  const [modCmdLoading, setModCmdLoading] = useState(false);
+
+  const openModPanel = async (serverId: number, serverName: string) => {
+    setModServerID(serverId);
+    setModServerName(serverName);
+    setModPlayers([]);
+    setModTarget(null);
+    setModLoading(true);
+    try {
+      const d = await api.getVRisingMap(serverId);
+      setModPlayers(d.players ?? []);
+    } catch {
+      toast("Failed to load players", "error");
+    } finally {
+      setModLoading(false);
+    }
+  };
+
+  const executeModCmd = async () => {
+    if (!modTarget || !modServerID) return;
+    setModCmdLoading(true);
+    try {
+      const durSec = modTarget.mode === "ban" ? parseModDuration(modDuration) : 0;
+      await api.queueModCommand(modServerID, {
+        type: modTarget.mode,
+        player_name: modTarget.player.name,
+        reason: modReason || undefined,
+        duration_seconds: durSec,
+      });
+      toast(`${modTarget.mode === "kick" ? "Kick" : "Ban"} queued for ${modTarget.player.name}`);
+      setModTarget(null);
+    } catch {
+      toast("Failed to queue command", "error");
+    } finally {
+      setModCmdLoading(false);
+    }
+  };
+
   // Reset link modal
   const [resetLink, setResetLink] = useState("");
   const [resetLinkCopied, setResetLinkCopied] = useState(false);
@@ -2041,13 +2095,22 @@ export default function AdminPage() {
                           <td className="px-5 py-3">
                             <div className="flex justify-end gap-1">
                               {s.game_type === "vrising" && (
-                                <button
-                                  onClick={() => router.push(`/admin/vrising/${s.id}/bans`)}
-                                  title="V Rising Bans"
-                                  className="p-2 rounded-xl text-muted-foreground hover:text-red-400 hover:bg-red-400/10 transition-colors"
-                                >
-                                  <Ban className="w-4 h-4" />
-                                </button>
+                                <>
+                                  <button
+                                    onClick={() => openModPanel(s.id, s.title || s.ip)}
+                                    title="Online Players / Kick & Ban"
+                                    className="p-2 rounded-xl text-muted-foreground hover:text-yellow-400 hover:bg-yellow-400/10 transition-colors"
+                                  >
+                                    <Shield className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => router.push(`/admin/vrising/${s.id}/bans`)}
+                                    title="V Rising Ban List"
+                                    className="p-2 rounded-xl text-muted-foreground hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                                  >
+                                    <Ban className="w-4 h-4" />
+                                  </button>
+                                </>
                               )}
                               <button
                                 onClick={() => { setDiscordServerID(s.id); setDiscordServerName(s.title || s.ip); }}
@@ -2929,6 +2992,111 @@ export default function AdminPage() {
           serverName={discordServerName}
           onClose={() => { setDiscordServerID(null); setDiscordServerName(""); }}
         />
+      )}
+
+      {/* V Rising moderation panel */}
+      {modServerID !== null && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={(e) => { if (e.target === e.currentTarget && !modTarget) { setModServerID(null); setModPlayers([]); } }}
+        >
+          <div className="w-full max-w-lg glass-card rounded-2xl overflow-hidden shadow-2xl animate-fade-in">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+              <div className="flex items-center gap-2">
+                <Shield className="w-4 h-4 text-yellow-400" />
+                <h2 className="font-bold text-sm">Online Players — {modServerName}</h2>
+              </div>
+              <button
+                onClick={() => { setModServerID(null); setModPlayers([]); setModTarget(null); }}
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="px-5 py-4 max-h-[60vh] overflow-y-auto">
+              {modLoading ? (
+                <p className="text-sm text-muted-foreground text-center py-6 animate-pulse">Loading players...</p>
+              ) : modPlayers.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">No players online.</p>
+              ) : (
+                <div className="divide-y divide-white/5">
+                  {modPlayers.map((p, i) => (
+                    <div key={i} className="flex items-center justify-between py-2.5 gap-3">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-medium text-sm truncate">{p.name}</span>
+                        {p.clan && <span className="text-xs text-muted-foreground">[{p.clan}]</span>}
+                        {p.is_admin && <span className="text-xs text-yellow-400">admin</span>}
+                      </div>
+                      <div className="flex gap-1.5 flex-shrink-0">
+                        <button
+                          onClick={() => { setModTarget({ player: p, mode: "kick" }); setModReason(""); }}
+                          className="px-2.5 py-1 rounded-lg text-xs bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400 transition-colors"
+                        >
+                          Kick
+                        </button>
+                        <button
+                          onClick={() => { setModTarget({ player: p, mode: "ban" }); setModReason(""); setModDuration("0"); }}
+                          className="px-2.5 py-1 rounded-lg text-xs bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-colors"
+                        >
+                          Ban
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Confirm action sub-panel */}
+            {modTarget && (
+              <div className="border-t border-white/10 px-5 py-4 space-y-3 bg-white/3">
+                <p className="text-sm font-medium flex items-center gap-2">
+                  {modTarget.mode === "kick"
+                    ? <><UserX className="w-4 h-4 text-yellow-400" /> Kick <span className="text-yellow-400">{modTarget.player.name}</span></>
+                    : <><Ban className="w-4 h-4 text-red-400" /> Ban <span className="text-red-400">{modTarget.player.name}</span></>
+                  }
+                </p>
+                <input
+                  type="text"
+                  value={modReason}
+                  onChange={e => setModReason(e.target.value)}
+                  placeholder="Reason (optional)"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:border-white/30 transition-colors"
+                />
+                {modTarget.mode === "ban" && (
+                  <input
+                    type="text"
+                    value={modDuration}
+                    onChange={e => setModDuration(e.target.value)}
+                    placeholder="Duration: 0 = permanent, 1h, 7d"
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:border-white/30 transition-colors"
+                  />
+                )}
+                <div className="flex gap-2 justify-end">
+                  <button
+                    onClick={() => setModTarget(null)}
+                    disabled={modCmdLoading}
+                    className="px-4 py-2 rounded-lg text-sm bg-white/5 hover:bg-white/10 transition-colors disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={executeModCmd}
+                    disabled={modCmdLoading}
+                    className={`px-4 py-2 rounded-lg text-sm transition-colors disabled:opacity-50 ${
+                      modTarget.mode === "kick"
+                        ? "bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400"
+                        : "bg-red-500/20 hover:bg-red-500/30 text-red-400"
+                    }`}
+                  >
+                    {modCmdLoading ? "Sending..." : modTarget.mode === "kick" ? "Kick" : "Ban"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {userDetailUser && (
