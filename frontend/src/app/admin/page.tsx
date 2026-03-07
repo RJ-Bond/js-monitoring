@@ -1233,7 +1233,7 @@ export default function AdminPage() {
       const d = await api.getVRisingMap(serverId);
       setModPlayers(d.players ?? []);
     } catch {
-      toast("Failed to load players", "error");
+      toast("Не удалось загрузить игроков", "error");
     } finally {
       setModLoading(false);
     }
@@ -1250,10 +1250,10 @@ export default function AdminPage() {
         reason: modReason || undefined,
         duration_seconds: durSec,
       });
-      toast(`${modTarget.mode === "kick" ? "Kick" : "Ban"} queued for ${modTarget.player.name}`);
+      toast(`${modTarget.mode === "kick" ? "Кик" : "Бан"} отправлен для ${modTarget.player.name}`);
       setModTarget(null);
     } catch {
-      toast("Failed to queue command", "error");
+      toast("Не удалось отправить команду", "error");
     } finally {
       setModCmdLoading(false);
     }
@@ -2096,35 +2096,35 @@ export default function AdminPage() {
                             <div className="flex justify-end gap-1">
                               <button
                                 onClick={() => openModPanel(s.id, s.title || s.ip)}
-                                title="Online Players / Kick & Ban"
+                                title="Онлайн игроки / Кик и Бан"
                                 className="p-2 rounded-xl text-muted-foreground hover:text-yellow-400 hover:bg-yellow-400/10 transition-colors"
                               >
                                 <Shield className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={() => router.push(`/admin/vrising/${s.id}/bans`)}
-                                title="Ban List"
+                                title="Список банов"
                                 className="p-2 rounded-xl text-muted-foreground hover:text-red-400 hover:bg-red-400/10 transition-colors"
                               >
                                 <Ban className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={() => router.push(`/admin/vrising/${s.id}/mutes`)}
-                                title="Mute List"
+                                title="Список мутов"
                                 className="p-2 rounded-xl text-muted-foreground hover:text-orange-400 hover:bg-orange-400/10 transition-colors"
                               >
                                 <UserX className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={() => router.push(`/admin/vrising/${s.id}/warnings`)}
-                                title="Warnings"
+                                title="Предупреждения"
                                 className="p-2 rounded-xl text-muted-foreground hover:text-yellow-400 hover:bg-yellow-400/10 transition-colors"
                               >
                                 <AlertTriangle className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={() => router.push(`/admin/vrising/${s.id}/modlog`)}
-                                title="Moderation Log"
+                                title="Журнал модерации"
                                 className="p-2 rounded-xl text-muted-foreground hover:text-blue-400 hover:bg-blue-400/10 transition-colors"
                               >
                                 <ClipboardList className="w-4 h-4" />
@@ -3021,7 +3021,7 @@ export default function AdminPage() {
             <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
               <div className="flex items-center gap-2">
                 <Shield className="w-4 h-4 text-yellow-400" />
-                <h2 className="font-bold text-sm">Online Players — {modServerName}</h2>
+                <h2 className="font-bold text-sm">Онлайн игроки — {modServerName}</h2>
               </div>
               <button
                 onClick={() => { setModServerID(null); setModPlayers([]); setModTarget(null); }}
@@ -3033,9 +3033,9 @@ export default function AdminPage() {
 
             <div className="px-5 py-4 max-h-[60vh] overflow-y-auto">
               {modLoading ? (
-                <p className="text-sm text-muted-foreground text-center py-6 animate-pulse">Loading players...</p>
+                <p className="text-sm text-muted-foreground text-center py-6 animate-pulse">Загрузка игроков...</p>
               ) : modPlayers.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">No players online.</p>
+                <p className="text-sm text-muted-foreground text-center py-6">Нет игроков онлайн.</p>
               ) : (
                 <div className="divide-y divide-white/5">
                   {modPlayers.map((p, i) => (
@@ -3050,13 +3050,13 @@ export default function AdminPage() {
                           onClick={() => { setModTarget({ player: p, mode: "kick" }); setModReason(""); }}
                           className="px-2.5 py-1 rounded-lg text-xs bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400 transition-colors"
                         >
-                          Kick
+                          Кик
                         </button>
                         <button
                           onClick={() => { setModTarget({ player: p, mode: "ban" }); setModReason(""); setModDuration("0"); }}
                           className="px-2.5 py-1 rounded-lg text-xs bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-colors"
                         >
-                          Ban
+                          Бан
                         </button>
                       </div>
                     </div>
@@ -3070,15 +3070,15 @@ export default function AdminPage() {
               <div className="border-t border-white/10 px-5 py-4 space-y-3 bg-white/3">
                 <p className="text-sm font-medium flex items-center gap-2">
                   {modTarget.mode === "kick"
-                    ? <><UserX className="w-4 h-4 text-yellow-400" /> Kick <span className="text-yellow-400">{modTarget.player.name}</span></>
-                    : <><Ban className="w-4 h-4 text-red-400" /> Ban <span className="text-red-400">{modTarget.player.name}</span></>
+                    ? <><UserX className="w-4 h-4 text-yellow-400" /> Кикнуть <span className="text-yellow-400">{modTarget.player.name}</span></>
+                    : <><Ban className="w-4 h-4 text-red-400" /> Забанить <span className="text-red-400">{modTarget.player.name}</span></>
                   }
                 </p>
                 <input
                   type="text"
                   value={modReason}
                   onChange={e => setModReason(e.target.value)}
-                  placeholder="Reason (optional)"
+                  placeholder="Причина (необязательно)"
                   className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:border-white/30 transition-colors"
                 />
                 {modTarget.mode === "ban" && (
@@ -3086,7 +3086,7 @@ export default function AdminPage() {
                     type="text"
                     value={modDuration}
                     onChange={e => setModDuration(e.target.value)}
-                    placeholder="Duration: 0 = permanent, 1h, 7d"
+                    placeholder="Длительность: 0 = навсегда, 1h, 7d"
                     className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:border-white/30 transition-colors"
                   />
                 )}
@@ -3096,7 +3096,7 @@ export default function AdminPage() {
                     disabled={modCmdLoading}
                     className="px-4 py-2 rounded-lg text-sm bg-white/5 hover:bg-white/10 transition-colors disabled:opacity-50"
                   >
-                    Cancel
+                    Отмена
                   </button>
                   <button
                     onClick={executeModCmd}
@@ -3107,7 +3107,7 @@ export default function AdminPage() {
                         : "bg-red-500/20 hover:bg-red-500/30 text-red-400"
                     }`}
                   >
-                    {modCmdLoading ? "Sending..." : modTarget.mode === "kick" ? "Kick" : "Ban"}
+                    {modCmdLoading ? "Отправка..." : modTarget.mode === "kick" ? "Кикнуть" : "Забанить"}
                   </button>
                 </div>
               </div>

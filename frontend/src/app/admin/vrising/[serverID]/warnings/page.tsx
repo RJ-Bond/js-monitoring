@@ -39,7 +39,7 @@ export default function VRisingWarningsPage({ params }: { params: Promise<{ serv
       const data = await api.getVRisingWarnings(serverId);
       setWarnings(data ?? []);
     } catch {
-      toast("Failed to load warnings", "error");
+      toast("Не удалось загрузить предупреждения", "error");
     } finally {
       setLoading(false);
     }
@@ -53,10 +53,10 @@ export default function VRisingWarningsPage({ params }: { params: Promise<{ serv
   const handleDelete = async (warn: VRisingWarning) => {
     try {
       await api.deleteWarning(serverId, warn.id);
-      toast(`Deleted warning for ${warn.name || warn.steam_id}`);
+      toast(`Предупреждение удалено для ${warn.name || warn.steam_id}`);
       setWarnings(prev => prev.filter(w => w.id !== warn.id));
     } catch {
-      toast("Failed to delete warning", "error");
+      toast("Не удалось удалить предупреждение", "error");
     } finally {
       setDeleteTarget(null);
     }
@@ -76,12 +76,12 @@ export default function VRisingWarningsPage({ params }: { params: Promise<{ serv
               className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
             >
               <ArrowLeft size={14} />
-              Admin
+              Админ
             </button>
             <span className="text-muted-foreground/40">/</span>
             <span className="text-sm flex items-center gap-1.5">
               <AlertTriangle size={14} className="text-yellow-400" />
-              V Rising Warnings — Server #{serverId}
+              V Rising Предупреждения — Сервер #{serverId}
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -96,10 +96,10 @@ export default function VRisingWarningsPage({ params }: { params: Promise<{ serv
           <div>
             <h1 className="text-xl font-bold flex items-center gap-2">
               <AlertTriangle size={20} className="text-yellow-400" />
-              Warning List
+              Список предупреждений
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Warnings are synced from the game server plugin. 3 warnings = auto-ban.
+              Предупреждения синхронизируются с сервера. 3 предупреждения = автобан.
             </p>
           </div>
           <button
@@ -108,26 +108,26 @@ export default function VRisingWarningsPage({ params }: { params: Promise<{ serv
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-sm transition-colors disabled:opacity-50"
           >
             <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-            Refresh
+            Обновить
           </button>
         </div>
 
         {loading ? (
-          <div className="text-center py-16 text-muted-foreground animate-pulse text-sm">Loading...</div>
+          <div className="text-center py-16 text-muted-foreground animate-pulse text-sm">Загрузка...</div>
         ) : warnings.length === 0 ? (
           <div className="text-center py-16 text-muted-foreground text-sm">
-            No warnings for this server.
+            Нет предупреждений на этом сервере.
           </div>
         ) : (
           <div className="rounded-xl border border-white/10 overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-white/5 text-muted-foreground text-xs uppercase tracking-wide">
-                  <th className="text-left px-4 py-2.5">Player</th>
+                  <th className="text-left px-4 py-2.5">Игрок</th>
                   <th className="text-left px-4 py-2.5 hidden sm:table-cell">Steam ID</th>
-                  <th className="text-left px-4 py-2.5 hidden md:table-cell">Reason</th>
-                  <th className="text-left px-4 py-2.5 hidden lg:table-cell">Warned By</th>
-                  <th className="text-left px-4 py-2.5 hidden lg:table-cell">Warned At</th>
+                  <th className="text-left px-4 py-2.5 hidden md:table-cell">Причина</th>
+                  <th className="text-left px-4 py-2.5 hidden lg:table-cell">Выдал</th>
+                  <th className="text-left px-4 py-2.5 hidden lg:table-cell">Дата</th>
                   <th className="px-4 py-2.5"></th>
                 </tr>
               </thead>
@@ -138,7 +138,7 @@ export default function VRisingWarningsPage({ params }: { params: Promise<{ serv
                     className="border-t border-white/5 hover:bg-white/3 transition-colors"
                   >
                     <td className="px-4 py-3 font-medium">
-                      {warn.name || <span className="text-muted-foreground italic">unknown</span>}
+                      {warn.name || <span className="text-muted-foreground italic">неизвестен</span>}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground font-mono text-xs hidden sm:table-cell">
                       {warn.steam_id}
@@ -156,10 +156,10 @@ export default function VRisingWarningsPage({ params }: { params: Promise<{ serv
                       <button
                         onClick={() => setDeleteTarget(warn)}
                         className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs transition-colors"
-                        title="Delete Warning"
+                        title="Удалить предупреждение"
                       >
                         <Trash2 size={12} />
-                        Delete
+                        Удалить
                       </button>
                     </td>
                   </tr>
@@ -175,10 +175,10 @@ export default function VRisingWarningsPage({ params }: { params: Promise<{ serv
           <div className="bg-card border border-white/10 rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-xl">
             <h2 className="font-bold text-base flex items-center gap-2">
               <AlertTriangle size={18} className="text-yellow-400" />
-              Delete Warning
+              Удалить предупреждение
             </h2>
             <p className="text-sm text-muted-foreground">
-              Are you sure you want to delete the warning for{" "}
+              Вы уверены, что хотите удалить предупреждение для{" "}
               <span className="text-foreground font-semibold">{deleteTarget.name || deleteTarget.steam_id}</span>?
             </p>
             <div className="flex gap-2 justify-end">
@@ -186,13 +186,13 @@ export default function VRisingWarningsPage({ params }: { params: Promise<{ serv
                 onClick={() => setDeleteTarget(null)}
                 className="px-4 py-2 rounded-lg text-sm bg-white/5 hover:bg-white/10 transition-colors"
               >
-                Cancel
+                Отмена
               </button>
               <button
                 onClick={() => handleDelete(deleteTarget)}
                 className="px-4 py-2 rounded-lg text-sm bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-colors"
               >
-                Delete
+                Удалить
               </button>
             </div>
           </div>

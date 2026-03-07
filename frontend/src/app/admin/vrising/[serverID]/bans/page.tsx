@@ -11,11 +11,11 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ThemeToggle from "@/components/ThemeToggle";
 
 function formatExpiry(expiresAt: string | null): string {
-  if (!expiresAt) return "Permanent";
+  if (!expiresAt) return "Навсегда";
   const d = new Date(expiresAt);
-  if (isNaN(d.getTime())) return "Permanent";
+  if (isNaN(d.getTime())) return "Навсегда";
   const now = Date.now();
-  if (d.getTime() < now) return "Expired";
+  if (d.getTime() < now) return "Истёк";
   return d.toLocaleString();
 }
 
@@ -48,7 +48,7 @@ export default function VRisingBansPage({ params }: { params: Promise<{ serverID
       const data = await api.getVRisingBans(serverId);
       setBans(data ?? []);
     } catch {
-      toast("Failed to load bans", "error");
+      toast("Не удалось загрузить баны", "error");
     } finally {
       setLoading(false);
     }
@@ -62,10 +62,10 @@ export default function VRisingBansPage({ params }: { params: Promise<{ serverID
   const handleUnban = async (ban: VRisingBan) => {
     try {
       await api.unbanPlayer(serverId, ban.steam_id);
-      toast(`Unbanned ${ban.name || ban.steam_id}`);
+      toast(`Разбанен ${ban.name || ban.steam_id}`);
       setBans(prev => prev.filter(b => b.id !== ban.id));
     } catch {
-      toast("Failed to unban player", "error");
+      toast("Не удалось разбанить игрока", "error");
     } finally {
       setUnbanTarget(null);
     }
@@ -75,7 +75,6 @@ export default function VRisingBansPage({ params }: { params: Promise<{ serverID
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Top bar */}
       <header className="sticky top-0 z-40 border-b border-white/5 bg-background/80 backdrop-blur-sm">
         <div className="max-w-5xl mx-auto flex items-center justify-between px-4 py-3 gap-4">
           <div className="flex items-center gap-3">
@@ -86,12 +85,12 @@ export default function VRisingBansPage({ params }: { params: Promise<{ serverID
               className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
             >
               <ArrowLeft size={14} />
-              Admin
+              Админ
             </button>
             <span className="text-muted-foreground/40">/</span>
             <span className="text-sm flex items-center gap-1.5">
               <Shield size={14} className="text-neon-green" />
-              V Rising Bans — Server #{serverId}
+              V Rising Баны — Сервер #{serverId}
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -106,10 +105,10 @@ export default function VRisingBansPage({ params }: { params: Promise<{ serverID
           <div>
             <h1 className="text-xl font-bold flex items-center gap-2">
               <UserX size={20} className="text-red-400" />
-              Ban List
+              Список банов
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Bans are synced from the game server plugin automatically.
+              Баны синхронизируются с игрового сервера автоматически.
             </p>
           </div>
           <button
@@ -118,27 +117,27 @@ export default function VRisingBansPage({ params }: { params: Promise<{ serverID
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-sm transition-colors disabled:opacity-50"
           >
             <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-            Refresh
+            Обновить
           </button>
         </div>
 
         {loading ? (
-          <div className="text-center py-16 text-muted-foreground animate-pulse text-sm">Loading...</div>
+          <div className="text-center py-16 text-muted-foreground animate-pulse text-sm">Загрузка...</div>
         ) : bans.length === 0 ? (
           <div className="text-center py-16 text-muted-foreground text-sm">
-            No active bans for this server.
+            Нет активных банов на этом сервере.
           </div>
         ) : (
           <div className="rounded-xl border border-white/10 overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-white/5 text-muted-foreground text-xs uppercase tracking-wide">
-                  <th className="text-left px-4 py-2.5">Player</th>
+                  <th className="text-left px-4 py-2.5">Игрок</th>
                   <th className="text-left px-4 py-2.5 hidden sm:table-cell">Steam ID</th>
-                  <th className="text-left px-4 py-2.5 hidden md:table-cell">Reason</th>
-                  <th className="text-left px-4 py-2.5 hidden lg:table-cell">Banned By</th>
-                  <th className="text-left px-4 py-2.5 hidden lg:table-cell">Banned At</th>
-                  <th className="text-left px-4 py-2.5">Expires</th>
+                  <th className="text-left px-4 py-2.5 hidden md:table-cell">Причина</th>
+                  <th className="text-left px-4 py-2.5 hidden lg:table-cell">Забанил</th>
+                  <th className="text-left px-4 py-2.5 hidden lg:table-cell">Дата бана</th>
+                  <th className="text-left px-4 py-2.5">Истекает</th>
                   <th className="px-4 py-2.5"></th>
                 </tr>
               </thead>
@@ -151,7 +150,7 @@ export default function VRisingBansPage({ params }: { params: Promise<{ serverID
                       className={`border-t border-white/5 hover:bg-white/3 transition-colors ${expired ? "opacity-50" : ""}`}
                     >
                       <td className="px-4 py-3 font-medium">
-                        {ban.name || <span className="text-muted-foreground italic">unknown</span>}
+                        {ban.name || <span className="text-muted-foreground italic">неизвестен</span>}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground font-mono text-xs hidden sm:table-cell">
                         {ban.steam_id}
@@ -175,10 +174,10 @@ export default function VRisingBansPage({ params }: { params: Promise<{ serverID
                         <button
                           onClick={() => setUnbanTarget(ban)}
                           className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs transition-colors"
-                          title="Unban"
+                          title="Разбанить"
                         >
                           <Trash2 size={12} />
-                          Unban
+                          Разбан
                         </button>
                       </td>
                     </tr>
@@ -190,31 +189,30 @@ export default function VRisingBansPage({ params }: { params: Promise<{ serverID
         )}
       </main>
 
-      {/* Confirm unban modal */}
       {unbanTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
           <div className="bg-card border border-white/10 rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-xl">
             <h2 className="font-bold text-base flex items-center gap-2">
               <UserX size={18} className="text-red-400" />
-              Unban Player
+              Разбанить игрока
             </h2>
             <p className="text-sm text-muted-foreground">
-              Are you sure you want to unban{" "}
+              Вы уверены, что хотите разбанить{" "}
               <span className="text-foreground font-semibold">{unbanTarget.name || unbanTarget.steam_id}</span>?
-              This will also queue an unban command to the game server.
+              Команда на разбан будет также отправлена на игровой сервер.
             </p>
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => setUnbanTarget(null)}
                 className="px-4 py-2 rounded-lg text-sm bg-white/5 hover:bg-white/10 transition-colors"
               >
-                Cancel
+                Отмена
               </button>
               <button
                 onClick={() => handleUnban(unbanTarget)}
                 className="px-4 py-2 rounded-lg text-sm bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-colors"
               >
-                Unban
+                Разбанить
               </button>
             </div>
           </div>

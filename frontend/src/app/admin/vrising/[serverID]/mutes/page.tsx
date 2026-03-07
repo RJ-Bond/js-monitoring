@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
-import { Shield, Trash2, RefreshCw, ArrowLeft, VolumeX, Clock } from "lucide-react";
+import { Trash2, RefreshCw, ArrowLeft, VolumeX, Clock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { api, type VRisingMute } from "@/lib/api";
 import { toast } from "@/lib/toast";
@@ -11,10 +11,10 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ThemeToggle from "@/components/ThemeToggle";
 
 function formatExpiry(expiresAt: string | null): string {
-  if (!expiresAt) return "Permanent";
+  if (!expiresAt) return "Навсегда";
   const d = new Date(expiresAt);
-  if (isNaN(d.getTime())) return "Permanent";
-  if (d.getTime() < Date.now()) return "Expired";
+  if (isNaN(d.getTime())) return "Навсегда";
+  if (d.getTime() < Date.now()) return "Истёк";
   return d.toLocaleString();
 }
 
@@ -47,7 +47,7 @@ export default function VRisingMutesPage({ params }: { params: Promise<{ serverI
       const data = await api.getVRisingMutes(serverId);
       setMutes(data ?? []);
     } catch {
-      toast("Failed to load mutes", "error");
+      toast("Не удалось загрузить муты", "error");
     } finally {
       setLoading(false);
     }
@@ -61,10 +61,10 @@ export default function VRisingMutesPage({ params }: { params: Promise<{ serverI
   const handleUnmute = async (mute: VRisingMute) => {
     try {
       await api.unmutePlayer(serverId, mute.steam_id);
-      toast(`Unmuted ${mute.name || mute.steam_id}`);
+      toast(`Размьючен ${mute.name || mute.steam_id}`);
       setMutes(prev => prev.filter(m => m.id !== mute.id));
     } catch {
-      toast("Failed to unmute player", "error");
+      toast("Не удалось размьютить игрока", "error");
     } finally {
       setUnmuteTarget(null);
     }
@@ -84,12 +84,12 @@ export default function VRisingMutesPage({ params }: { params: Promise<{ serverI
               className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
             >
               <ArrowLeft size={14} />
-              Admin
+              Админ
             </button>
             <span className="text-muted-foreground/40">/</span>
             <span className="text-sm flex items-center gap-1.5">
               <VolumeX size={14} className="text-orange-400" />
-              V Rising Mutes — Server #{serverId}
+              V Rising Муты — Сервер #{serverId}
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -104,10 +104,10 @@ export default function VRisingMutesPage({ params }: { params: Promise<{ serverI
           <div>
             <h1 className="text-xl font-bold flex items-center gap-2">
               <VolumeX size={20} className="text-orange-400" />
-              Mute List
+              Список мутов
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Mutes are synced from the game server plugin automatically.
+              Муты синхронизируются с игрового сервера автоматически.
             </p>
           </div>
           <button
@@ -116,27 +116,27 @@ export default function VRisingMutesPage({ params }: { params: Promise<{ serverI
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-sm transition-colors disabled:opacity-50"
           >
             <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-            Refresh
+            Обновить
           </button>
         </div>
 
         {loading ? (
-          <div className="text-center py-16 text-muted-foreground animate-pulse text-sm">Loading...</div>
+          <div className="text-center py-16 text-muted-foreground animate-pulse text-sm">Загрузка...</div>
         ) : mutes.length === 0 ? (
           <div className="text-center py-16 text-muted-foreground text-sm">
-            No active mutes for this server.
+            Нет активных мутов на этом сервере.
           </div>
         ) : (
           <div className="rounded-xl border border-white/10 overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-white/5 text-muted-foreground text-xs uppercase tracking-wide">
-                  <th className="text-left px-4 py-2.5">Player</th>
+                  <th className="text-left px-4 py-2.5">Игрок</th>
                   <th className="text-left px-4 py-2.5 hidden sm:table-cell">Steam ID</th>
-                  <th className="text-left px-4 py-2.5 hidden md:table-cell">Reason</th>
-                  <th className="text-left px-4 py-2.5 hidden lg:table-cell">Muted By</th>
-                  <th className="text-left px-4 py-2.5 hidden lg:table-cell">Muted At</th>
-                  <th className="text-left px-4 py-2.5">Expires</th>
+                  <th className="text-left px-4 py-2.5 hidden md:table-cell">Причина</th>
+                  <th className="text-left px-4 py-2.5 hidden lg:table-cell">Замьютил</th>
+                  <th className="text-left px-4 py-2.5 hidden lg:table-cell">Дата мута</th>
+                  <th className="text-left px-4 py-2.5">Истекает</th>
                   <th className="px-4 py-2.5"></th>
                 </tr>
               </thead>
@@ -149,7 +149,7 @@ export default function VRisingMutesPage({ params }: { params: Promise<{ serverI
                       className={`border-t border-white/5 hover:bg-white/3 transition-colors ${expired ? "opacity-50" : ""}`}
                     >
                       <td className="px-4 py-3 font-medium">
-                        {mute.name || <span className="text-muted-foreground italic">unknown</span>}
+                        {mute.name || <span className="text-muted-foreground italic">неизвестен</span>}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground font-mono text-xs hidden sm:table-cell">
                         {mute.steam_id}
@@ -173,10 +173,10 @@ export default function VRisingMutesPage({ params }: { params: Promise<{ serverI
                         <button
                           onClick={() => setUnmuteTarget(mute)}
                           className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 text-xs transition-colors"
-                          title="Unmute"
+                          title="Размьютить"
                         >
                           <Trash2 size={12} />
-                          Unmute
+                          Размут
                         </button>
                       </td>
                     </tr>
@@ -193,25 +193,25 @@ export default function VRisingMutesPage({ params }: { params: Promise<{ serverI
           <div className="bg-card border border-white/10 rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-xl">
             <h2 className="font-bold text-base flex items-center gap-2">
               <VolumeX size={18} className="text-orange-400" />
-              Unmute Player
+              Размьютить игрока
             </h2>
             <p className="text-sm text-muted-foreground">
-              Are you sure you want to unmute{" "}
+              Вы уверены, что хотите размьютить{" "}
               <span className="text-foreground font-semibold">{unmuteTarget.name || unmuteTarget.steam_id}</span>?
-              This will also queue an unmute command to the game server.
+              Команда на размут будет также отправлена на игровой сервер.
             </p>
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => setUnmuteTarget(null)}
                 className="px-4 py-2 rounded-lg text-sm bg-white/5 hover:bg-white/10 transition-colors"
               >
-                Cancel
+                Отмена
               </button>
               <button
                 onClick={() => handleUnmute(unmuteTarget)}
                 className="px-4 py-2 rounded-lg text-sm bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 transition-colors"
               >
-                Unmute
+                Размьютить
               </button>
             </div>
           </div>

@@ -18,14 +18,14 @@ function formatDate(iso: string): string {
 
 function eventBadge(message: string): { label: string; color: string } {
   const lower = message.toLowerCase();
-  if (lower.includes("ban")) return { label: "BAN", color: "text-red-400 bg-red-400/10" };
-  if (lower.includes("unban")) return { label: "UNBAN", color: "text-green-400 bg-green-400/10" };
-  if (lower.includes("kick")) return { label: "KICK", color: "text-orange-400 bg-orange-400/10" };
-  if (lower.includes("mute")) return { label: "MUTE", color: "text-yellow-400 bg-yellow-400/10" };
-  if (lower.includes("unmute")) return { label: "UNMUTE", color: "text-teal-400 bg-teal-400/10" };
-  if (lower.includes("warn")) return { label: "WARN", color: "text-amber-400 bg-amber-400/10" };
-  if (lower.includes("filter")) return { label: "FILTER", color: "text-purple-400 bg-purple-400/10" };
-  return { label: "MOD", color: "text-blue-400 bg-blue-400/10" };
+  if (lower.includes("unban")) return { label: "РАЗБАН", color: "text-green-400 bg-green-400/10" };
+  if (lower.includes("ban")) return { label: "БАН", color: "text-red-400 bg-red-400/10" };
+  if (lower.includes("kick")) return { label: "КИК", color: "text-orange-400 bg-orange-400/10" };
+  if (lower.includes("unmute")) return { label: "РАЗМУТ", color: "text-teal-400 bg-teal-400/10" };
+  if (lower.includes("mute")) return { label: "МУТ", color: "text-yellow-400 bg-yellow-400/10" };
+  if (lower.includes("warn")) return { label: "ВАРН", color: "text-amber-400 bg-amber-400/10" };
+  if (lower.includes("filter")) return { label: "ФИЛЬТР", color: "text-purple-400 bg-purple-400/10" };
+  return { label: "МОД", color: "text-blue-400 bg-blue-400/10" };
 }
 
 export default function VRisingModLogPage({ params }: { params: Promise<{ serverID: string }> }) {
@@ -50,7 +50,7 @@ export default function VRisingModLogPage({ params }: { params: Promise<{ server
       const data = await api.getVRisingModLog(serverId);
       setEvents(data ?? []);
     } catch {
-      toast("Failed to load moderation log", "error");
+      toast("Не удалось загрузить журнал модерации", "error");
     } finally {
       setLoading(false);
     }
@@ -75,12 +75,12 @@ export default function VRisingModLogPage({ params }: { params: Promise<{ server
               className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
             >
               <ArrowLeft size={14} />
-              Admin
+              Админ
             </button>
             <span className="text-muted-foreground/40">/</span>
             <span className="text-sm flex items-center gap-1.5">
               <ClipboardList size={14} className="text-blue-400" />
-              V Rising Mod Log — Server #{serverId}
+              V Rising Журнал модерации — Сервер #{serverId}
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -95,10 +95,10 @@ export default function VRisingModLogPage({ params }: { params: Promise<{ server
           <div>
             <h1 className="text-xl font-bold flex items-center gap-2">
               <ClipboardList size={20} className="text-blue-400" />
-              Moderation Log
+              Журнал модерации
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Last 200 moderation events from the game server.
+              Последние 200 событий модерации с игрового сервера.
             </p>
           </div>
           <button
@@ -107,25 +107,25 @@ export default function VRisingModLogPage({ params }: { params: Promise<{ server
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-sm transition-colors disabled:opacity-50"
           >
             <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-            Refresh
+            Обновить
           </button>
         </div>
 
         {loading ? (
-          <div className="text-center py-16 text-muted-foreground animate-pulse text-sm">Loading...</div>
+          <div className="text-center py-16 text-muted-foreground animate-pulse text-sm">Загрузка...</div>
         ) : events.length === 0 ? (
           <div className="text-center py-16 text-muted-foreground text-sm">
-            No moderation events recorded yet.
+            Нет событий модерации.
           </div>
         ) : (
           <div className="rounded-xl border border-white/10 overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-white/5 text-muted-foreground text-xs uppercase tracking-wide">
-                  <th className="text-left px-4 py-2.5 w-[70px]">Type</th>
-                  <th className="text-left px-4 py-2.5">Player</th>
-                  <th className="text-left px-4 py-2.5">Message</th>
-                  <th className="text-left px-4 py-2.5 w-[160px]">Time</th>
+                  <th className="text-left px-4 py-2.5 w-[80px]">Тип</th>
+                  <th className="text-left px-4 py-2.5">Игрок</th>
+                  <th className="text-left px-4 py-2.5">Сообщение</th>
+                  <th className="text-left px-4 py-2.5 w-[160px]">Время</th>
                 </tr>
               </thead>
               <tbody>
