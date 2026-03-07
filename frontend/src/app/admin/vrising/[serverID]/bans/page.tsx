@@ -16,13 +16,13 @@ function formatExpiry(expiresAt: string | null): string {
   if (isNaN(d.getTime())) return "Навсегда";
   const now = Date.now();
   if (d.getTime() < now) return "Истёк";
-  return d.toLocaleString();
+  return d.toLocaleString("ru-RU", { timeZone: "Europe/Moscow" });
 }
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
-  return d.toLocaleString();
+  return d.toLocaleString("ru-RU", { timeZone: "Europe/Moscow" });
 }
 
 export default function VRisingBansPage({ params }: { params: Promise<{ serverID: string }> }) {

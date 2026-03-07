@@ -341,7 +341,7 @@ export default function VRisingMap({ serverId }: { serverId: number }) {
             })}
 
             {/* ── Players ───────────────────────────────────────────── */}
-            {players.map((player, i) => {
+            {players.filter(p => p.has_position !== false).map((player, i) => {
               const { x, y } = gameToSVG(player.x, player.z, vRisingWorldXMin, vRisingWorldXMax, vRisingWorldZMin, vRisingWorldZMax);
               const col = colorFromString(player.clan || player.name);
               const tip = `${t.vRisingMapPlayer}: ${player.name}${player.clan ? ` [${player.clan}]` : ""}`;

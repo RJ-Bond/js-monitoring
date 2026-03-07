@@ -306,6 +306,100 @@ func GetVRisingModLog(c echo.Context) error {
 	return c.JSON(http.StatusOK, events)
 }
 
+// ── Announcements ─────────────────────────────────────────────────────────────
+
+// GetVRisingAnnouncements GET /api/v1/admin/vrising/:serverID/announcements
+func GetVRisingAnnouncements(c echo.Context) error {
+	serverID, err := strconv.Atoi(c.Param("serverID"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid server id"})
+	}
+	var items []models.VRisingAnnouncement
+	database.DB.Where("server_id = ?", serverID).Order("sort_order ASC, id ASC").Find(&items)
+	return c.JSON(http.StatusOK, items)
+}
+
+// CreateVRisingAnnouncement POST /api/v1/admin/vrising/:serverID/announcements
+func CreateVRisingAnnouncement(c echo.Context) error {
+	serverID, err := strconv.Atoi(c.Param("serverID"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid server id"})
+	}
+	var body struct {
+		Message         string `json:"message"`
+		IntervalSeconds int    `json:"interval_seconds"`
+		IsActive        bool   `json:"is_active"`
+		SortOrder       int    `json:"sort_order"`
+	}
+	if err := c.Bind(&body); err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid body"})
+	}
+	if body.Message == "" {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "message required"})
+	}
+	if body.IntervalSeconds <= 0 {
+		body.IntervalSeconds = 300
+	}
+	item := models.VRisingAnnouncement{
+		ServerID:        uint(serverID),
+		Message:         body.Message,
+		IntervalSeconds: body.IntervalSeconds,
+		IsActive:        body.IsActive,
+		SortOrder:       body.SortOrder,
+	}
+	database.DB.Create(&item)
+	return c.JSON(http.StatusOK, item)
+}
+
+// UpdateVRisingAnnouncement PUT /api/v1/admin/vrising/:serverID/announcements/:id
+func UpdateVRisingAnnouncement(c echo.Context) error {
+	serverID, err := strconv.Atoi(c.Param("serverID"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid server id"})
+	}
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid id"})
+	}
+	var item models.VRisingAnnouncement
+	if err := database.DB.Where("server_id = ? AND id = ?", serverID, id).First(&item).Error; err != nil {
+		return c.JSON(http.StatusNotFound, echo.Map{"error": "not found"})
+	}
+	var body struct {
+		Message         string `json:"message"`
+		IntervalSeconds int    `json:"interval_seconds"`
+		IsActive        bool   `json:"is_active"`
+		SortOrder       int    `json:"sort_order"`
+	}
+	if err := c.Bind(&body); err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid body"})
+	}
+	if body.IntervalSeconds <= 0 {
+		body.IntervalSeconds = 300
+	}
+	database.DB.Model(&item).Updates(map[string]interface{}{
+		"message":          body.Message,
+		"interval_seconds": body.IntervalSeconds,
+		"is_active":        body.IsActive,
+		"sort_order":       body.SortOrder,
+	})
+	return c.JSON(http.StatusOK, item)
+}
+
+// DeleteVRisingAnnouncement DELETE /api/v1/admin/vrising/:serverID/announcements/:id
+func DeleteVRisingAnnouncement(c echo.Context) error {
+	serverID, err := strconv.Atoi(c.Param("serverID"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid server id"})
+	}
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid id"})
+	}
+	database.DB.Where("server_id = ? AND id = ?", serverID, id).Delete(&models.VRisingAnnouncement{})
+	return c.JSON(http.StatusOK, echo.Map{"ok": true})
+}
+
 // UnbanVRisingPlayer DELETE /api/v1/admin/vrising/:serverID/bans/:steamID
 // Queues an unban command AND removes the ban record immediately.
 func UnbanVRisingPlayer(c echo.Context) error {

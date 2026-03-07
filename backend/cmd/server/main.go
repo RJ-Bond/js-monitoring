@@ -196,6 +196,10 @@ func main() {
 	admin.GET("/vrising/:serverID/warnings", api.GetVRisingWarnings)
 	admin.DELETE("/vrising/:serverID/warnings/:id", api.DeleteVRisingWarning)
 	admin.GET("/vrising/:serverID/modlog", api.GetVRisingModLog)
+	admin.GET("/vrising/:serverID/announcements", api.GetVRisingAnnouncements)
+	admin.POST("/vrising/:serverID/announcements", api.CreateVRisingAnnouncement)
+	admin.PUT("/vrising/:serverID/announcements/:id", api.UpdateVRisingAnnouncement)
+	admin.DELETE("/vrising/:serverID/announcements/:id", api.DeleteVRisingAnnouncement)
 
 	// ── Graceful shutdown context ─────────────────────────────────────────────
 	ctx, cancel := context.WithCancel(context.Background())

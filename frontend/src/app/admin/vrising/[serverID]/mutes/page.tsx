@@ -15,13 +15,13 @@ function formatExpiry(expiresAt: string | null): string {
   const d = new Date(expiresAt);
   if (isNaN(d.getTime())) return "Навсегда";
   if (d.getTime() < Date.now()) return "Истёк";
-  return d.toLocaleString();
+  return d.toLocaleString("ru-RU", { timeZone: "Europe/Moscow" });
 }
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
-  return d.toLocaleString();
+  return d.toLocaleString("ru-RU", { timeZone: "Europe/Moscow" });
 }
 
 export default function VRisingMutesPage({ params }: { params: Promise<{ serverID: string }> }) {

@@ -13,7 +13,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 function formatDate(iso: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
-  return d.toLocaleString();
+  return d.toLocaleString("ru-RU", { timeZone: "Europe/Moscow" });
 }
 
 function eventBadge(message: string): { label: string; color: string } {

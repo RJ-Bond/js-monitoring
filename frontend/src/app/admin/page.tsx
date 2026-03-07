@@ -7,7 +7,7 @@ import {
   Newspaper, Server, BarChart2, Users,
   Search, ChevronUp, ChevronDown, ChevronsUpDown,
   Trash2, AlertTriangle, Settings, Eye, EyeOff, ExternalLink, Tag,
-  Bell, KeyRound, ClipboardList, Copy, X, MessageSquare, Download, CheckSquare, Square,
+  Bell, KeyRound, ClipboardList, Copy, X, MessageSquare, Download, CheckSquare, Square, Megaphone,
   CalendarDays, Mail, UserCheck, Lock, Database, Upload,
   LayoutDashboard, Cpu, Wrench, Wifi, Activity,
 } from "lucide-react";
@@ -2128,6 +2128,13 @@ export default function AdminPage() {
                                 className="p-2 rounded-xl text-muted-foreground hover:text-blue-400 hover:bg-blue-400/10 transition-colors"
                               >
                                 <ClipboardList className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => router.push(`/admin/vrising/${s.id}/announcements`)}
+                                title="Авто-объявления"
+                                className="p-2 rounded-xl text-muted-foreground hover:text-amber-400 hover:bg-amber-400/10 transition-colors"
+                              >
+                                <Megaphone className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={() => { setDiscordServerID(s.id); setDiscordServerName(s.title || s.ip); }}

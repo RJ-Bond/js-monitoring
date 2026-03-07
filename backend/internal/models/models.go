@@ -264,6 +264,18 @@ type VRisingWarning struct {
 	CreatedAt time.Time `                                                          json:"created_at"`
 }
 
+// VRisingAnnouncement — авто-объявление, транслируется плагином по заданному интервалу
+type VRisingAnnouncement struct {
+	ID              uint      `gorm:"primaryKey;autoIncrement"    json:"id"`
+	ServerID        uint      `gorm:"index;not null"              json:"server_id"`
+	Message         string    `gorm:"type:text;not null"          json:"message"`
+	IntervalSeconds int       `gorm:"not null;default:300"        json:"interval_seconds"`
+	IsActive        bool      `gorm:"default:true"                json:"is_active"`
+	SortOrder       int       `gorm:"default:0"                   json:"sort_order"`
+	CreatedAt       time.Time `                                   json:"created_at"`
+	UpdatedAt       time.Time `                                   json:"updated_at"`
+}
+
 // PasswordReset — токен для сброса пароля (генерируется администратором)
 type PasswordReset struct {
 	ID        uint      `gorm:"primaryKey;autoIncrement"`

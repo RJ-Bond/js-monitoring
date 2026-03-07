@@ -7,6 +7,7 @@ export interface VRisingPlayer {
   z: number;
   health?: number;
   is_admin?: boolean;
+  has_position?: boolean;
 }
 
 export interface VRisingCastle {
@@ -45,6 +46,17 @@ export interface VRisingWarning {
 export interface VRisingModLogEntry {
   id: number; server_id: number; type: string; player: string;
   channel: string; message: string; event_time: string;
+}
+
+export interface VRisingAnnouncement {
+  id: number;
+  server_id: number;
+  message: string;
+  interval_seconds: number;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface VRisingBan {
@@ -430,4 +442,12 @@ export const api = {
     fetchJSON<{ ok: boolean }>(`/api/v1/admin/vrising/${serverID}/warnings/${id}`, { method: "DELETE" }),
   getVRisingModLog: (serverID: number) =>
     fetchJSON<VRisingModLogEntry[]>(`/api/v1/admin/vrising/${serverID}/modlog`),
+  getVRisingAnnouncements: (serverID: number) =>
+    fetchJSON<VRisingAnnouncement[]>(`/api/v1/admin/vrising/${serverID}/announcements`),
+  createVRisingAnnouncement: (serverID: number, data: { message: string; interval_seconds: number; is_active: boolean; sort_order: number }) =>
+    fetchJSON<VRisingAnnouncement>(`/api/v1/admin/vrising/${serverID}/announcements`, { method: "POST", body: JSON.stringify(data) }),
+  updateVRisingAnnouncement: (serverID: number, id: number, data: { message: string; interval_seconds: number; is_active: boolean; sort_order: number }) =>
+    fetchJSON<VRisingAnnouncement>(`/api/v1/admin/vrising/${serverID}/announcements/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteVRisingAnnouncement: (serverID: number, id: number) =>
+    fetchJSON<{ ok: boolean }>(`/api/v1/admin/vrising/${serverID}/announcements/${id}`, { method: "DELETE" }),
 };

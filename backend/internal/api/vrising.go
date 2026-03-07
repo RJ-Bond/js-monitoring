@@ -139,7 +139,21 @@ func PushVRisingMap(c echo.Context) error {
 	// Возвращаем очередь ожидающих команд и сразу помечаем их как выполненные
 	commands := fetchAndAckCommands(uint(payload.ServerID))
 
-	return c.JSON(http.StatusOK, echo.Map{"ok": true, "commands": commands})
+	// Возвращаем активные объявления
+	var announcements []models.VRisingAnnouncement
+	database.DB.Where("server_id = ? AND is_active = ?", payload.ServerID, true).
+		Order("sort_order ASC, id ASC").Find(&announcements)
+
+	annPayload := make([]map[string]interface{}, 0, len(announcements))
+	for _, a := range announcements {
+		annPayload = append(annPayload, map[string]interface{}{
+			"id":               a.ID,
+			"message":          a.Message,
+			"interval_seconds": a.IntervalSeconds,
+		})
+	}
+
+	return c.JSON(http.StatusOK, echo.Map{"ok": true, "commands": commands, "announcements": annPayload})
 }
 
 // ── Events ────────────────────────────────────────────────────────────────────

@@ -13,7 +13,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 function formatDate(iso: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
-  return d.toLocaleString();
+  return d.toLocaleString("ru-RU", { timeZone: "Europe/Moscow" });
 }
 
 export default function VRisingWarningsPage({ params }: { params: Promise<{ serverID: string }> }) {
