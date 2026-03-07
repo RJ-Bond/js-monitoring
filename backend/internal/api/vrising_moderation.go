@@ -99,6 +99,91 @@ func fetchAndAckCommands(serverID uint) []map[string]interface{} {
 	return result
 }
 
+// syncMutes replaces the stored mute list for a server with what the plugin reported.
+func syncMutes(serverID uint, mutes []VRisingMutePayload) {
+	if len(mutes) == 0 {
+		database.DB.Where("server_id = ?", serverID).Delete(&models.VRisingMute{})
+		return
+	}
+
+	for _, m := range mutes {
+		mutedAt := time.Now()
+		if m.MutedAt > 0 {
+			mutedAt = time.Unix(m.MutedAt, 0)
+		}
+		var expiresAt *time.Time
+		if m.ExpiresAt != nil {
+			t := time.Unix(*m.ExpiresAt, 0)
+			expiresAt = &t
+		}
+
+		var existing models.VRisingMute
+		res := database.DB.Where("server_id = ? AND steam_id = ?", serverID, m.SteamID).First(&existing)
+		if res.Error != nil {
+			database.DB.Create(&models.VRisingMute{
+				ServerID:  serverID,
+				SteamID:   m.SteamID,
+				Name:      m.Name,
+				Reason:    m.Reason,
+				MutedBy:   m.MutedBy,
+				MutedAt:   mutedAt,
+				ExpiresAt: expiresAt,
+			})
+		} else {
+			database.DB.Model(&existing).Updates(map[string]interface{}{
+				"name":       m.Name,
+				"reason":     m.Reason,
+				"muted_by":   m.MutedBy,
+				"muted_at":   mutedAt,
+				"expires_at": expiresAt,
+			})
+		}
+	}
+
+	steamIDs := make([]string, len(mutes))
+	for i, m := range mutes {
+		steamIDs[i] = m.SteamID
+	}
+	database.DB.Where("server_id = ? AND steam_id NOT IN ?", serverID, steamIDs).
+		Delete(&models.VRisingMute{})
+}
+
+// syncWarns replaces the stored warning list for a server.
+func syncWarns(serverID uint, warns []VRisingWarnPayload) {
+	if len(warns) == 0 {
+		database.DB.Where("server_id = ?", serverID).Delete(&models.VRisingWarning{})
+		return
+	}
+
+	for _, w := range warns {
+		warnedAt := time.Now()
+		if w.WarnedAt > 0 {
+			warnedAt = time.Unix(w.WarnedAt, 0)
+		}
+
+		var existing models.VRisingWarning
+		res := database.DB.Where("server_id = ? AND warn_id = ?", serverID, w.ID).First(&existing)
+		if res.Error != nil {
+			database.DB.Create(&models.VRisingWarning{
+				ServerID: serverID,
+				WarnID:   w.ID,
+				SteamID:  w.SteamID,
+				Name:     w.Name,
+				Reason:   w.Reason,
+				WarnedBy: w.WarnedBy,
+				WarnedAt: warnedAt,
+			})
+		}
+	}
+
+	warnIDs := make([]string, len(warns))
+	for i, w := range warns {
+		warnIDs[i] = w.ID
+	}
+	database.DB.Where("server_id = ? AND warn_id NOT IN ?", serverID, warnIDs).
+		Delete(&models.VRisingWarning{})
+}
+
 // ── Admin API endpoints ───────────────────────────────────────────────────────
 
 // GetVRisingBans GET /api/v1/admin/vrising/:serverID/bans
@@ -149,6 +234,76 @@ func QueueVRisingModCommand(c echo.Context) error {
 	database.DB.Create(&cmd)
 
 	return c.JSON(http.StatusOK, echo.Map{"ok": true, "id": cmd.ID})
+}
+
+// GetVRisingMutes GET /api/v1/admin/vrising/:serverID/mutes
+func GetVRisingMutes(c echo.Context) error {
+	serverID, err := strconv.Atoi(c.Param("serverID"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid server id"})
+	}
+	var mutes []models.VRisingMute
+	database.DB.Where("server_id = ?", serverID).Order("muted_at DESC").Find(&mutes)
+	return c.JSON(http.StatusOK, mutes)
+}
+
+// GetVRisingWarnings GET /api/v1/admin/vrising/:serverID/warnings
+func GetVRisingWarnings(c echo.Context) error {
+	serverID, err := strconv.Atoi(c.Param("serverID"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid server id"})
+	}
+	var warns []models.VRisingWarning
+	database.DB.Where("server_id = ?", serverID).Order("warned_at DESC").Find(&warns)
+	return c.JSON(http.StatusOK, warns)
+}
+
+// DeleteVRisingWarning DELETE /api/v1/admin/vrising/:serverID/warnings/:id
+func DeleteVRisingWarning(c echo.Context) error {
+	serverID, err := strconv.Atoi(c.Param("serverID"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid server id"})
+	}
+	warnID := c.Param("id")
+	database.DB.Where("server_id = ? AND id = ?", serverID, warnID).Delete(&models.VRisingWarning{})
+	return c.JSON(http.StatusOK, echo.Map{"ok": true})
+}
+
+// UnmuteVRisingPlayer DELETE /api/v1/admin/vrising/:serverID/mutes/:steamID
+func UnmuteVRisingPlayer(c echo.Context) error {
+	serverID, err := strconv.Atoi(c.Param("serverID"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid server id"})
+	}
+	steamID := c.Param("steamID")
+	if steamID == "" {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "steam_id required"})
+	}
+	database.DB.Where("server_id = ? AND steam_id = ?", serverID, steamID).Delete(&models.VRisingMute{})
+
+	issuedBy, _ := c.Get("username").(string)
+	database.DB.Create(&models.VRisingModCommand{
+		ServerID: uint(serverID),
+		Type:     "unmute",
+		SteamID:  steamID,
+		IssuedBy: issuedBy,
+	})
+
+	return c.JSON(http.StatusOK, echo.Map{"ok": true})
+}
+
+// GetVRisingModLog GET /api/v1/admin/vrising/:serverID/modlog
+// Returns moderation events from VRisingServerEvents (type=moderation).
+func GetVRisingModLog(c echo.Context) error {
+	serverID, err := strconv.Atoi(c.Param("serverID"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid server id"})
+	}
+
+	var events []models.VRisingServerEvent
+	database.DB.Where("server_id = ? AND type = ?", serverID, "moderation").
+		Order("id DESC").Limit(200).Find(&events)
+	return c.JSON(http.StatusOK, events)
 }
 
 // UnbanVRisingPlayer DELETE /api/v1/admin/vrising/:serverID/bans/:steamID

@@ -47,13 +47,35 @@ type VRisingBanPayload struct {
 	ExpiresAt *int64  `json:"expires_at"` // nil = permanent
 }
 
+// VRisingMutePayload — запись мута от плагина
+type VRisingMutePayload struct {
+	SteamID   string `json:"steam_id"`
+	Name      string `json:"name"`
+	Reason    string `json:"reason"`
+	MutedBy   string `json:"muted_by"`
+	MutedAt   int64  `json:"muted_at"`
+	ExpiresAt *int64 `json:"expires_at"`
+}
+
+// VRisingWarnPayload — запись варна от плагина
+type VRisingWarnPayload struct {
+	ID       string `json:"id"`
+	SteamID  string `json:"steam_id"`
+	Name     string `json:"name"`
+	Reason   string `json:"reason"`
+	WarnedBy string `json:"warned_by"`
+	WarnedAt int64  `json:"warned_at"`
+}
+
 // VRisingMapPayload — данные, присылаемые плагином
 type VRisingMapPayload struct {
-	ServerID  int                 `json:"server_id"`
-	Players   []VRisingPlayer     `json:"players"`
-	Castles   []VRisingCastle     `json:"castles"`
-	FreePlots []VRisingFreePlot   `json:"free_plots,omitempty"`
-	Bans      []VRisingBanPayload `json:"bans,omitempty"`
+	ServerID  int                  `json:"server_id"`
+	Players   []VRisingPlayer      `json:"players"`
+	Castles   []VRisingCastle      `json:"castles"`
+	FreePlots []VRisingFreePlot    `json:"free_plots,omitempty"`
+	Bans      []VRisingBanPayload  `json:"bans,omitempty"`
+	Mutes     []VRisingMutePayload `json:"mutes,omitempty"`
+	Warns     []VRisingWarnPayload `json:"warns,omitempty"`
 }
 
 // VRisingMapResponse — ответ на запрос карты с метаинформацией
@@ -109,8 +131,10 @@ func PushVRisingMap(c echo.Context) error {
 		})
 	}
 
-	// Синхронизируем список банов от плагина
+	// Синхронизируем списки от плагина
 	syncBans(uint(payload.ServerID), payload.Bans)
+	syncMutes(uint(payload.ServerID), payload.Mutes)
+	syncWarns(uint(payload.ServerID), payload.Warns)
 
 	// Возвращаем очередь ожидающих команд и сразу помечаем их как выполненные
 	commands := fetchAndAckCommands(uint(payload.ServerID))

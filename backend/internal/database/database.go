@@ -69,5 +69,7 @@ func AutoMigrate() error {
 		&models.VRisingServerEvent{},
 		&models.VRisingBan{},
 		&models.VRisingModCommand{},
+		&models.VRisingMute{},
+		&models.VRisingWarning{},
 	)
 }

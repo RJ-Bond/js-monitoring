@@ -191,6 +191,11 @@ func main() {
 	admin.GET("/vrising/:serverID/bans", api.GetVRisingBans)
 	admin.POST("/vrising/:serverID/mod-command", api.QueueVRisingModCommand)
 	admin.DELETE("/vrising/:serverID/bans/:steamID", api.UnbanVRisingPlayer)
+	admin.GET("/vrising/:serverID/mutes", api.GetVRisingMutes)
+	admin.DELETE("/vrising/:serverID/mutes/:steamID", api.UnmuteVRisingPlayer)
+	admin.GET("/vrising/:serverID/warnings", api.GetVRisingWarnings)
+	admin.DELETE("/vrising/:serverID/warnings/:id", api.DeleteVRisingWarning)
+	admin.GET("/vrising/:serverID/modlog", api.GetVRisingModLog)
 
 	// ── Graceful shutdown context ─────────────────────────────────────────────
 	ctx, cancel := context.WithCancel(context.Background())

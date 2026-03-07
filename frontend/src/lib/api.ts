@@ -32,6 +32,21 @@ export interface VRisingMapData {
   stale_data: boolean;
 }
 
+export interface VRisingMute {
+  id: number; server_id: number; steam_id: string; name: string;
+  reason: string; muted_by: string; muted_at: string; expires_at: string | null;
+}
+
+export interface VRisingWarning {
+  id: number; server_id: number; warn_id: string; steam_id: string; name: string;
+  reason: string; warned_by: string; warned_at: string;
+}
+
+export interface VRisingModLogEntry {
+  id: number; server_id: number; type: string; player: string;
+  channel: string; message: string; event_time: string;
+}
+
 export interface VRisingBan {
   id: number;
   server_id: number;
@@ -405,4 +420,14 @@ export const api = {
     fetchJSON<{ ok: boolean; id: number }>(`/api/v1/admin/vrising/${serverID}/mod-command`, { method: "POST", body: JSON.stringify(data) }),
   unbanPlayer: (serverID: number, steamID: string) =>
     fetchJSON<{ ok: boolean }>(`/api/v1/admin/vrising/${serverID}/bans/${steamID}`, { method: "DELETE" }),
+  getVRisingMutes: (serverID: number) =>
+    fetchJSON<VRisingMute[]>(`/api/v1/admin/vrising/${serverID}/mutes`),
+  unmutePlayer: (serverID: number, steamID: string) =>
+    fetchJSON<{ ok: boolean }>(`/api/v1/admin/vrising/${serverID}/mutes/${steamID}`, { method: "DELETE" }),
+  getVRisingWarnings: (serverID: number) =>
+    fetchJSON<VRisingWarning[]>(`/api/v1/admin/vrising/${serverID}/warnings`),
+  deleteWarning: (serverID: number, id: number) =>
+    fetchJSON<{ ok: boolean }>(`/api/v1/admin/vrising/${serverID}/warnings/${id}`, { method: "DELETE" }),
+  getVRisingModLog: (serverID: number) =>
+    fetchJSON<VRisingModLogEntry[]>(`/api/v1/admin/vrising/${serverID}/modlog`),
 };

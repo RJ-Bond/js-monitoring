@@ -2109,6 +2109,27 @@ export default function AdminPage() {
                                 <Ban className="w-4 h-4" />
                               </button>
                               <button
+                                onClick={() => router.push(`/admin/vrising/${s.id}/mutes`)}
+                                title="Mute List"
+                                className="p-2 rounded-xl text-muted-foreground hover:text-orange-400 hover:bg-orange-400/10 transition-colors"
+                              >
+                                <UserX className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => router.push(`/admin/vrising/${s.id}/warnings`)}
+                                title="Warnings"
+                                className="p-2 rounded-xl text-muted-foreground hover:text-yellow-400 hover:bg-yellow-400/10 transition-colors"
+                              >
+                                <AlertTriangle className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => router.push(`/admin/vrising/${s.id}/modlog`)}
+                                title="Moderation Log"
+                                className="p-2 rounded-xl text-muted-foreground hover:text-blue-400 hover:bg-blue-400/10 transition-colors"
+                              >
+                                <ClipboardList className="w-4 h-4" />
+                              </button>
+                              <button
                                 onClick={() => { setDiscordServerID(s.id); setDiscordServerName(s.title || s.ip); }}
                                 title={t.discordTitle}
                                 className="p-2 rounded-xl text-muted-foreground hover:text-[#5865F2] hover:bg-[#5865F2]/10 transition-colors"
